@@ -172,7 +172,11 @@ CREATE TRIGGER trg_archivia_versione
 -- Rimette insieme le due righe della giornata e fa il conto del secondo turno.
 -- Serve per guardare i dati dal database senza doverli sottrarre a mano.
 -- =========================================================================
-CREATE VIEW public.riepilogo_giornaliero AS
+-- security_invoker = on: senza questa opzione la vista girerebbe con i permessi
+-- del proprietario e scavalcherebbe le policy RLS delle tabelle sottostanti.
+-- Con l'opzione attiva la vista applica i permessi di chi la interroga.
+CREATE VIEW public.riepilogo_giornaliero
+WITH (security_invoker = on) AS
 SELECT
     date,
     COALESCE(MAX(totale_turno) FILTER (WHERE turno = 'mattina' AND compilato), 0)

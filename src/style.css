@@ -1379,6 +1379,11 @@ body {
   border-bottom: 1px solid #E2E8F0;
 }
 
+.doc-shift-total-row small {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .doc-section-divider td {
   background-color: #F8FAFC;
   font-size: 0.82rem;

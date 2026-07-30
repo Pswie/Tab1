@@ -216,6 +216,12 @@ function renderShiftSelector() {
     tab.setAttribute('aria-selected', String(isActive));
   });
 
+  // Il foglio di stampa segue sempre il turno selezionato, non il click sul
+  // pulsante: così anche una stampa da Ctrl+P esce con il solo turno aperto.
+  document.querySelectorAll<HTMLElement>('#document-print-sheet .doc-shift-block').forEach(blocco => {
+    blocco.classList.toggle('is-hidden', blocco.getAttribute('data-shift') !== currentShift);
+  });
+
   // Nel turno mattina il secondo turno non esiste ancora: si mostra un solo
   // totale, e senza numero non c'è un "Turno 1" che rimandi a un turno assente.
   const soloMattina = currentShift === 'mattina';
@@ -740,11 +746,6 @@ function fillPrintDocument() {
   if (docDateDisplay) {
     docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
   }
-
-  // Si stampa solo il turno aperto: il pulsante segue il turno selezionato
-  document.querySelectorAll<HTMLElement>('#document-print-sheet .doc-shift-block').forEach(blocco => {
-    blocco.classList.toggle('is-hidden', blocco.getAttribute('data-shift') !== currentShift);
-  });
 
   const valori: Record<string, number | null> = {
     'totale.turno1': totals.totaleTurnoMattina,
