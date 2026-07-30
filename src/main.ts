@@ -56,6 +56,8 @@ const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTML
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
 const displayTotaleTurnoPranzo = document.getElementById('display-totale-turno-pranzo') as HTMLSpanElement;
 const displayTotaleTurnoSera = document.getElementById('display-totale-turno-sera') as HTMLSpanElement;
+const rowTurnoSera = document.getElementById('row-turno-sera') as HTMLDivElement;
+const labelTurnoPranzo = document.getElementById('label-turno-pranzo') as HTMLSpanElement;
 const displayTotaleGiornata = document.getElementById('display-totale-giornata') as HTMLSpanElement;
 
 const autoSaveBadge = document.getElementById('auto-save-badge') as HTMLDivElement;
@@ -220,6 +222,17 @@ function renderShiftSelector() {
     shiftHint.textContent = currentShift === 'pranzo'
       ? 'Chiusura di metà giornata. Inserisci le letture rilevate a fine turno pranzo.'
       : 'Chiusura di fine giornata: inserisci le letture TOTALI, comprensive del pranzo. Il Turno 2 viene calcolato sottraendo la chiusura di pranzo.';
+  }
+
+  // Durante il pranzo il secondo turno non esiste ancora: si mostra un solo
+  // totale, e senza numero non c'è un "Turno 1" che rimandi a un turno assente.
+  const soloPranzo = currentShift === 'pranzo';
+
+  if (rowTurnoSera) {
+    rowTurnoSera.classList.toggle('is-hidden', soloPranzo);
+  }
+  if (labelTurnoPranzo) {
+    labelTurnoPranzo.textContent = soloPranzo ? 'Totale Turno' : 'Totale Turno 1';
   }
 }
 

@@ -34,7 +34,7 @@ export function sendWebNotification(title: string, body: string): void {
       // `renotify` non è ancora presente nei tipi DOM standard, ma è supportato dai browser
       const options: NotificationOptions & { renotify?: boolean } = {
         body: body,
-        icon: '/favicon.ico', // o icona brand tabaccheria
+        icon: '/icon-192.png',
         tag: 'tabaccheria-note',
         renotify: true
       };

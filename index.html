@@ -3,7 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Tabaccheria - Registro Contabile & Gestione Incassi</title>
+  <title>iNES caffè - Registro Contabile & Gestione Incassi</title>
+
+  <!-- Icone del sito e dell'app installata su telefono -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#E10600" />
+
+  <!-- Avvio a schermo intero quando l'app viene aggiunta alla schermata Home -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="iNES Registro" />
   <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -218,16 +230,18 @@
             </div>
           </div>
 
-          <!-- TOTALI DEI DUE TURNI -->
+          <!-- TOTALI DEI TURNI
+               Nel turno di pranzo il secondo turno non esiste ancora: si mostra
+               una sola riga, senza numerazione. -->
           <div class="totali-turni-block">
             <div class="totale-turno-row">
               <span class="totale-turno-label">
-                Totale Turno 1
-                <em>Chiusura di pranzo</em>
+                <span id="label-turno-pranzo">Totale Turno 1</span>
+                <em id="sublabel-turno-pranzo">Chiusura di pranzo</em>
               </span>
               <span id="display-totale-turno-pranzo" class="totale-turno-value">0,00 €</span>
             </div>
-            <div class="totale-turno-row">
+            <div class="totale-turno-row" id="row-turno-sera">
               <span class="totale-turno-label">
                 Totale Turno 2
                 <em>Lettura serale meno il pranzo</em>

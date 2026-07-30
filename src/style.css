@@ -736,6 +736,10 @@ body {
   color: var(--text-secondary);
 }
 
+.totale-turno-row.is-hidden {
+  display: none;
+}
+
 .totale-turno-value {
   font-family: var(--font-mono);
   font-size: 1.15rem;
