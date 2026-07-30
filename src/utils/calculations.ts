@@ -58,6 +58,15 @@ export function parseInputValue(val: string): number {
 }
 
 /**
+ * Converte un valore numerico nel testo da mostrare nei campi input, usando la
+ * virgola decimale italiana. Lo zero diventa stringa vuota per lasciare il placeholder.
+ */
+export function formatInputValue(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(val) || val === 0) return '';
+  return val.toFixed(2).replace('.', ',');
+}
+
+/**
  * Formatta una data ISO (YYYY-MM-DD) in formato italiano europeo (es: Venerdì 31 Luglio 2026)
  */
 export function formatDateItalian(dateStr: string): string {

@@ -584,6 +584,49 @@ body {
   border-color: var(--ferrari-red);
 }
 
+/* TOGGLE SEGNO ± PER I CAMPI CHE POSSONO ANDARE IN NEGATIVO (es. Sisal)
+   Il tastierino inputmode="decimal" su iOS e Android non espone il tasto meno:
+   questo pulsante permette di invertire il segno con un tocco. */
+.input-with-sign {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-sign-toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-sign-toggle:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.btn-sign-toggle.is-negative {
+  background: #FEF2F2;
+  border-color: #EF4444;
+  color: #B91C1C;
+}
+
+.currency-input.is-negative {
+  color: #B91C1C;
+}
+
 /* BLOCCO MOVIMENTI LOTTO (BOX BIANCO CON ELEGANTI RIGHINI SOTTILI VERDE E ROSSO) */
 .lotto-box-container {
   background-color: #FFFFFF;
@@ -1085,6 +1128,12 @@ body {
   .currency-input {
     font-size: 1.25rem;
     height: 52px;
+  }
+
+  .btn-sign-toggle {
+    height: 52px;
+    width: 44px;
+    font-size: 1.25rem;
   }
 
   .totale-grand-block {

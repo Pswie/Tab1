@@ -5,8 +5,9 @@ import {
   calculateLottoNet, 
   calculateTotaleGiornata, 
   formatCurrency, 
-  formatDateItalian, 
+  formatDateItalian,
   formatDateLocalISO,
+  formatInputValue,
   getMaxAllowedDateString,
   getMinAllowedDateString,
   getTodayDateString,
@@ -36,6 +37,7 @@ const inputPrinter = document.getElementById('input-printer') as HTMLInputElemen
 const inputLottoEntrate = document.getElementById('input-lotto-entrate') as HTMLInputElement;
 const inputLottoUscite = document.getElementById('input-lotto-uscite') as HTMLInputElement;
 const inputFatture = document.getElementById('input-fatture') as HTMLInputElement;
+const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as HTMLButtonElement;
 
 const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTMLSpanElement;
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
@@ -107,6 +109,34 @@ function updateSaveStatusBadge(status: SaveStatus) {
     autoSaveBadge.classList.add('status-saved');
     autoSaveText.textContent = 'Auto-salvataggio attivo';
   }
+}
+
+/**
+ * Sincronizza lo stato visivo del toggle ± con il contenuto attuale del campo Sisal
+ */
+function updateSisalSignState() {
+  const isNegative = inputSisal.value.trim().startsWith('-');
+
+  inputSisal.classList.toggle('is-negative', isNegative);
+
+  if (btnToggleSisalSign) {
+    btnToggleSisalSign.classList.toggle('is-negative', isNegative);
+    btnToggleSisalSign.setAttribute('aria-pressed', String(isNegative));
+  }
+}
+
+/**
+ * Inverte il segno del campo Sisal (a volte la giornata Sisal chiude in negativo).
+ * Agisce sul testo e non sul numero, così la formattazione digitata resta intatta
+ * ed è possibile premere ± a campo vuoto per poi scrivere le cifre.
+ */
+function toggleSisalSign() {
+  const raw = inputSisal.value.trim();
+  inputSisal.value = raw.startsWith('-') ? raw.slice(1) : `-${raw}`;
+
+  updateSisalSignState();
+  inputSisal.focus();
+  triggerAutoSave();
 }
 
 /**
@@ -192,14 +222,14 @@ async function loadDateIntoForm(dateStr: string) {
   const log = await fetchLogByDate(targetDate);
 
   if (log) {
-    inputTabacchi.value = log.tabacchi ? log.tabacchi.toString() : '';
-    inputSisal.value = log.sisal ? log.sisal.toString() : '';
-    inputLis.value = log.lis ? log.lis.toString() : '';
-    inputPrinter.value = log.printer ? log.printer.toString() : '';
-    inputLottoEntrate.value = log.lotto_entrate ? log.lotto_entrate.toString() : '';
-    inputLottoUscite.value = log.lotto_uscite ? log.lotto_uscite.toString() : '';
-    inputFatture.value = log.fatture ? log.fatture.toString() : '';
-    
+    inputTabacchi.value = formatInputValue(log.tabacchi);
+    inputSisal.value = formatInputValue(log.sisal);
+    inputLis.value = formatInputValue(log.lis);
+    inputPrinter.value = formatInputValue(log.printer);
+    inputLottoEntrate.value = formatInputValue(log.lotto_entrate);
+    inputLottoUscite.value = formatInputValue(log.lotto_uscite);
+    inputFatture.value = formatInputValue(log.fatture);
+
     currentChatNotes = log.chat_notes || [];
     currentTodos = log.todos || getDefaultTodos();
   } else {
@@ -216,6 +246,7 @@ async function loadDateIntoForm(dateStr: string) {
   }
 
   updateCalculatedDisplays();
+  updateSisalSignState();
   renderWhatsAppChatNotes();
   renderTodoList();
   updateSaveStatusBadge('idle');
@@ -553,6 +584,13 @@ function setupEventListeners() {
       input.addEventListener('input', triggerAutoSave);
     }
   });
+
+  // Toggle segno ± sul campo Sisal (indispensabile da telefono: il tastierino
+  // decimale di iOS e Android non ha il tasto meno)
+  if (btnToggleSisalSign) {
+    btnToggleSisalSign.addEventListener('click', toggleSisalSign);
+  }
+  inputSisal.addEventListener('input', updateSisalSignState);
 
   // Eventi Chat WhatsApp Note
   waBtnSend.addEventListener('click', sendNewChatNote);

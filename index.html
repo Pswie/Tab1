@@ -112,9 +112,19 @@
             <div class="field-label-group">
               <span class="field-label">Sisal</span>
             </div>
-            <div class="input-currency-wrapper">
-              <span class="currency-symbol">€</span>
-              <input type="text" id="input-sisal" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            <div class="input-with-sign">
+              <button
+                type="button"
+                id="btn-toggle-sisal-sign"
+                class="btn-sign-toggle"
+                aria-pressed="false"
+                aria-label="Inverti il segno del valore Sisal"
+                title="Inverti il segno (per registrare un valore negativo)"
+              >&plusmn;</button>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-sisal" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
             </div>
           </div>
 
