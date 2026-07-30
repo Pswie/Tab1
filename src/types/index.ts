@@ -40,51 +40,40 @@ export interface ShiftValues {
 }
 
 /**
- * Riga del database: le voci dei due turni sono appiattite in colonne separate,
- * i totali sono calcolati dal database (colonne GENERATED).
+ * Riga del database: una per giornata E turno. I totali sono calcolati dal
+ * database (colonne GENERATED).
  */
-export interface DailyLogEntry {
-  id: string;
+export interface ShiftRow extends ShiftValues {
+  id?: string;
   date: string; // YYYY-MM-DD
+  turno: ShiftKey;
   created_at?: string;
   updated_at?: string;
-  user_id?: string;
 
-  mattina_tabacchi: number;
-  mattina_sisal: number;
-  mattina_lis: number;
-  mattina_printer: number;
-  mattina_lotto_entrate: number;
-  mattina_lotto_uscite: number;
-  mattina_fatture: number;
+  totale_turno?: number;
+  lotto_netto?: number;
+  lotto_aggio?: number;
+  compilato?: boolean;
+}
 
-  pomeriggio_tabacchi: number;
-  pomeriggio_sisal: number;
-  pomeriggio_lis: number;
-  pomeriggio_printer: number;
-  pomeriggio_lotto_entrate: number;
-  pomeriggio_lotto_uscite: number;
-  pomeriggio_fatture: number;
-
-  // Colonne calcolate dal database
-  totale_turno_mattina: number;    // Totale Turno 1
-  totale_turno_pomeriggio: number; // Totale Turno 2 (lettura pomeridiana - mattina)
-  totale_giornata: number;         // Totale della giornata
-  lotto_aggio: number;             // 8% delle entrate Lotto della giornata
-  lotto_netto: number;             // Entrate - Uscite Lotto della giornata
-
+/**
+ * Le due righe di una giornata rimesse insieme, più le note che sono
+ * della giornata e non del singolo turno.
+ */
+export interface DayRecord {
+  date: string;
+  mattina: ShiftValues;
+  pomeriggio: ShiftValues;
   notes?: string;
   chat_notes?: NoteItem[];
   todos?: TodoItem[];
 }
 
 /**
- * Dati del form, organizzati per turno invece che appiattiti
+ * Note, chat e task della giornata: vivono in una tabella a parte perché non
+ * appartengono a un turno in particolare.
  */
-export interface LogFormData {
-  date: string;
-  mattina: ShiftValues;
-  pomeriggio: ShiftValues;
+export interface DayExtras {
   notes?: string;
   chat_notes?: NoteItem[];
   todos?: TodoItem[];
@@ -113,7 +102,7 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'saved-local' | 'error';
  * non può far credere che sia sul cloud quando è rimasto solo nel browser.
  */
 export interface SaveResult {
-  entry: DailyLogEntry;
+  record: DayRecord;
   storage: 'supabase' | 'local';
   error?: string;
 }

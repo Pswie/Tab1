@@ -1,5 +1,5 @@
 import './style.css';
-import { LogFormData, NoteItem, SaveStatus, ShiftKey, ShiftValues, TodoItem } from './types';
+import { NoteItem, SaveStatus, ShiftKey, ShiftValues, TodoItem } from './types';
 import {
   calculateDayTotals,
   calculateLottoAggio,
@@ -16,7 +16,7 @@ import {
   getWorkingDateString,
   parseInputValue
 } from './utils/calculations';
-import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate, readShiftValues } from './services/supabase';
+import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
 import { requestNotificationPermission, sendWebNotification } from './utils/notifications';
 
 // State Management
@@ -199,11 +199,8 @@ function syncCurrentShiftFromInputs() {
 /**
  * Costruisce i dati completi della giornata (entrambi i turni)
  */
-function getFormData(): LogFormData {
+function getDayExtras() {
   return {
-    date: selectedDate,
-    mattina: shiftData.mattina,
-    pomeriggio: shiftData.pomeriggio,
     chat_notes: currentChatNotes,
     todos: currentTodos
   };
@@ -284,7 +281,12 @@ function triggerAutoSave() {
 
   saveDebounceTimer = window.setTimeout(async () => {
     try {
-      const result = await autoSaveDailyLog(selectedDate, getFormData());
+      const result = await autoSaveDailyLog(
+        selectedDate,
+        currentShift,
+        shiftData[currentShift],
+        getDayExtras()
+      );
       lastSaveError = result.error;
       updateSaveStatusBadge(result.storage === 'supabase' ? 'saved' : 'saved-local');
       await renderHistorySidebar();
@@ -314,8 +316,8 @@ async function loadDateIntoForm(dateStr: string) {
   const log = await fetchLogByDate(targetDate);
 
   shiftData = {
-    mattina: readShiftValues(log, 'mattina'),
-    pomeriggio: readShiftValues(log, 'pomeriggio')
+    mattina: log ? log.mattina : emptyShiftValues(),
+    pomeriggio: log ? log.pomeriggio : emptyShiftValues()
   };
 
   if (log) {
@@ -529,10 +531,7 @@ async function renderHistorySidebar() {
 
     // I totali arrivano già calcolati dal database, ma in fallback LocalStorage
     // conviene ricalcolarli per non mostrare celle vuote
-    const totals = calculateDayTotals(
-      readShiftValues(log, 'mattina'),
-      readShiftValues(log, 'pomeriggio')
-    );
+    const totals = calculateDayTotals(log.mattina, log.pomeriggio);
 
     return `
       <div class="history-card-item">
@@ -742,10 +741,13 @@ function fillPrintDocument() {
     docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
   }
 
+  // Si stampa solo il turno aperto: il pulsante segue il turno selezionato
+  document.querySelectorAll<HTMLElement>('#document-print-sheet .doc-shift-block').forEach(blocco => {
+    blocco.classList.toggle('is-hidden', blocco.getAttribute('data-shift') !== currentShift);
+  });
+
   const valori: Record<string, number | null> = {
     'totale.turno1': totals.totaleTurnoMattina,
-    // Il turno 2 è una differenza: ha senso solo dopo la chiusura del pomeriggio
-    'totale.turno2': totals.pomeriggioCompilato ? totals.totaleTurnoPomeriggio : null,
     'totale.giornata': totals.totaleGiornata,
 
     'mattina.lotto_netto': calculateLottoNet(mattina.lotto_entrate, mattina.lotto_uscite),

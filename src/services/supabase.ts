@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { DailyLogEntry, LogFormData, SaveResult, ShiftKey, ShiftValues } from '../types';
-import { calculateDayTotals, emptyShiftValues, getEmployeeAllowedDateRange } from '../utils/calculations';
+import { DayExtras, DayRecord, SaveResult, ShiftKey, ShiftRow, ShiftValues } from '../types';
+import { emptyShiftValues, getEmployeeAllowedDateRange } from '../utils/calculations';
 
 // Configurazione variabili d'ambiente Supabase
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -14,29 +14,43 @@ export const supabase = isSupabaseConfigured()
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-const LOCAL_STORAGE_KEY = 'tabaccheria_daily_logs_v2';
+const LOCAL_STORAGE_KEY = 'tabaccheria_daily_logs_v3';
 
 /**
- * Estrae le voci di un turno dalle colonne appiattite della riga
+ * Estrae le sole voci di importo da una riga del database
  */
-export function readShiftValues(entry: DailyLogEntry | null, shift: ShiftKey): ShiftValues {
-  if (!entry) return emptyShiftValues();
+function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
+  if (!row) return emptyShiftValues();
 
   return {
-    tabacchi: entry[`${shift}_tabacchi`] || 0,
-    sisal: entry[`${shift}_sisal`] || 0,
-    lis: entry[`${shift}_lis`] || 0,
-    printer: entry[`${shift}_printer`] || 0,
-    lotto_entrate: entry[`${shift}_lotto_entrate`] || 0,
-    lotto_uscite: entry[`${shift}_lotto_uscite`] || 0,
-    fatture: entry[`${shift}_fatture`] || 0
+    tabacchi: Number(row.tabacchi) || 0,
+    sisal: Number(row.sisal) || 0,
+    lis: Number(row.lis) || 0,
+    printer: Number(row.printer) || 0,
+    lotto_entrate: Number(row.lotto_entrate) || 0,
+    lotto_uscite: Number(row.lotto_uscite) || 0,
+    fatture: Number(row.fatture) || 0
   };
 }
 
 /**
- * Ottiene i dati salvati in LocalStorage (Modalità Demo)
+ * Raggruppa le righe per turno nella giornata corrispondente
  */
-function getLocalLogs(): Record<string, DailyLogEntry> {
+function toDayRecord(date: string, rows: ShiftRow[], extras?: DayExtras): DayRecord {
+  return {
+    date,
+    mattina: toShiftValues(rows.find(r => r.turno === 'mattina')),
+    pomeriggio: toShiftValues(rows.find(r => r.turno === 'pomeriggio')),
+    notes: extras?.notes || '',
+    chat_notes: extras?.chat_notes || [],
+    todos: extras?.todos || []
+  };
+}
+
+/**
+ * Ottiene i dati salvati in LocalStorage (fallback offline)
+ */
+function getLocalLogs(): Record<string, DayRecord> {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
@@ -46,10 +60,7 @@ function getLocalLogs(): Record<string, DailyLogEntry> {
   }
 }
 
-/**
- * Salva i dati in LocalStorage
- */
-function saveLocalLogs(logs: Record<string, DailyLogEntry>): void {
+function saveLocalLogs(logs: Record<string, DayRecord>): void {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(logs));
   } catch (err) {
@@ -60,54 +71,56 @@ function saveLocalLogs(logs: Record<string, DailyLogEntry>): void {
 /**
  * Recupera lo storico consentito per i dipendenti (massimo 2 giorni indietro + oggi)
  */
-export async function fetchEmployeeLogs(): Promise<DailyLogEntry[]> {
+export async function fetchEmployeeLogs(): Promise<DayRecord[]> {
   const allowedDates = getEmployeeAllowedDateRange();
 
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('daily_logs')
-        .select('*')
-        .in('date', allowedDates)
-        .order('date', { ascending: false });
+      const [logsRes, noteRes] = await Promise.all([
+        supabase.from('daily_logs').select('*').in('date', allowedDates),
+        supabase.from('daily_notes').select('*').in('date', allowedDates)
+      ]);
 
-      if (error) {
-        console.warn('Errore lettura Supabase, uso fallback LocalStorage:', error.message);
-      } else if (data) {
-        return data as DailyLogEntry[];
+      if (logsRes.error) {
+        console.warn('Errore lettura Supabase, uso fallback LocalStorage:', logsRes.error.message);
+      } else if (logsRes.data) {
+        const righe = logsRes.data as ShiftRow[];
+        const note = (noteRes.data || []) as Array<DayExtras & { date: string }>;
+
+        const date = Array.from(new Set(righe.map(r => r.date)));
+
+        return date
+          .map(d => toDayRecord(d, righe.filter(r => r.date === d), note.find(n => n.date === d)))
+          .sort((a, b) => b.date.localeCompare(a.date));
       }
     } catch (err) {
       console.warn('Eccezione connessione Supabase, impiego fallback:', err);
     }
   }
 
-  // Fallback LocalStorage per Demo / Sviluppo
+  // Fallback LocalStorage
   const localLogsMap = getLocalLogs();
-  const results: DailyLogEntry[] = [];
 
-  allowedDates.forEach(dateStr => {
-    if (localLogsMap[dateStr]) {
-      results.push(localLogsMap[dateStr]);
-    }
-  });
-
-  return results.sort((a, b) => b.date.localeCompare(a.date));
+  return allowedDates
+    .filter(d => localLogsMap[d])
+    .map(d => localLogsMap[d])
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /**
- * Recupera un singolo registro per data
+ * Recupera una giornata completa (entrambi i turni)
  */
-export async function fetchLogByDate(dateStr: string): Promise<DailyLogEntry | null> {
+export async function fetchLogByDate(dateStr: string): Promise<DayRecord | null> {
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('daily_logs')
-        .select('*')
-        .eq('date', dateStr)
-        .maybeSingle();
+      const [logsRes, noteRes] = await Promise.all([
+        supabase.from('daily_logs').select('*').eq('date', dateStr),
+        supabase.from('daily_notes').select('*').eq('date', dateStr).maybeSingle()
+      ]);
 
-      if (!error && data) {
-        return data as DailyLogEntry;
+      if (!logsRes.error && logsRes.data) {
+        if (logsRes.data.length === 0 && !noteRes.data) return null;
+        return toDayRecord(dateStr, logsRes.data as ShiftRow[], noteRes.data as DayExtras);
       }
     } catch (err) {
       console.warn('Errore lettura singola da Supabase:', err);
@@ -119,47 +132,28 @@ export async function fetchLogByDate(dateStr: string): Promise<DailyLogEntry | n
 }
 
 /**
- * Salva o aggiorna automaticamente la giornata per la data specificata (Upsert)
+ * Salva la chiusura del turno indicato, più le note della giornata.
+ *
+ * Scrive solo la riga del turno che si sta compilando: le due chiusure sono
+ * righe distinte e indipendenti, così modificarne una non tocca mai l'altra.
  */
-export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): Promise<SaveResult> {
-  // Colonne effettivamente scrivibili: id, created_at e tutti i totali sono
-  // generati dal database e vanno esclusi dal payload.
-  const writableColumns = {
+export async function autoSaveDailyLog(
+  dateStr: string,
+  turno: ShiftKey,
+  values: ShiftValues,
+  extras: DayExtras = {}
+): Promise<SaveResult> {
+  // Copia locale aggiornata, usata come fallback e come valore di ritorno
+  const localMap = getLocalLogs();
+  const precedente = localMap[dateStr];
+
+  const record: DayRecord = {
     date: dateStr,
-
-    mattina_tabacchi: formData.mattina.tabacchi,
-    mattina_sisal: formData.mattina.sisal,
-    mattina_lis: formData.mattina.lis,
-    mattina_printer: formData.mattina.printer,
-    mattina_lotto_entrate: formData.mattina.lotto_entrate,
-    mattina_lotto_uscite: formData.mattina.lotto_uscite,
-    mattina_fatture: formData.mattina.fatture,
-
-    pomeriggio_tabacchi: formData.pomeriggio.tabacchi,
-    pomeriggio_sisal: formData.pomeriggio.sisal,
-    pomeriggio_lis: formData.pomeriggio.lis,
-    pomeriggio_printer: formData.pomeriggio.printer,
-    pomeriggio_lotto_entrate: formData.pomeriggio.lotto_entrate,
-    pomeriggio_lotto_uscite: formData.pomeriggio.lotto_uscite,
-    pomeriggio_fatture: formData.pomeriggio.fatture,
-
-    notes: formData.notes || '',
-    chat_notes: formData.chat_notes || [],
-    todos: formData.todos || []
-  };
-
-  // Copia locale con i totali calcolati, usata come fallback e valore di ritorno
-  const totals = calculateDayTotals(formData.mattina, formData.pomeriggio);
-
-  const entry: DailyLogEntry = {
-    ...writableColumns,
-    id: `log-${dateStr}`,
-    created_at: new Date().toISOString(),
-    totale_turno_mattina: totals.totaleTurnoMattina,
-    totale_turno_pomeriggio: totals.totaleTurnoPomeriggio,
-    totale_giornata: totals.totaleGiornata,
-    lotto_aggio: totals.lottoAggio,
-    lotto_netto: totals.lottoNetto
+    mattina: turno === 'mattina' ? values : (precedente?.mattina || emptyShiftValues()),
+    pomeriggio: turno === 'pomeriggio' ? values : (precedente?.pomeriggio || emptyShiftValues()),
+    notes: extras.notes ?? precedente?.notes ?? '',
+    chat_notes: extras.chat_notes ?? precedente?.chat_notes ?? [],
+    todos: extras.todos ?? precedente?.todos ?? []
   };
 
   let motivoFallback = isSupabaseConfigured()
@@ -168,22 +162,30 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
 
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data, error } = await supabase
+      const { error: erroreTurno } = await supabase
         .from('daily_logs')
-        .upsert(writableColumns, { onConflict: 'date' })
-        .select()
-        .single();
+        .upsert({ date: dateStr, turno, ...values }, { onConflict: 'date,turno' });
 
-      if (!error && data) {
-        // Aggiorna anche LocalStorage per coerenza
-        const localMap = getLocalLogs();
-        localMap[dateStr] = data as DailyLogEntry;
+      const { error: erroreNote } = await supabase
+        .from('daily_notes')
+        .upsert({
+          date: dateStr,
+          updated_at: new Date().toISOString(),
+          notes: record.notes,
+          chat_notes: record.chat_notes,
+          todos: record.todos
+        }, { onConflict: 'date' });
+
+      const errore = erroreTurno || erroreNote;
+
+      if (!errore) {
+        localMap[dateStr] = record;
         saveLocalLogs(localMap);
-        return { entry: data as DailyLogEntry, storage: 'supabase' };
-      } else if (error) {
-        motivoFallback = error.message;
-        console.error('Errore upsert Supabase:', error.message);
+        return { record, storage: 'supabase' };
       }
+
+      motivoFallback = errore.message;
+      console.error('Errore upsert Supabase:', errore.message);
     } catch (err) {
       motivoFallback = err instanceof Error ? err.message : String(err);
       console.error('Eccezione salvataggio Supabase:', err);
@@ -191,8 +193,7 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
   }
 
   // Fallback LocalStorage
-  const localMap = getLocalLogs();
-  localMap[dateStr] = entry;
+  localMap[dateStr] = record;
   saveLocalLogs(localMap);
-  return { entry, storage: 'local', error: motivoFallback };
+  return { record, storage: 'local', error: motivoFallback };
 }
