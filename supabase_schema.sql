@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS public.daily_logs (
         (tabacchi + sisal + lis + printer + (lotto_entrate - lotto_uscite)) - fatture
     ) STORED,
     
-    notes TEXT DEFAULT ''
+    notes TEXT DEFAULT '',
+    chat_notes JSONB DEFAULT '[]'::jsonb,
+    todos JSONB DEFAULT '[]'::jsonb
 );
 
 -- 2. Indice per velocizzare la ricerca per Data

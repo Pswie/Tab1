@@ -123,7 +123,9 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
     lotto_netto: lottoNetto,
     fatture: formData.fatture,
     totale_giornata: totaleGiornata,
-    notes: formData.notes || ''
+    notes: formData.notes || '',
+    chat_notes: (formData as any).chat_notes || [],
+    todos: (formData as any).todos || []
   };
 
   if (isSupabaseConfigured() && supabase) {
