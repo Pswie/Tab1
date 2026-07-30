@@ -1,25 +1,35 @@
 import './style.css';
-import { LogFormData, NoteItem, SaveStatus, TodoItem } from './types';
-import { 
-  calculateLottoAggio,
-  calculateLottoNet, 
-  calculateTotaleGiornata, 
-  formatCurrency, 
+import { LogFormData, NoteItem, SaveStatus, ShiftKey, ShiftValues, TodoItem } from './types';
+import {
+  calculateDayTotals,
+  emptyShiftValues,
+  formatCurrency,
   formatDateItalian,
   formatDateLocalISO,
   formatInputValue,
+  getActiveShift,
   getMaxAllowedDateString,
   getMinAllowedDateString,
-  getTodayDateString,
   getTomorrowDateString,
+  getWorkingDateString,
   parseInputValue
 } from './utils/calculations';
-import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
+import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate, readShiftValues } from './services/supabase';
 import { requestNotificationPermission, sendWebNotification } from './utils/notifications';
 
 // State Management
-let selectedDate: string = getTodayDateString();
+// La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
+// 10:00 si sta ancora chiudendo la serata del giorno precedente.
+let selectedDate: string = getWorkingDateString();
+let currentShift: ShiftKey = getActiveShift();
 let saveDebounceTimer: number | null = null;
+let lastSaveError: string | undefined;
+
+// Voci dei due turni della giornata caricata
+let shiftData: Record<ShiftKey, ShiftValues> = {
+  pranzo: emptyShiftValues(),
+  sera: emptyShiftValues()
+};
 
 // In-memory Chat Notes & To-Do State per date
 let currentChatNotes: NoteItem[] = [];
@@ -39,8 +49,13 @@ const inputLottoUscite = document.getElementById('input-lotto-uscite') as HTMLIn
 const inputFatture = document.getElementById('input-fatture') as HTMLInputElement;
 const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as HTMLButtonElement;
 
+const shiftTabs = Array.from(document.querySelectorAll('.shift-tab')) as HTMLButtonElement[];
+const shiftHint = document.getElementById('shift-hint') as HTMLParagraphElement;
+
 const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTMLSpanElement;
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
+const displayTotaleTurnoPranzo = document.getElementById('display-totale-turno-pranzo') as HTMLSpanElement;
+const displayTotaleTurnoSera = document.getElementById('display-totale-turno-sera') as HTMLSpanElement;
 const displayTotaleGiornata = document.getElementById('display-totale-giornata') as HTMLSpanElement;
 
 const autoSaveBadge = document.getElementById('auto-save-badge') as HTMLDivElement;
@@ -97,7 +112,12 @@ function updateSaveStatusBadge(status: SaveStatus) {
     autoSaveText.textContent = 'Salvataggio in corso...';
   } else if (status === 'saved') {
     autoSaveBadge.classList.add('status-saved');
-    autoSaveText.textContent = 'Modifiche salvate ✓';
+    autoSaveText.textContent = 'Salvato sul cloud ✓';
+  } else if (status === 'saved-local') {
+    // Non spacciare per salvato sul cloud un dato rimasto solo nel browser
+    autoSaveBadge.classList.add('status-local');
+    autoSaveText.textContent = 'Salvato solo su questo dispositivo ⚠️';
+    autoSaveBadge.title = lastSaveError || 'Supabase non raggiungibile';
   } else if (status === 'error') {
     autoSaveBadge.style.backgroundColor = '#FEE2E2';
     autoSaveBadge.style.color = '#991B1B';
@@ -137,11 +157,10 @@ function toggleSisalSign() {
 }
 
 /**
- * Legge i dati inseriti nel form
+ * Legge le voci digitate nel form: appartengono sempre al turno selezionato
  */
-function getFormDataFromInputs(): LogFormData {
+function getShiftValuesFromInputs(): ShiftValues {
   return {
-    date: selectedDate,
     tabacchi: parseInputValue(inputTabacchi.value),
     sisal: parseInputValue(inputSisal.value),
     lis: parseInputValue(inputLis.value),
@@ -153,23 +172,95 @@ function getFormDataFromInputs(): LogFormData {
 }
 
 /**
- * Aggiorna i calcoli visivi a schermo (Aggio Lotto 8%, Lotto Netto e Totale Giornata)
+ * Riversa nel form le voci di un turno
+ */
+function applyShiftValuesToInputs(values: ShiftValues) {
+  inputTabacchi.value = formatInputValue(values.tabacchi);
+  inputSisal.value = formatInputValue(values.sisal);
+  inputLis.value = formatInputValue(values.lis);
+  inputPrinter.value = formatInputValue(values.printer);
+  inputLottoEntrate.value = formatInputValue(values.lotto_entrate);
+  inputLottoUscite.value = formatInputValue(values.lotto_uscite);
+  inputFatture.value = formatInputValue(values.fatture);
+
+  updateSisalSignState();
+}
+
+/**
+ * Allinea lo stato in memoria a quanto digitato nel turno corrente
+ */
+function syncCurrentShiftFromInputs() {
+  shiftData[currentShift] = getShiftValuesFromInputs();
+}
+
+/**
+ * Costruisce i dati completi della giornata (entrambi i turni)
+ */
+function getFormData(): LogFormData {
+  return {
+    date: selectedDate,
+    pranzo: shiftData.pranzo,
+    sera: shiftData.sera,
+    chat_notes: currentChatNotes,
+    todos: currentTodos
+  };
+}
+
+/**
+ * Aggiorna il selettore turno e il testo di spiegazione
+ */
+function renderShiftSelector() {
+  shiftTabs.forEach(tab => {
+    const isActive = tab.getAttribute('data-shift') === currentShift;
+    tab.classList.toggle('is-active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+  });
+
+  if (shiftHint) {
+    shiftHint.textContent = currentShift === 'pranzo'
+      ? 'Chiusura di metà giornata. Inserisci le letture rilevate a fine turno pranzo.'
+      : 'Chiusura di fine giornata: inserisci le letture TOTALI, comprensive del pranzo. Il Turno 2 viene calcolato sottraendo la chiusura di pranzo.';
+  }
+}
+
+/**
+ * Aggiorna i calcoli visivi a schermo (Lotto Netto, Aggio 8%, totali dei due turni)
  */
 function updateCalculatedDisplays() {
-  const data = getFormDataFromInputs();
-  const lottoAggio = calculateLottoAggio(data.lotto_entrate);
-  const lottoNetto = calculateLottoNet(data.lotto_entrate, data.lotto_uscite);
-  const totaleGiornata = calculateTotaleGiornata(data);
+  syncCurrentShiftFromInputs();
+  const totals = calculateDayTotals(shiftData.pranzo, shiftData.sera);
 
   if (displayLottoAggio) {
-    displayLottoAggio.textContent = formatCurrency(lottoAggio);
+    displayLottoAggio.textContent = formatCurrency(totals.lottoAggio);
   }
   if (displayLottoNetto) {
-    displayLottoNetto.textContent = formatCurrency(lottoNetto);
+    displayLottoNetto.textContent = formatCurrency(totals.lottoNetto);
+  }
+  if (displayTotaleTurnoPranzo) {
+    displayTotaleTurnoPranzo.textContent = formatCurrency(totals.totaleTurnoPranzo);
+  }
+  if (displayTotaleTurnoSera) {
+    displayTotaleTurnoSera.textContent = totals.seraCompilata
+      ? formatCurrency(totals.totaleTurnoSera)
+      : '—';
   }
   if (displayTotaleGiornata) {
-    displayTotaleGiornata.textContent = formatCurrency(totaleGiornata);
+    displayTotaleGiornata.textContent = formatCurrency(totals.totaleGiornata);
   }
+}
+
+/**
+ * Cambia turno conservando quanto digitato in quello che si sta lasciando
+ */
+function switchShift(shift: ShiftKey) {
+  if (shift === currentShift) return;
+
+  syncCurrentShiftFromInputs();
+  currentShift = shift;
+
+  applyShiftValuesToInputs(shiftData[currentShift]);
+  renderShiftSelector();
+  updateCalculatedDisplays();
 }
 
 /**
@@ -185,13 +276,9 @@ function triggerAutoSave() {
 
   saveDebounceTimer = window.setTimeout(async () => {
     try {
-      const data = getFormDataFromInputs();
-      await autoSaveDailyLog(selectedDate, {
-        ...data,
-        chat_notes: currentChatNotes,
-        todos: currentTodos
-      });
-      updateSaveStatusBadge('saved');
+      const result = await autoSaveDailyLog(selectedDate, getFormData());
+      lastSaveError = result.error;
+      updateSaveStatusBadge(result.storage === 'supabase' ? 'saved' : 'saved-local');
       await renderHistorySidebar();
     } catch (err) {
       console.error('Errore durante l\'auto-salvataggio:', err);
@@ -218,32 +305,22 @@ async function loadDateIntoForm(dateStr: string) {
 
   const log = await fetchLogByDate(targetDate);
 
-  if (log) {
-    inputTabacchi.value = formatInputValue(log.tabacchi);
-    inputSisal.value = formatInputValue(log.sisal);
-    inputLis.value = formatInputValue(log.lis);
-    inputPrinter.value = formatInputValue(log.printer);
-    inputLottoEntrate.value = formatInputValue(log.lotto_entrate);
-    inputLottoUscite.value = formatInputValue(log.lotto_uscite);
-    inputFatture.value = formatInputValue(log.fatture);
+  shiftData = {
+    pranzo: readShiftValues(log, 'pranzo'),
+    sera: readShiftValues(log, 'sera')
+  };
 
+  if (log) {
     currentChatNotes = log.chat_notes || [];
     currentTodos = log.todos || getDefaultTodos();
   } else {
-    inputTabacchi.value = '';
-    inputSisal.value = '';
-    inputLis.value = '';
-    inputPrinter.value = '';
-    inputLottoEntrate.value = '';
-    inputLottoUscite.value = '';
-    inputFatture.value = '';
-    
     currentChatNotes = [];
     currentTodos = getDefaultTodos();
   }
 
+  applyShiftValuesToInputs(shiftData[currentShift]);
+  renderShiftSelector();
   updateCalculatedDisplays();
-  updateSisalSignState();
   renderWhatsAppChatNotes();
   renderTodoList();
   updateSaveStatusBadge('idle');
@@ -441,7 +518,13 @@ async function renderHistorySidebar() {
   historyListContainer.innerHTML = logs.map(log => {
     const isTomorrow = log.date === tomorrowStr;
     const formatted = formatDateItalian(log.date);
-    const aggio = log.lotto_aggio || (log.lotto_entrate * 0.08);
+
+    // I totali arrivano già calcolati dal database, ma in fallback LocalStorage
+    // conviene ricalcolarli per non mostrare celle vuote
+    const totals = calculateDayTotals(
+      readShiftValues(log, 'pranzo'),
+      readShiftValues(log, 'sera')
+    );
 
     return `
       <div class="history-card-item">
@@ -453,16 +536,16 @@ async function renderHistorySidebar() {
         </div>
         <div class="history-metrics-summary">
           <div class="metric-item">
-            Aggio Lotto (8%)
-            <span>${formatCurrency(aggio)}</span>
+            Turno 1 (Pranzo)
+            <span>${formatCurrency(totals.totaleTurnoPranzo)}</span>
           </div>
           <div class="metric-item">
-            Lotto Netto
-            <span>${formatCurrency(log.lotto_netto)}</span>
+            Turno 2 (Sera)
+            <span>${totals.seraCompilata ? formatCurrency(totals.totaleTurnoSera) : '—'}</span>
           </div>
         </div>
         <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-          Totale Giornata: <strong style="color: var(--ferrari-red); font-family: var(--font-mono);">${formatCurrency(log.totale_giornata)}</strong>
+          Totale Giornata: <strong style="color: var(--ferrari-red); font-family: var(--font-mono);">${formatCurrency(totals.totaleGiornata)}</strong>
         </div>
         <div class="history-card-actions">
           <button type="button" class="btn-icon-gear btn-edit-gear" data-date="${log.date}" title="Modifica questa giornata (Rotella)">
@@ -582,6 +665,16 @@ function setupEventListeners() {
     }
   });
 
+  // Cambio turno manuale (pranzo / sera)
+  shiftTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const shift = tab.getAttribute('data-shift') as ShiftKey | null;
+      if (shift === 'pranzo' || shift === 'sera') {
+        switchShift(shift);
+      }
+    });
+  });
+
   // Toggle segno ± sul campo Sisal (indispensabile da telefono: il tastierino
   // decimale di iOS e Android non ha il tasto meno)
   if (btnToggleSisalSign) {
@@ -631,34 +724,41 @@ function setupEventListeners() {
  * Il foglio resta nascosto a schermo e viene reso visibile solo da @media print.
  */
 function fillPrintDocument() {
-  const formData = getFormDataFromInputs();
-  const lottoAggio = calculateLottoAggio(formData.lotto_entrate);
-  const lottoNetto = calculateLottoNet(formData.lotto_entrate, formData.lotto_uscite);
-  const totaleGiornata = calculateTotaleGiornata(formData);
+  syncCurrentShiftFromInputs();
+
+  const { pranzo, sera } = shiftData;
+  const totals = calculateDayTotals(pranzo, sera);
 
   const docDateDisplay = document.getElementById('doc-date-display');
-  const docValTabacchi = document.getElementById('doc-val-tabacchi');
-  const docValSisal = document.getElementById('doc-val-sisal');
-  const docValLis = document.getElementById('doc-val-lis');
-  const docValPrinter = document.getElementById('doc-val-printer');
-  const docValLottoEntrate = document.getElementById('doc-val-lotto-entrate');
-  const docValLottoUscite = document.getElementById('doc-val-lotto-uscite');
-  const docValLottoNetto = document.getElementById('doc-val-lotto-netto');
-  const docValLottoAggio = document.getElementById('doc-val-lotto-aggio');
-  const docValFatture = document.getElementById('doc-val-fatture');
-  const docValTotaleGiornata = document.getElementById('doc-val-totale-giornata');
+  if (docDateDisplay) {
+    docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
+  }
 
-  if (docDateDisplay) docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
-  if (docValTabacchi) docValTabacchi.textContent = formatCurrency(formData.tabacchi);
-  if (docValSisal) docValSisal.textContent = formatCurrency(formData.sisal);
-  if (docValLis) docValLis.textContent = formatCurrency(formData.lis);
-  if (docValPrinter) docValPrinter.textContent = formatCurrency(formData.printer);
-  if (docValLottoEntrate) docValLottoEntrate.textContent = formatCurrency(formData.lotto_entrate);
-  if (docValLottoUscite) docValLottoUscite.textContent = formatCurrency(formData.lotto_uscite);
-  if (docValLottoNetto) docValLottoNetto.innerHTML = `<strong>${formatCurrency(lottoNetto)}</strong>`;
-  if (docValLottoAggio) docValLottoAggio.textContent = formatCurrency(lottoAggio);
-  if (docValFatture) docValFatture.textContent = formatCurrency(formData.fatture);
-  if (docValTotaleGiornata) docValTotaleGiornata.textContent = formatCurrency(totaleGiornata);
+  // Il turno 2 è una differenza: ha senso solo dopo la chiusura serale
+  const turno2 = (voce: keyof ShiftValues) =>
+    totals.seraCompilata ? Number((sera[voce] - pranzo[voce]).toFixed(2)) : null;
+
+  const valori: Record<string, number | null> = {
+    'lotto.netto': totals.lottoNetto,
+    'lotto.aggio': totals.lottoAggio,
+    'totale.turno1': totals.totaleTurnoPranzo,
+    'totale.turno2': totals.seraCompilata ? totals.totaleTurnoSera : null,
+    'totale.giornata': totals.totaleGiornata
+  };
+
+  (Object.keys(pranzo) as Array<keyof ShiftValues>).forEach(voce => {
+    valori[`pranzo.${voce}`] = pranzo[voce];
+    valori[`sera.${voce}`] = totals.seraCompilata ? sera[voce] : null;
+    valori[`turno2.${voce}`] = turno2(voce);
+  });
+
+  document.querySelectorAll<HTMLElement>('#document-print-sheet [data-doc]').forEach(cell => {
+    const chiave = cell.getAttribute('data-doc');
+    if (!chiave) return;
+
+    const valore = valori[chiave];
+    cell.textContent = valore === null || valore === undefined ? '—' : formatCurrency(valore);
+  });
 }
 
 /**

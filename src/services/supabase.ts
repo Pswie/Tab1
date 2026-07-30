@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { DailyLogEntry, LogFormData } from '../types';
-import { calculateLottoAggio, calculateLottoNet, calculateTotaleGiornata, getEmployeeAllowedDateRange } from '../utils/calculations';
+import { DailyLogEntry, LogFormData, SaveResult, ShiftKey, ShiftValues } from '../types';
+import { calculateDayTotals, emptyShiftValues, getEmployeeAllowedDateRange } from '../utils/calculations';
 
 // Configurazione variabili d'ambiente Supabase
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -14,7 +14,24 @@ export const supabase = isSupabaseConfigured()
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-const LOCAL_STORAGE_KEY = 'tabaccheria_daily_logs_v1';
+const LOCAL_STORAGE_KEY = 'tabaccheria_daily_logs_v2';
+
+/**
+ * Estrae le voci di un turno dalle colonne appiattite della riga
+ */
+export function readShiftValues(entry: DailyLogEntry | null, shift: ShiftKey): ShiftValues {
+  if (!entry) return emptyShiftValues();
+
+  return {
+    tabacchi: entry[`${shift}_tabacchi`] || 0,
+    sisal: entry[`${shift}_sisal`] || 0,
+    lis: entry[`${shift}_lis`] || 0,
+    printer: entry[`${shift}_printer`] || 0,
+    lotto_entrate: entry[`${shift}_lotto_entrate`] || 0,
+    lotto_uscite: entry[`${shift}_lotto_uscite`] || 0,
+    fatture: entry[`${shift}_fatture`] || 0
+  };
+}
 
 /**
  * Ottiene i dati salvati in LocalStorage (Modalità Demo)
@@ -41,7 +58,7 @@ function saveLocalLogs(logs: Record<string, DailyLogEntry>): void {
 }
 
 /**
- * Recupera lo storico consentito per i dipendenti (massimo 2 giorni indietro + oggi + domani)
+ * Recupera lo storico consentito per i dipendenti (massimo 2 giorni indietro + oggi)
  */
 export async function fetchEmployeeLogs(): Promise<DailyLogEntry[]> {
   const allowedDates = getEmployeeAllowedDateRange();
@@ -67,7 +84,7 @@ export async function fetchEmployeeLogs(): Promise<DailyLogEntry[]> {
   // Fallback LocalStorage per Demo / Sviluppo
   const localLogsMap = getLocalLogs();
   const results: DailyLogEntry[] = [];
-  
+
   allowedDates.forEach(dateStr => {
     if (localLogsMap[dateStr]) {
       results.push(localLogsMap[dateStr]);
@@ -104,36 +121,50 @@ export async function fetchLogByDate(dateStr: string): Promise<DailyLogEntry | n
 /**
  * Salva o aggiorna automaticamente la giornata per la data specificata (Upsert)
  */
-export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): Promise<DailyLogEntry> {
-  const lottoAggio = calculateLottoAggio(formData.lotto_entrate);
-  const lottoNetto = calculateLottoNet(formData.lotto_entrate, formData.lotto_uscite);
-  const totaleGiornata = calculateTotaleGiornata(formData);
-
-  // Colonne effettivamente scrivibili: id, created_at, lotto_aggio, lotto_netto e
-  // totale_giornata sono generate dal database e vanno escluse dal payload.
+export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): Promise<SaveResult> {
+  // Colonne effettivamente scrivibili: id, created_at e tutti i totali sono
+  // generati dal database e vanno esclusi dal payload.
   const writableColumns = {
     date: dateStr,
-    tabacchi: formData.tabacchi,
-    sisal: formData.sisal,
-    lis: formData.lis,
-    printer: formData.printer,
-    lotto_entrate: formData.lotto_entrate,
-    lotto_uscite: formData.lotto_uscite,
-    fatture: formData.fatture,
+
+    pranzo_tabacchi: formData.pranzo.tabacchi,
+    pranzo_sisal: formData.pranzo.sisal,
+    pranzo_lis: formData.pranzo.lis,
+    pranzo_printer: formData.pranzo.printer,
+    pranzo_lotto_entrate: formData.pranzo.lotto_entrate,
+    pranzo_lotto_uscite: formData.pranzo.lotto_uscite,
+    pranzo_fatture: formData.pranzo.fatture,
+
+    sera_tabacchi: formData.sera.tabacchi,
+    sera_sisal: formData.sera.sisal,
+    sera_lis: formData.sera.lis,
+    sera_printer: formData.sera.printer,
+    sera_lotto_entrate: formData.sera.lotto_entrate,
+    sera_lotto_uscite: formData.sera.lotto_uscite,
+    sera_fatture: formData.sera.fatture,
+
     notes: formData.notes || '',
     chat_notes: formData.chat_notes || [],
     todos: formData.todos || []
   };
 
-  // Copia locale con i valori calcolati, usata come fallback e come valore di ritorno
+  // Copia locale con i totali calcolati, usata come fallback e valore di ritorno
+  const totals = calculateDayTotals(formData.pranzo, formData.sera);
+
   const entry: DailyLogEntry = {
     ...writableColumns,
     id: `log-${dateStr}`,
     created_at: new Date().toISOString(),
-    lotto_aggio: lottoAggio,
-    lotto_netto: lottoNetto,
-    totale_giornata: totaleGiornata
+    totale_turno_pranzo: totals.totaleTurnoPranzo,
+    totale_turno_sera: totals.totaleTurnoSera,
+    totale_giornata: totals.totaleGiornata,
+    lotto_aggio: totals.lottoAggio,
+    lotto_netto: totals.lottoNetto
   };
+
+  let motivoFallback = isSupabaseConfigured()
+    ? undefined
+    : 'Supabase non configurato: mancano VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY';
 
   if (isSupabaseConfigured() && supabase) {
     try {
@@ -148,11 +179,13 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
         const localMap = getLocalLogs();
         localMap[dateStr] = data as DailyLogEntry;
         saveLocalLogs(localMap);
-        return data as DailyLogEntry;
+        return { entry: data as DailyLogEntry, storage: 'supabase' };
       } else if (error) {
+        motivoFallback = error.message;
         console.error('Errore upsert Supabase:', error.message);
       }
     } catch (err) {
+      motivoFallback = err instanceof Error ? err.message : String(err);
       console.error('Eccezione salvataggio Supabase:', err);
     }
   }
@@ -161,5 +194,5 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
   const localMap = getLocalLogs();
   localMap[dateStr] = entry;
   saveLocalLogs(localMap);
-  return entry;
+  return { entry, storage: 'local', error: motivoFallback };
 }

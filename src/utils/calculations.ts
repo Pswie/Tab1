@@ -1,7 +1,107 @@
-import { LogFormData } from '../types';
+import { DayTotals, ShiftKey, ShiftValues } from '../types';
+
+/** Ora in cui si passa dalla chiusura serale del giorno prima a quella di pranzo */
+const ORA_INIZIO_PRANZO = 10;
+
+/** Ora in cui si passa dalla chiusura di pranzo a quella serale */
+const ORA_INIZIO_SERA = 16;
 
 /**
- * Calcola l'Aggio del Lotto: 8% di Lotto Entrate
+ * Gli orari dei turni e le date sono sempre quelli italiani: il fuso del
+ * dispositivo viene ignorato, così un telefono impostato male o in viaggio
+ * non fa aprire il turno sbagliato.
+ */
+const FUSO_ITALIA = 'Europe/Rome';
+
+interface RomeParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+}
+
+/**
+ * Scompone un istante nei suoi valori di calendario italiani
+ */
+function getRomeParts(instant: Date): RomeParts {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: FUSO_ITALIA,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(instant);
+
+  const get = (type: string) => Number(parts.find(p => p.type === type)?.value ?? '0');
+
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour')
+  };
+}
+
+/**
+ * Ora italiana corrente (0-23)
+ */
+export function getItalianHour(instant: Date = new Date()): number {
+  return getRomeParts(instant).hour;
+}
+
+/**
+ * Data di calendario italiana come oggetto Date a mezzanotte locale, così le
+ * somme e sottrazioni di giorni restano semplici e senza sfasamenti.
+ */
+function getItalianCalendarDate(instant: Date = new Date()): Date {
+  const { year, month, day } = getRomeParts(instant);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Data italiana odierna spostata di N giorni, in formato YYYY-MM-DD
+ */
+function italianDateShifted(days: number, instant: Date = new Date()): string {
+  const d = getItalianCalendarDate(instant);
+  d.setDate(d.getDate() + days);
+  return formatDateLocalISO(d);
+}
+
+/**
+ * Restituisce una chiusura vuota
+ */
+export function emptyShiftValues(): ShiftValues {
+  return {
+    tabacchi: 0,
+    sisal: 0,
+    lis: 0,
+    printer: 0,
+    lotto_entrate: 0,
+    lotto_uscite: 0,
+    fatture: 0
+  };
+}
+
+/**
+ * Indica se una chiusura è stata compilata. Serve a distinguere "serale a zero
+ * perché non ancora inserita" da "serale davvero pari a zero": finché la sera è
+ * vuota il totale della giornata resta quello del pranzo.
+ */
+export function isShiftFilled(values: ShiftValues): boolean {
+  return (
+    values.tabacchi !== 0 ||
+    values.sisal !== 0 ||
+    values.lis !== 0 ||
+    values.printer !== 0 ||
+    values.lotto_entrate !== 0 ||
+    values.lotto_uscite !== 0 ||
+    values.fatture !== 0
+  );
+}
+
+/**
+ * Calcola l'Aggio del Lotto: 8% delle entrate
  */
 export function calculateLottoAggio(entrate: number): number {
   const e = isNaN(entrate) ? 0 : entrate;
@@ -9,7 +109,7 @@ export function calculateLottoAggio(entrate: number): number {
 }
 
 /**
- * Calcola il valore netto del Lotto: Lotto Entrate - Lotto Uscite
+ * Calcola il valore netto del Lotto: Entrate - Uscite
  */
 export function calculateLottoNet(entrate: number, uscite: number): number {
   const e = isNaN(entrate) ? 0 : entrate;
@@ -18,20 +118,81 @@ export function calculateLottoNet(entrate: number, uscite: number): number {
 }
 
 /**
- * Calcola il Totale Finale della Giornata:
+ * Totale di una singola lettura:
  * Tabacchi + Sisal + Lis + Printer + Lotto Netto - Fatture
  */
-export function calculateTotaleGiornata(data: LogFormData): number {
-  const tabacchi = isNaN(data.tabacchi) ? 0 : data.tabacchi;
-  const sisal = isNaN(data.sisal) ? 0 : data.sisal;
-  const lis = isNaN(data.lis) ? 0 : data.lis;
-  const printer = isNaN(data.printer) ? 0 : data.printer;
-  const fatture = isNaN(data.fatture) ? 0 : data.fatture;
-  
-  const lottoNetto = calculateLottoNet(data.lotto_entrate, data.lotto_uscite);
+export function calculateShiftReading(values: ShiftValues): number {
+  const safe = (n: number) => (isNaN(n) ? 0 : n);
 
-  const totale = (tabacchi + sisal + lis + printer + lottoNetto) - fatture;
+  const totale =
+    safe(values.tabacchi) +
+    safe(values.sisal) +
+    safe(values.lis) +
+    safe(values.printer) +
+    (safe(values.lotto_entrate) - safe(values.lotto_uscite)) -
+    safe(values.fatture);
+
   return Number(totale.toFixed(2));
+}
+
+/**
+ * Calcola i totali della giornata a partire dalle due chiusure.
+ *
+ * La lettura serale è cumulativa sull'intera giornata, quindi il secondo turno
+ * è la differenza rispetto al pranzo e il totale del giorno coincide con la
+ * lettura serale. Se la sera non è ancora stata compilata, il totale della
+ * giornata è quello del solo turno di pranzo.
+ */
+export function calculateDayTotals(pranzo: ShiftValues, sera: ShiftValues): DayTotals {
+  const seraCompilata = isShiftFilled(sera);
+
+  const totaleTurnoPranzo = calculateShiftReading(pranzo);
+  const letturaSerale = calculateShiftReading(sera);
+
+  const totaleTurnoSera = seraCompilata
+    ? Number((letturaSerale - totaleTurnoPranzo).toFixed(2))
+    : 0;
+
+  const totaleGiornata = seraCompilata ? letturaSerale : totaleTurnoPranzo;
+
+  // Anche le voci Lotto sono letture cumulative: quelle del giorno sono le serali
+  const lottoDelGiorno = seraCompilata ? sera : pranzo;
+
+  return {
+    totaleTurnoPranzo,
+    totaleTurnoSera,
+    totaleGiornata,
+    lottoAggio: calculateLottoAggio(lottoDelGiorno.lotto_entrate),
+    lottoNetto: calculateLottoNet(lottoDelGiorno.lotto_entrate, lottoDelGiorno.lotto_uscite),
+    seraCompilata
+  };
+}
+
+/**
+ * Turno attivo in base all'orario:
+ * - dalle 10:00 alle 16:00 si compila la chiusura di pranzo
+ * - dalle 16:00 alle 10:00 del giorno dopo si compila quella serale
+ */
+export function getActiveShift(now: Date = new Date()): ShiftKey {
+  const hour = getItalianHour(now);
+  return hour >= ORA_INIZIO_PRANZO && hour < ORA_INIZIO_SERA ? 'pranzo' : 'sera';
+}
+
+/**
+ * Giornata su cui si sta lavorando in base all'orario italiano. Prima delle
+ * 10:00 si sta ancora chiudendo la serata precedente, quindi la data è ieri.
+ */
+export function getWorkingDateString(now: Date = new Date()): string {
+  return getItalianHour(now) < ORA_INIZIO_PRANZO
+    ? italianDateShifted(-1, now)
+    : italianDateShifted(0, now);
+}
+
+/**
+ * Etichetta leggibile del turno
+ */
+export function getShiftLabel(shift: ShiftKey): string {
+  return shift === 'pranzo' ? 'Turno Pranzo' : 'Turno Sera';
 }
 
 /**
@@ -73,13 +234,13 @@ export function formatDateItalian(dateStr: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
-  
+
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const day = parseInt(parts[2], 10);
-  
+
   const dateObj = new Date(year, month, day);
-  
+
   const formatted = new Intl.DateTimeFormat('it-IT', {
     weekday: 'long',
     day: 'numeric',
@@ -101,56 +262,36 @@ export function formatDateLocalISO(d: Date): string {
 }
 
 /**
- * Ottiene la data di domani nel formato YYYY-MM-DD locale per il giorno seguente
+ * Data italiana di domani, in formato YYYY-MM-DD
  */
 export function getTomorrowDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return formatDateLocalISO(d);
+  return italianDateShifted(1);
 }
 
 /**
- * Ottiene la data di oggi nel formato YYYY-MM-DD locale
+ * Data italiana di oggi, in formato YYYY-MM-DD
  */
 export function getTodayDateString(): string {
-  return formatDateLocalISO(new Date());
+  return italianDateShifted(0);
 }
 
 /**
- * Ottiene la data minima consentita (max 2 giorni indietro)
+ * Data minima consentita (max 2 giorni indietro)
  */
 export function getMinAllowedDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 2);
-  return formatDateLocalISO(d);
+  return italianDateShifted(-2);
 }
 
 /**
- * Ottiene la data massima consentita (non oltre il giorno corrente)
+ * Data massima consentita (non oltre la giornata italiana corrente)
  */
 export function getMaxAllowedDateString(): string {
-  return formatDateLocalISO(new Date());
+  return italianDateShifted(0);
 }
 
 /**
- * Restituisce l'elenco delle date consentite per i dipendenti (oggi e max 2 giorni fa)
+ * Elenco delle date consentite per i dipendenti (oggi e max 2 giorni fa)
  */
 export function getEmployeeAllowedDateRange(): string[] {
-  const dates: string[] = [];
-  const today = new Date();
-
-  // Oggi (0)
-  dates.push(formatDateLocalISO(today));
-
-  // 1 giorno fa (-1)
-  const minus1 = new Date(today);
-  minus1.setDate(today.getDate() - 1);
-  dates.push(formatDateLocalISO(minus1));
-
-  // 2 giorni fa (-2)
-  const minus2 = new Date(today);
-  minus2.setDate(today.getDate() - 2);
-  dates.push(formatDateLocalISO(minus2));
-
-  return dates;
+  return [italianDateShifted(0), italianDateShifted(-1), italianDateShifted(-2)];
 }
