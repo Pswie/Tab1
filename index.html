@@ -208,9 +208,9 @@
             <span id="display-totale-giornata" class="totale-grand-value">0,00 €</span>
           </div>
 
-          <!-- Action Bar: Print Preview Button -->
+          <!-- Action Bar: Stampa diretta (nessuna anteprima) -->
           <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
-            <button type="button" id="btn-open-latex-modal" class="btn-latex-export">
+            <button type="button" id="btn-print-document" class="btn-latex-export">
               🖨️ Stampa Documento Giornaliero
             </button>
           </div>
@@ -289,96 +289,78 @@
     </div>
   </main>
 
-  <!-- Modal Anteprima Stampa Documento -->
-  <div id="latex-modal" class="modal-overlay">
-    <div class="modal-container" style="max-width: 720px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Anteprima Stampa Documento</h3>
-        <button id="btn-close-latex-modal" class="btn-modal-close">&times;</button>
+  <!-- FOGLIO DOCUMENTO CONTABILE
+       Non viene mai mostrato a schermo: esiste solo per essere stampato,
+       occupa esattamente una pagina A4 e viene compilato al click su Stampa. -->
+  <div id="print-document-host" aria-hidden="true">
+    <div id="document-print-sheet" class="print-document-sheet">
+      <div class="doc-header">
+        <h1 class="doc-brand-title">TABACCHERIA</h1>
+        <h2 class="doc-sub-title">Riepilogo Contabile Incassi Giornalieri</h2>
+        <p id="doc-date-display" class="doc-date-text">Data: --</p>
+        <div class="doc-header-line"></div>
       </div>
-      <div class="modal-body">
-        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-          Di seguito l'anteprimavisiva del documento contabile pronto per la stampa.
-        </p>
 
-        <!-- FOGLIO DOCUMENTO ANTEPRIMA STAMPA -->
-        <div id="document-print-sheet" class="print-document-sheet">
-          <div class="doc-header">
-            <h1 class="doc-brand-title">TABACCHERIA</h1>
-            <h2 class="doc-sub-title">Riepilogo Contabile Incassi Giornalieri</h2>
-            <p id="doc-date-display" class="doc-date-text">Data: --</p>
-            <div class="doc-header-line"></div>
-          </div>
-
-          <table class="doc-table">
-            <thead>
-              <tr>
-                <th>Voce Operativa</th>
-                <th style="text-align: right;">Importo (€)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
-                <td id="doc-val-tabacchi" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr>
-                <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
-                <td id="doc-val-sisal" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr>
-                <td><span class="doc-symbol sym-plus">+</span> Lis</td>
-                <td id="doc-val-lis" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr>
-                <td><span class="doc-symbol sym-plus">+</span> Printer</td>
-                <td id="doc-val-printer" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr class="doc-section-divider">
-                <td colspan="2">MOVIMENTI LOTTO</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
-                <td id="doc-val-lotto-entrate" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr>
-                <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
-                <td id="doc-val-lotto-uscite" class="doc-amount">0,00 €</td>
-              </tr>
-              <tr class="doc-subtotal-row">
-                <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
-                <td id="doc-val-lotto-netto" class="doc-amount"><strong>0,00 €</strong></td>
-              </tr>
-              <tr>
-                <td style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary);">
-                  <em>Aggio stimato Lotto (8% non sommato al totale)</em>
-                </td>
-                <td id="doc-val-lotto-aggio" class="doc-amount" style="font-size: 0.85rem; color: var(--text-secondary);">0,00 €</td>
-              </tr>
-              <tr class="doc-section-divider">
-                <td colspan="2">USCITE E FATTURE</td>
-              </tr>
-              <tr>
-                <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
-                <td id="doc-val-fatture" class="doc-amount">0,00 €</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="doc-grand-total-row">
-                <td><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>
-                <td id="doc-val-totale-giornata" class="doc-total-amount">0,00 €</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <!-- SOLO UN BOTTONE STAMPA -->
-        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
-          <button id="btn-print-doc" class="btn-latex-export" style="font-size: 1rem; padding: 0.75rem 1.75rem;">
-            🖨️ Stampa Documento
-          </button>
-        </div>
-      </div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Voce Operativa</th>
+            <th style="text-align: right;">Importo (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
+            <td id="doc-val-tabacchi" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
+            <td id="doc-val-sisal" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Lis</td>
+            <td id="doc-val-lis" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Printer</td>
+            <td id="doc-val-printer" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">MOVIMENTI LOTTO</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
+            <td id="doc-val-lotto-entrate" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
+            <td id="doc-val-lotto-uscite" class="doc-amount">0,00 €</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+            <td id="doc-val-lotto-netto" class="doc-amount"><strong>0,00 €</strong></td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary);">
+              <em>Aggio stimato Lotto (8% non sommato al totale)</em>
+            </td>
+            <td id="doc-val-lotto-aggio" class="doc-amount" style="font-size: 0.85rem; color: var(--text-secondary);">0,00 €</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">USCITE E FATTURE</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
+            <td id="doc-val-fatture" class="doc-amount">0,00 €</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="doc-grand-total-row">
+            <td><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>
+            <td id="doc-val-totale-giornata" class="doc-total-amount">0,00 €</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   </div>
 

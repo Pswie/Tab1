@@ -60,11 +60,8 @@ const btnAddTodo = document.getElementById('btn-add-todo') as HTMLButtonElement;
 const todoListContainer = document.getElementById('todo-list-container') as HTMLDivElement;
 const todoProgressBadge = document.getElementById('todo-progress-badge') as HTMLSpanElement;
 
-// Modal Elements
-const latexModal = document.getElementById('latex-modal') as HTMLDivElement;
-const btnOpenLatexModal = document.getElementById('btn-open-latex-modal') as HTMLButtonElement;
-const btnCloseLatexModal = document.getElementById('btn-close-latex-modal') as HTMLButtonElement;
-const btnPrintDoc = document.getElementById('btn-print-doc') as HTMLButtonElement;
+// Stampa Documento
+const btnPrintDocument = document.getElementById('btn-print-document') as HTMLButtonElement;
 
 /**
  * Aggiorna i limiti min/max e lo stato attivo/disattivato delle frecce ◄ e ►
@@ -620,56 +617,48 @@ function setupEventListeners() {
     }
   });
 
-  // Modal Anteprima Stampa Documento: Apertura
-  btnOpenLatexModal.addEventListener('click', () => {
-    const formData = getFormDataFromInputs();
-    const lottoAggio = calculateLottoAggio(formData.lotto_entrate);
-    const lottoNetto = calculateLottoNet(formData.lotto_entrate, formData.lotto_uscite);
-    const totaleGiornata = calculateTotaleGiornata(formData);
-
-    const docDateDisplay = document.getElementById('doc-date-display');
-    const docValTabacchi = document.getElementById('doc-val-tabacchi');
-    const docValSisal = document.getElementById('doc-val-sisal');
-    const docValLis = document.getElementById('doc-val-lis');
-    const docValPrinter = document.getElementById('doc-val-printer');
-    const docValLottoEntrate = document.getElementById('doc-val-lotto-entrate');
-    const docValLottoUscite = document.getElementById('doc-val-lotto-uscite');
-    const docValLottoNetto = document.getElementById('doc-val-lotto-netto');
-    const docValLottoAggio = document.getElementById('doc-val-lotto-aggio');
-    const docValFatture = document.getElementById('doc-val-fatture');
-    const docValTotaleGiornata = document.getElementById('doc-val-totale-giornata');
-    if (docDateDisplay) docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
-    if (docValTabacchi) docValTabacchi.textContent = formatCurrency(formData.tabacchi);
-    if (docValSisal) docValSisal.textContent = formatCurrency(formData.sisal);
-    if (docValLis) docValLis.textContent = formatCurrency(formData.lis);
-    if (docValPrinter) docValPrinter.textContent = formatCurrency(formData.printer);
-    if (docValLottoEntrate) docValLottoEntrate.textContent = formatCurrency(formData.lotto_entrate);
-    if (docValLottoUscite) docValLottoUscite.textContent = formatCurrency(formData.lotto_uscite);
-    if (docValLottoNetto) docValLottoNetto.innerHTML = `<strong>${formatCurrency(lottoNetto)}</strong>`;
-    if (docValLottoAggio) docValLottoAggio.textContent = formatCurrency(lottoAggio);
-    if (docValFatture) docValFatture.textContent = formatCurrency(formData.fatture);
-    if (docValTotaleGiornata) docValTotaleGiornata.textContent = formatCurrency(totaleGiornata);
-
-    latexModal.classList.add('is-active');
-  });
-
-  // Modal Chiusura
-  btnCloseLatexModal.addEventListener('click', () => {
-    latexModal.classList.remove('is-active');
-  });
-
-  latexModal.addEventListener('click', (e) => {
-    if (e.target === latexModal) {
-      latexModal.classList.remove('is-active');
-    }
-  });
-
-  // Pulsante Stampa Documento
-  if (btnPrintDoc) {
-    btnPrintDoc.addEventListener('click', () => {
+  // Stampa diretta del documento contabile, senza passare da un'anteprima
+  if (btnPrintDocument) {
+    btnPrintDocument.addEventListener('click', () => {
+      fillPrintDocument();
       window.print();
     });
   }
+}
+
+/**
+ * Compila il foglio contabile con i valori correnti del form.
+ * Il foglio resta nascosto a schermo e viene reso visibile solo da @media print.
+ */
+function fillPrintDocument() {
+  const formData = getFormDataFromInputs();
+  const lottoAggio = calculateLottoAggio(formData.lotto_entrate);
+  const lottoNetto = calculateLottoNet(formData.lotto_entrate, formData.lotto_uscite);
+  const totaleGiornata = calculateTotaleGiornata(formData);
+
+  const docDateDisplay = document.getElementById('doc-date-display');
+  const docValTabacchi = document.getElementById('doc-val-tabacchi');
+  const docValSisal = document.getElementById('doc-val-sisal');
+  const docValLis = document.getElementById('doc-val-lis');
+  const docValPrinter = document.getElementById('doc-val-printer');
+  const docValLottoEntrate = document.getElementById('doc-val-lotto-entrate');
+  const docValLottoUscite = document.getElementById('doc-val-lotto-uscite');
+  const docValLottoNetto = document.getElementById('doc-val-lotto-netto');
+  const docValLottoAggio = document.getElementById('doc-val-lotto-aggio');
+  const docValFatture = document.getElementById('doc-val-fatture');
+  const docValTotaleGiornata = document.getElementById('doc-val-totale-giornata');
+
+  if (docDateDisplay) docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
+  if (docValTabacchi) docValTabacchi.textContent = formatCurrency(formData.tabacchi);
+  if (docValSisal) docValSisal.textContent = formatCurrency(formData.sisal);
+  if (docValLis) docValLis.textContent = formatCurrency(formData.lis);
+  if (docValPrinter) docValPrinter.textContent = formatCurrency(formData.printer);
+  if (docValLottoEntrate) docValLottoEntrate.textContent = formatCurrency(formData.lotto_entrate);
+  if (docValLottoUscite) docValLottoUscite.textContent = formatCurrency(formData.lotto_uscite);
+  if (docValLottoNetto) docValLottoNetto.innerHTML = `<strong>${formatCurrency(lottoNetto)}</strong>`;
+  if (docValLottoAggio) docValLottoAggio.textContent = formatCurrency(lottoAggio);
+  if (docValFatture) docValFatture.textContent = formatCurrency(formData.fatture);
+  if (docValTotaleGiornata) docValTotaleGiornata.textContent = formatCurrency(totaleGiornata);
 }
 
 /**

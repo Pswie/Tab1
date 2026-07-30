@@ -1158,6 +1158,11 @@ body {
    PRINTABLE DOCUMENT SHEET (Full-Scale A4 Print with Symbols & No Border Shrink)
    ========================================================================== */
 
+/* Il foglio non compare mai a schermo: nessuna anteprima, si va dritti in stampa */
+#print-document-host {
+  display: none;
+}
+
 .print-document-sheet {
   background: #FFFFFF;
   border: 1px solid var(--border-pearl);
@@ -1319,58 +1324,52 @@ body {
     color: #121316 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
+    width: 210mm !important;
+    height: auto !important;
     overflow: hidden !important;
   }
 
-  .app-header,
-  .main-wrapper,
-  .hotdog-menu-drawer,
-  .hotdog-backdrop,
-  .modal-header,
-  .modal-body > p,
-  .modal-body > div:last-child {
+  /* Nasconde tutta l'interfaccia tranne il foglio. Elencare i singoli blocchi era
+     fragile: bastava un elemento dimenticato per far uscire una seconda pagina. */
+  body > *:not(#print-document-host) {
     display: none !important;
   }
 
-  .modal-overlay {
-    position: static !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
-    padding: 0 !important;
+  /* Il foglio occupa esattamente una A4 e taglia l'eventuale eccedenza,
+     così la stampa è sempre e solo di una pagina */
+  /* 296mm invece di 297mm: lasciare un millimetro di margine evita che un
+     arrotondamento sub-pixel faccia traboccare il foglio su una seconda pagina */
+  #print-document-host {
     display: block !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .modal-container {
-    box-shadow: none !important;
-    border: none !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    transform: none !important;
-  }
-
-  .modal-body {
-    padding: 0 !important;
+    position: relative !important;
+    width: 210mm !important;
+    height: 296mm !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .print-document-sheet {
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 18mm 20mm !important;
-    margin: 0 auto !important;
+    padding: 16mm 18mm !important;
+    margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
+    height: 100% !important;
     background: #FFFFFF !important;
     box-sizing: border-box !important;
+    overflow: hidden !important;
     page-break-after: avoid !important;
     page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .doc-table, .doc-table tr, .doc-table td, .doc-table th {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
