@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.daily_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE UNIQUE NOT NULL,
-    created_at TIMESTAMP WITH TIMEZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     user_id UUID,
     
     -- Voci Entrate

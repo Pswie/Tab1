@@ -109,30 +109,37 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
   const lottoNetto = calculateLottoNet(formData.lotto_entrate, formData.lotto_uscite);
   const totaleGiornata = calculateTotaleGiornata(formData);
 
-  const entry: DailyLogEntry = {
-    id: `log-${dateStr}`,
+  // Colonne effettivamente scrivibili: id, created_at, lotto_aggio, lotto_netto e
+  // totale_giornata sono generate dal database e vanno escluse dal payload.
+  const writableColumns = {
     date: dateStr,
-    created_at: new Date().toISOString(),
     tabacchi: formData.tabacchi,
     sisal: formData.sisal,
     lis: formData.lis,
     printer: formData.printer,
     lotto_entrate: formData.lotto_entrate,
     lotto_uscite: formData.lotto_uscite,
+    fatture: formData.fatture,
+    notes: formData.notes || '',
+    chat_notes: formData.chat_notes || [],
+    todos: formData.todos || []
+  };
+
+  // Copia locale con i valori calcolati, usata come fallback e come valore di ritorno
+  const entry: DailyLogEntry = {
+    ...writableColumns,
+    id: `log-${dateStr}`,
+    created_at: new Date().toISOString(),
     lotto_aggio: lottoAggio,
     lotto_netto: lottoNetto,
-    fatture: formData.fatture,
-    totale_giornata: totaleGiornata,
-    notes: formData.notes || '',
-    chat_notes: (formData as any).chat_notes || [],
-    todos: (formData as any).todos || []
+    totale_giornata: totaleGiornata
   };
 
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
         .from('daily_logs')
-        .upsert(entry, { onConflict: 'date' })
+        .upsert(writableColumns, { onConflict: 'date' })
         .select()
         .single();
 

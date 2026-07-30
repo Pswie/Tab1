@@ -163,7 +163,7 @@ function triggerAutoSave() {
         ...data,
         chat_notes: currentChatNotes,
         todos: currentTodos
-      } as LogFormData & { chat_notes?: NoteItem[]; todos?: TodoItem[] });
+      });
       updateSaveStatusBadge('saved');
       await renderHistorySidebar();
     } catch (err) {
