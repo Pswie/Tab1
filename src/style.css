@@ -1,0 +1,1353 @@
+/* ==========================================================================
+   TABACCHERIA CASHFLOW & OPERATIONS - HIGH-END AGENCY DESIGN SYSTEM
+   ========================================================================== */
+
+:root {
+  /* Color System */
+  --bg-bone: #FAF9F5;
+  --bg-pearl-warm: #F3F2EC;
+  --surface-card-outer: #FFFFFF;
+  --surface-card-inner: #FDFDFD;
+  --surface-subtle: #F6F5F0;
+  
+  --ferrari-red: #E10600;
+  --ferrari-red-hover: #C50500;
+  --ferrari-red-glow: rgba(225, 6, 0, 0.12);
+  
+  --accent-green-line: #10B981;
+  --accent-green-bg: #ECFDF5;
+  --accent-green-text: #047857;
+
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-pearl: #E6E5E0;
+  --border-strong: #CBD5E1;
+
+  /* Typography System */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Doppelrand Double-Bezel Radii & Shadows */
+  --radius-outer: 20px;
+  --radius-inner: 14px;
+  --radius-sm: 8px;
+  --radius-full: 9999px;
+
+  --shadow-ambient: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
+  --shadow-modal: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
+  --shadow-key: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  /* Fluid Motion Physics */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.18s var(--ease-spring);
+  --transition-normal: 0.32s var(--ease-spring);
+}
+
+/* CSS Reset & Base */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-bone);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   FLOATING GLASS HEADER & BRAND NAVBAR
+   ========================================================================== */
+
+.app-header {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-pearl);
+  padding: 1.1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  transition: var(--transition-normal);
+}
+
+.header-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brand-logo-mark {
+  width: 42px;
+  height: 42px;
+  background-color: var(--ferrari-red);
+  color: #FFFFFF;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.04em;
+  box-shadow: 0 4px 14px var(--ferrari-red-glow);
+}
+
+.brand-title-group h1 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.brand-title-group p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.auto-save-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background-color: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+
+.auto-save-badge.status-saving {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+
+.auto-save-badge.status-saved {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green-text);
+  border-color: #A7F3D0;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.status-saving .status-dot {
+  animation: pulse-dot 1s infinite alternate;
+}
+
+@keyframes pulse-dot {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+/* ==========================================================================
+   HOT-DOG (HAMBURGER 🍔) MENU STYLES
+   ========================================================================== */
+
+.hamburger-btn {
+  display: none; /* Nascosto di default su desktop */
+  background: var(--surface-card-outer);
+  border: 1px solid var(--border-pearl);
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: var(--shadow-key);
+  transition: var(--transition-fast);
+}
+
+.hamburger-btn:hover {
+  background: #FFFFFF;
+  border-color: var(--ferrari-red);
+}
+
+.hamburger-line {
+  width: 20px;
+  height: 2.5px;
+  background-color: var(--text-primary);
+  border-radius: 2px;
+  transition: var(--transition-fast);
+}
+
+.hamburger-btn.is-active .hamburger-line:nth-child(1) {
+  transform: translateY(7.5px) rotate(45deg);
+}
+.hamburger-btn.is-active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+.hamburger-btn.is-active .hamburger-line:nth-child(3) {
+  transform: translateY(-7.5px) rotate(-45deg);
+}
+
+/* Hot-Dog Menu Drawer (Menu a Tendina Superiore) */
+.hotdog-menu-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-bottom: 3px solid var(--ferrari-red);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  z-index: 1000;
+  padding: 1.5rem;
+  transform: translateY(-100%);
+  transition: transform 0.35s var(--ease-spring);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.hotdog-menu-drawer.is-open {
+  transform: translateY(0);
+}
+
+.hotdog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.hotdog-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hotdog-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-pearl);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.btn-close-hotdog {
+  background: var(--bg-pearl-warm);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.btn-close-hotdog:hover {
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+}
+
+.hotdog-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.hotdog-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1rem 1.15rem;
+  background: var(--surface-card-outer);
+  border: 1.5px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  width: 100%;
+}
+
+.hotdog-menu-item:hover, .hotdog-menu-item.active {
+  border-color: var(--ferrari-red);
+  background: #FFF5F5;
+}
+
+.hotdog-icon {
+  font-size: 1.5rem;
+}
+
+.hotdog-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotdog-text strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.hotdog-text span {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   TOP DESKTOP TAB BAR NAVIGATION
+   ========================================================================== */
+
+.app-nav-tabs {
+  background: var(--surface-card-outer);
+  border-bottom: 1px solid var(--border-pearl);
+  padding: 0 2rem;
+}
+
+.nav-tabs-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+}
+
+.nav-tab-item {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 1rem 1.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.nav-tab-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+
+.nav-tab-item.active {
+  color: var(--ferrari-red);
+  border-bottom-color: var(--ferrari-red);
+  font-weight: 800;
+}
+
+.tab-icon {
+  font-size: 1.15rem;
+}
+
+/* Tab Panes */
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+  animation: fadeInTab 0.32s var(--ease-spring);
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   MAIN WRAPPER & DOPPELRAND (DOUBLE-BEZEL) CARD ARCHITECTURE
+   ========================================================================== */
+
+.main-wrapper {
+  max-width: 1100px;
+  margin: 2.25rem auto 4rem auto;
+  padding: 0 1.5rem;
+  width: 100%;
+}
+
+/* Doppelrand Card Enclosure */
+.card-section {
+  background: var(--surface-card-outer);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-outer);
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow-ambient);
+  transition: var(--transition-normal);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Date Selector Box & Hardware Keys (◄ / ►) */
+.date-selector-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface-subtle);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-inner);
+  border: 1px solid var(--border-pearl);
+}
+
+.date-selector-box label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.date-input {
+  border: 1px solid var(--border-pearl);
+  background: #FFFFFF;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.date-input:focus {
+  border-color: var(--ferrari-red);
+}
+
+.date-arrow-btn {
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow-key);
+  transition: var(--transition-fast);
+}
+
+.date-arrow-btn:hover:not(:disabled) {
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+  border-color: var(--ferrari-red);
+  box-shadow: 0 4px 12px var(--ferrari-red-glow);
+}
+
+.date-arrow-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: var(--bg-pearl-warm);
+  color: var(--text-muted);
+  border-color: var(--border-pearl);
+  box-shadow: none;
+}
+
+/* Data Entry Form Grid */
+.entry-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  transition: var(--transition-fast);
+}
+
+.field-item:focus-within {
+  border-color: var(--ferrari-red);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+.field-label-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-label {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.field-subtext {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.input-currency-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.currency-input {
+  width: 170px;
+  height: 48px;
+  padding-left: 2rem;
+  padding-right: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: right;
+  border: 1px solid var(--border-pearl);
+  background: #FFFFFF;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.currency-input:focus {
+  border-color: var(--ferrari-red);
+}
+
+/* BLOCCO MOVIMENTI LOTTO (BOX BIANCO CON ELEGANTI RIGHINI SOTTILI VERDE E ROSSO) */
+.lotto-box-container {
+  background-color: #FFFFFF;
+  border: 1.5px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  box-shadow: var(--shadow-ambient);
+}
+
+.lotto-box-header {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--border-pearl);
+}
+
+/* Lotto Entrate: Righino Verde Sottile Elegante */
+.lotto-field-entrate {
+  border-left: 3.5px solid #10B981 !important;
+  background-color: #FFFFFF !important;
+}
+
+.label-lotto-green {
+  color: #047857 !important;
+  font-weight: 800 !important;
+}
+
+.symbol-lotto-green {
+  color: #10B981 !important;
+}
+
+.input-lotto-green {
+  color: #047857 !important;
+}
+
+.input-lotto-green:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
+}
+
+/* Lotto Uscite: Righino Rosso Sottile Elegante */
+.lotto-field-uscite {
+  border-left: 3.5px solid #EF4444 !important;
+  background-color: #FFFFFF !important;
+}
+
+.label-lotto-red {
+  color: #B91C1C !important;
+  font-weight: 800 !important;
+}
+
+.symbol-lotto-red {
+  color: #EF4444 !important;
+}
+
+.input-lotto-red {
+  color: #B91C1C !important;
+}
+
+.input-lotto-red:focus {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Subtotale Lotto Netto */
+.subtotal-calculated-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background-color: #FFFFFF;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-pearl);
+}
+
+.subtotal-label {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.subtotal-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.lotto-aggio-subtext {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0 0.25rem;
+}
+
+.lotto-aggio-subtext strong {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* BLOCCO TOTALE GIORNATA (ROSSO FERRARI) */
+.totale-grand-block {
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+  border-radius: var(--radius-inner);
+  padding: 1.35rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 8px 24px var(--ferrari-red-glow);
+}
+
+.totale-grand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.totale-grand-value {
+  font-family: var(--font-mono);
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Button Stampa Documento */
+.btn-latex-export {
+  background: #0F172A;
+  color: #FFFFFF;
+  border: none;
+  padding: 0.9rem 1.75rem;
+  border-radius: var(--radius-inner);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+  transition: var(--transition-fast);
+}
+
+.btn-latex-export:hover {
+  background: var(--ferrari-red);
+  box-shadow: 0 6px 20px var(--ferrari-red-glow);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   WHATSAPP CHAT NOTES SECTION
+   ========================================================================== */
+
+.wa-chat-container {
+  background: #E5DDD5;
+  border-radius: var(--radius-inner);
+  padding: 1.25rem;
+  height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--border-pearl);
+}
+
+.wa-bubble {
+  max-width: 80%;
+  padding: 0.65rem 0.95rem;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  line-height: 1.45;
+}
+
+.wa-bubble.bubble-mine {
+  align-self: flex-end;
+  background-color: #E7FCE3;
+  color: #111B21;
+  border-bottom-right-radius: 2px;
+}
+
+.wa-bubble.bubble-other {
+  align-self: flex-start;
+  background-color: #FFFFFF;
+  color: #111B21;
+  border-bottom-left-radius: 2px;
+}
+
+.wa-bubble-author {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #075E54;
+  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.wa-bubble-time {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #667781;
+}
+
+.wa-chat-input-bar {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.wa-chat-text-input {
+  flex: 1;
+  height: 46px;
+  padding: 0 1rem;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.wa-chat-text-input:focus {
+  border-color: #075E54;
+}
+
+.wa-btn-send-message {
+  background-color: #075E54;
+  color: #FFFFFF;
+  border: none;
+  padding: 0 1.25rem;
+  border-radius: var(--radius-inner);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.wa-btn-send-message:hover {
+  background-color: #054C44;
+}
+
+/* Buttons Generic */
+.btn-secondary-action {
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  color: var(--text-primary);
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-inner);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-secondary-action:hover {
+  border-color: var(--ferrari-red);
+  color: var(--ferrari-red);
+}
+
+/* ==========================================================================
+   TASK TO-DO CHECKLIST SECTION
+   ========================================================================== */
+
+.todo-list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.todo-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  transition: var(--transition-fast);
+}
+
+.todo-item-card:hover {
+  border-color: var(--border-strong);
+}
+
+.todo-item-card.completed {
+  opacity: 0.6;
+  background: var(--surface-subtle);
+}
+
+.todo-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.todo-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ferrari-red);
+  cursor: pointer;
+}
+
+.todo-item-card.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.todo-meta-tag {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.btn-todo-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-todo-delete:hover {
+  color: var(--ferrari-red);
+}
+
+/* Badges */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tag-past {
+  background-color: var(--surface-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-pearl);
+}
+
+.tag-tomorrow {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green-text);
+  border: 1px solid #A7F3D0;
+}
+
+/* ==========================================================================
+   MODAL WINDOW & PRINT PREVIEW
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-container {
+  background: #FFFFFF;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-modal);
+  border: 1px solid var(--border-pearl);
+  overflow: hidden;
+  transform: translateY(12px);
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.modal-overlay.is-active .modal-container {
+  transform: translateY(0);
+}
+
+.modal-header {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--border-pearl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-subtle);
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.btn-close-modal {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-close-modal:hover {
+  color: var(--ferrari-red);
+}
+
+.modal-body {
+  padding: 1.75rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ==========================================================================
+   MOBILE HARMONY (SCHERMI < 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .app-nav-tabs {
+    display: none; /* Gestito dal menu Hot-Dog */
+  }
+
+  .main-wrapper {
+    margin: 1rem auto 3rem auto;
+    padding: 0 1rem;
+  }
+
+  .card-section {
+    padding: 1.35rem 1.15rem;
+    border-radius: 18px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .section-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+
+  .brand-title-group h1 {
+    font-size: 1.3rem;
+    font-weight: 800;
+  }
+
+  .date-selector-box {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .date-input {
+    flex: 1;
+    height: 44px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .currency-input {
+    font-size: 1.25rem;
+    height: 52px;
+  }
+
+  .totale-grand-block {
+    padding: 1.35rem;
+  }
+
+  .totale-grand-value {
+    font-size: 1.9rem;
+  }
+
+  .field-item {
+    padding: 1rem 1.15rem;
+  }
+
+  .field-label {
+    font-size: 1.18rem;
+    font-weight: 800;
+  }
+}
+
+/* ==========================================================================
+   PRINTABLE DOCUMENT SHEET (Full-Scale A4 Print with Symbols & No Border Shrink)
+   ========================================================================== */
+
+.print-document-sheet {
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-md);
+  padding: 2.75rem 2.5rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  max-width: 680px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.doc-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.doc-brand-title {
+  font-family: var(--font-mono);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--ferrari-red);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.doc-sub-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.doc-date-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.doc-header-line {
+  height: 3px;
+  background-color: var(--ferrari-red);
+  margin-top: 0.85rem;
+  width: 100%;
+  border-radius: 2px;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+}
+
+.doc-table th, .doc-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #E5E7EB;
+  font-size: 1.02rem;
+}
+
+.doc-table th {
+  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* Simboli + e - solo nel documento di stampa */
+.doc-symbol {
+  display: inline-block;
+  width: 22px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  font-family: var(--font-mono);
+}
+
+.doc-symbol.sym-plus {
+  color: #059669;
+}
+
+.doc-symbol.sym-minus {
+  color: #DC2626;
+}
+
+.doc-symbol.sym-equal {
+  color: #2563EB;
+}
+
+.doc-amount {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.doc-section-divider td {
+  background-color: #F8FAFC;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--accent-green-text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #E2E8F0;
+  border-top: 1px solid #E2E8F0;
+}
+
+.doc-subtotal-row td {
+  background-color: var(--accent-green-bg);
+  border-top: 2px solid var(--accent-green-line);
+  border-bottom: 2px solid var(--accent-green-line);
+  color: var(--accent-green-text);
+  font-weight: 700;
+}
+
+.doc-grand-total-row td {
+  padding: 1.1rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--ferrari-red);
+  border-top: 2px solid var(--ferrari-red);
+  border-bottom: 3.5px double var(--ferrari-red);
+}
+
+.doc-total-amount {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.doc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2rem;
+  border-top: 1px solid #F3F4F6;
+  padding-top: 0.85rem;
+}
+
+/* ==========================================================================
+   FULL A4 PAGE PRINT RULES (@media print)
+   ========================================================================== */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html, body {
+    background: #FFFFFF !important;
+    color: #121316 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .app-header,
+  .main-wrapper,
+  .hotdog-menu-drawer,
+  .hotdog-backdrop,
+  .modal-header,
+  .modal-body > p,
+  .modal-body > div:last-child {
+    display: none !important;
+  }
+
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .modal-container {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    transform: none !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+  }
+
+  .print-document-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 18mm 20mm !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #FFFFFF !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .doc-brand-title {
+    font-size: 2.4rem !important;
+    color: #E10600 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-symbol {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-subtotal-row td {
+    background-color: #ECFDF5 !important;
+    color: #047857 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-grand-total-row td {
+    color: #E10600 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

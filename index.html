@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Tabaccheria - Registro Contabile & Gestione Incassi</title>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- Header App Brandizzato -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-badge">
+        <div class="brand-logo-mark">T</div>
+        <div class="brand-title-group">
+          <h1>Tabaccheria</h1>
+          <p>Registro Incassi Giornalieri</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Hot-Dog Menu Button (Hamburger 🍔) -->
+        <button type="button" id="btn-hamburger-menu" class="hamburger-btn" aria-label="Apri Menu Navigazione">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hot-Dog Menu Drawer (Menu a Tendina in Alto per Mobile) -->
+  <div id="hotdog-menu-drawer" class="hotdog-menu-drawer">
+    <div class="hotdog-menu-header">
+      <span>Menu Navigazione</span>
+      <button type="button" id="btn-close-hotdog" class="btn-close-hotdog" aria-label="Chiudi Menu">&times;</button>
+    </div>
+    <div class="hotdog-menu-items">
+      <button type="button" class="hotdog-menu-item active" data-tab="tab-incassi">
+        <span class="hotdog-icon">📊</span>
+        <div class="hotdog-text">
+          <strong>Incassi Giornalieri</strong>
+          <span>Inserimento dati e stampa A4</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-chat">
+        <span class="hotdog-icon">💬</span>
+        <div class="hotdog-text">
+          <strong>Note Chat WhatsApp</strong>
+          <span>Note di servizio e notifiche push</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-todos">
+        <span class="hotdog-icon">✅</span>
+        <div class="hotdog-text">
+          <strong>Task To-Do</strong>
+          <span>Checklist e controlli punto vendita</span>
+        </div>
+      </button>
+    </div>
+  </div>
+  <div id="hotdog-backdrop" class="hotdog-backdrop"></div>
+
+  <!-- Navigation Bar Desktop & Tablet -->
+  <nav class="app-nav-tabs">
+    <div class="nav-tabs-container">
+      <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
+        <span class="tab-icon">📊</span> Incassi Giornalieri
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-chat">
+        <span class="tab-icon">💬</span> Note Chat WhatsApp
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-todos">
+        <span class="tab-icon">✅</span> Task To-Do
+      </button>
+    </div>
+  </nav>
+
+  <!-- Content Main Wrapper Grid -->
+  <main class="main-wrapper">
+    <!-- TAB 1: INSERIMENTO INCASSI GIORNALIERI -->
+    <div id="tab-incassi" class="tab-pane active">
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Inserimento Dati Giornalieri</span>
+          </div>
+          <!-- Selettore Data Odierna per Dipendenti -->
+          <div class="date-selector-box">
+            <label for="entry-date-input">Data:</label>
+            <input type="date" id="entry-date-input" class="date-input" readonly />
+          </div>
+        </div>
+
+        <form id="daily-log-form" class="entry-form-grid" onsubmit="event.preventDefault();">
+          <!-- Tabacchi -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Tabacchi</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-tabacchi" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- Sisal -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Sisal</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-sisal" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- Lis -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Lis</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-lis" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- Printer -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Printer</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-printer" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- BLOCCO MOVIMENTI LOTTO (BOX BIANCO CON ELEGANTI RIGHINI VERDE ENTRATE E ROSSO USCITE) -->
+          <div class="lotto-box-container">
+            <div class="lotto-box-header">
+              <span>Movimenti Lotto</span>
+            </div>
+
+            <!-- Lotto Entrate (Righino Verde Sottile Elegante) -->
+            <div class="field-item lotto-field-entrate">
+              <div class="field-label-group">
+                <span class="field-label label-lotto-green">Lotto Entrate</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol symbol-lotto-green">€</span>
+                <input type="text" id="input-lotto-entrate" class="currency-input input-lotto-green" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <!-- Lotto Uscite (Righino Rosso Sottile Elegante) -->
+            <div class="field-item lotto-field-uscite">
+              <div class="field-label-group">
+                <span class="field-label label-lotto-red">Lotto Uscite</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol symbol-lotto-red">€</span>
+                <input type="text" id="input-lotto-uscite" class="currency-input input-lotto-red" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <!-- Subtotale Calcolato Lotto Netto -->
+            <div class="subtotal-calculated-row">
+              <span class="subtotal-label">Lotto Netto</span>
+              <span id="display-lotto-netto" class="subtotal-value">0,00 €</span>
+            </div>
+
+            <!-- Aggio Lotto Calcolato (8%) - Messo in piccolo in fondo al box Lotto -->
+            <div class="lotto-aggio-subtext">
+              <span>Aggio stimato Lotto (8% su entrate):</span>
+              <strong id="display-lotto-aggio">0,00 €</strong>
+            </div>
+          </div>
+
+          <!-- Fatture -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Fatture</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-fatture" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- BLOCCO TOTALE FINALE (RIGHINO VERDE + ROSSO FERRARI) -->
+          <div class="totale-grand-block">
+            <span class="totale-grand-title">Totale Giornata</span>
+            <span id="display-totale-giornata" class="totale-grand-value">0,00 €</span>
+          </div>
+
+          <!-- Action Bar: Print Preview Button -->
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+            <button type="button" id="btn-open-latex-modal" class="btn-latex-export">
+              🖨️ Stampa Documento Giornaliero
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <!-- TAB 2: NOTE & COMUNICAZIONI (STILE CHAT WHATSAPP) -->
+    <div id="tab-chat" class="tab-pane">
+      <div class="card-section" style="padding: 1.5rem;">
+        <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <div>
+              <h2 class="section-title" style="font-size: 1.1rem; color: #075E54;">
+                💬 Note & Comunicazioni Turno
+              </h2>
+              <p style="font-size: 0.78rem; color: var(--text-secondary);">Messaggi e note di servizio stile WhatsApp</p>
+            </div>
+            <button type="button" id="btn-request-notifications" class="btn-secondary-action" style="font-size: 0.75rem;">
+              🔔 Attiva Notifiche Push
+            </button>
+          </div>
+        </div>
+
+        <!-- Profilo Autore Nota -->
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; background: var(--bg-pearl-warm); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+          <label for="wa-author-input" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">Il tuo nome/ruolo:</label>
+          <input type="text" id="wa-author-input" class="date-input" style="flex: 1; max-width: 220px;" placeholder="es. Marco (Dipendente)" value="Dipendente" />
+        </div>
+
+        <!-- CONTAINER MESAGGI CHAT STILE WHATSAPP -->
+        <div id="wa-chat-messages" class="wa-chat-container">
+          <!-- Messaggi generati dinamicamente -->
+        </div>
+
+        <!-- CHAT INPUT BAR STILE WHATSAPP -->
+        <div class="wa-chat-input-bar">
+          <input type="text" id="wa-chat-input" class="wa-chat-text-input" placeholder="Scrivi una nota per i colleghi o il prossimo turno..." />
+          <button type="button" id="wa-btn-send" class="wa-btn-send-message">
+            Invia ➔
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: ATTIVITÀ & TASK TO-DO -->
+    <div id="tab-todos" class="tab-pane">
+      <div class="card-section" style="padding: 1.5rem;">
+        <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <div>
+              <h2 class="section-title" style="font-size: 1.1rem; color: var(--text-primary);">
+                ✅ Attività & Task To-Do
+              </h2>
+              <p style="font-size: 0.78rem; color: var(--text-secondary);">Cose da fare e controlli giornalieri del punto vendita</p>
+            </div>
+            <span id="todo-progress-badge" class="badge-tag tag-past" style="font-size: 0.75rem;">
+              0 completate
+            </span>
+          </div>
+        </div>
+
+        <!-- Form Nuovo Task -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+          <input type="text" id="todo-input-text" class="currency-input" style="text-align: left; padding-left: 0.85rem; font-family: var(--font-sans); font-size: 0.9rem;" placeholder="Aggiungi una nuova attività (es. Ricarica rotoli cassa, verifica Sisal...)" />
+          <button type="button" id="btn-add-todo" class="btn-secondary-action" style="white-space: nowrap; font-weight: 700;">
+            + Aggiungi Task
+          </button>
+        </div>
+
+        <!-- LISTA TASK CHECKBOX -->
+        <div id="todo-list-container" class="todo-list-grid">
+          <!-- Task generati dinamicamente -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Anteprima Stampa Documento -->
+  <div id="latex-modal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 720px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Anteprima Stampa Documento</h3>
+        <button id="btn-close-latex-modal" class="btn-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+          Di seguito l'anteprimavisiva del documento contabile pronto per la stampa.
+        </p>
+
+        <!-- FOGLIO DOCUMENTO ANTEPRIMA STAMPA -->
+        <div id="document-print-sheet" class="print-document-sheet">
+          <div class="doc-header">
+            <h1 class="doc-brand-title">TABACCHERIA</h1>
+            <h2 class="doc-sub-title">Riepilogo Contabile Incassi Giornalieri</h2>
+            <p id="doc-date-display" class="doc-date-text">Data: --</p>
+            <div class="doc-header-line"></div>
+          </div>
+
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Voce Operativa</th>
+                <th style="text-align: right;">Importo (€)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
+                <td id="doc-val-tabacchi" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr>
+                <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
+                <td id="doc-val-sisal" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr>
+                <td><span class="doc-symbol sym-plus">+</span> Lis</td>
+                <td id="doc-val-lis" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr>
+                <td><span class="doc-symbol sym-plus">+</span> Printer</td>
+                <td id="doc-val-printer" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr class="doc-section-divider">
+                <td colspan="2">MOVIMENTI LOTTO</td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
+                <td id="doc-val-lotto-entrate" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
+                <td id="doc-val-lotto-uscite" class="doc-amount">0,00 €</td>
+              </tr>
+              <tr class="doc-subtotal-row">
+                <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+                <td id="doc-val-lotto-netto" class="doc-amount"><strong>0,00 €</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary);">
+                  <em>Aggio stimato Lotto (8% non sommato al totale)</em>
+                </td>
+                <td id="doc-val-lotto-aggio" class="doc-amount" style="font-size: 0.85rem; color: var(--text-secondary);">0,00 €</td>
+              </tr>
+              <tr class="doc-section-divider">
+                <td colspan="2">USCITE E FATTURE</td>
+              </tr>
+              <tr>
+                <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
+                <td id="doc-val-fatture" class="doc-amount">0,00 €</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="doc-grand-total-row">
+                <td><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>
+                <td id="doc-val-totale-giornata" class="doc-total-amount">0,00 €</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- SOLO UN BOTTONE STAMPA -->
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button id="btn-print-doc" class="btn-latex-export" style="font-size: 1rem; padding: 0.75rem 1.75rem;">
+            🖨️ Stampa Documento
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entry Script -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
