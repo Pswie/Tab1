@@ -31,12 +31,15 @@ export function sendWebNotification(title: string, body: string): void {
 
   if (Notification.permission === 'granted') {
     try {
-      const notification = new Notification(title, {
+      // `renotify` non è ancora presente nei tipi DOM standard, ma è supportato dai browser
+      const options: NotificationOptions & { renotify?: boolean } = {
         body: body,
         icon: '/favicon.ico', // o icona brand tabaccheria
         tag: 'tabaccheria-note',
         renotify: true
-      });
+      };
+
+      const notification = new Notification(title, options);
 
       notification.onclick = () => {
         window.focus();

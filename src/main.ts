@@ -1,5 +1,5 @@
 import './style.css';
-import { DailyLogEntry, LogFormData, NoteItem, SaveStatus, TodoItem } from './types';
+import { LogFormData, NoteItem, SaveStatus, TodoItem } from './types';
 import { 
   calculateLottoAggio,
   calculateLottoNet, 
@@ -10,14 +10,14 @@ import {
   getMaxAllowedDateString,
   getMinAllowedDateString,
   getTodayDateString,
-  parseInputValue 
+  getTomorrowDateString,
+  parseInputValue
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
 import { requestNotificationPermission, sendWebNotification } from './utils/notifications';
 
 // State Management
 let selectedDate: string = getTodayDateString();
-let currentLog: DailyLogEntry | null = null;
 let saveDebounceTimer: number | null = null;
 
 // In-memory Chat Notes & To-Do State per date
@@ -159,7 +159,7 @@ function triggerAutoSave() {
   saveDebounceTimer = window.setTimeout(async () => {
     try {
       const data = getFormDataFromInputs();
-      currentLog = await autoSaveDailyLog(selectedDate, {
+      await autoSaveDailyLog(selectedDate, {
         ...data,
         chat_notes: currentChatNotes,
         todos: currentTodos
@@ -190,7 +190,6 @@ async function loadDateIntoForm(dateStr: string) {
   updateDateNavBounds();
 
   const log = await fetchLogByDate(targetDate);
-  currentLog = log;
 
   if (log) {
     inputTabacchi.value = log.tabacchi ? log.tabacchi.toString() : '';
@@ -600,6 +599,7 @@ function setupEventListeners() {
     const docValLottoNetto = document.getElementById('doc-val-lotto-netto');
     const docValLottoAggio = document.getElementById('doc-val-lotto-aggio');
     const docValFatture = document.getElementById('doc-val-fatture');
+    const docValTotaleGiornata = document.getElementById('doc-val-totale-giornata');
     if (docDateDisplay) docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
     if (docValTabacchi) docValTabacchi.textContent = formatCurrency(formData.tabacchi);
     if (docValSisal) docValSisal.textContent = formatCurrency(formData.sisal);

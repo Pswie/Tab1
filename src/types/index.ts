@@ -35,6 +35,10 @@ export interface DailyLogEntry {
   todos?: TodoItem[];
 }
 
-export type LogFormData = Omit<DailyLogEntry, 'id' | 'created_at' | 'user_id' | 'lotto_netto' | 'totale_giornata'>;
+// I campi calcolati (aggio, netto, totale) sono derivati in fase di salvataggio, non inseriti dall'utente
+export type LogFormData = Omit<
+  DailyLogEntry,
+  'id' | 'created_at' | 'user_id' | 'lotto_aggio' | 'lotto_netto' | 'totale_giornata'
+>;
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
