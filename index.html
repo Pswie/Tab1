@@ -110,18 +110,14 @@
         <!-- SELETTORE TURNO
              Si apre da solo sul turno corrispondente all'ora, ma resta sempre
              cambiabile a mano per poter correggere una chiusura già fatta. -->
-        <div class="shift-selector" role="tablist" aria-label="Turno di chiusura">
-          <button type="button" class="shift-tab" data-shift="pranzo" role="tab" aria-selected="false">
-            <span class="shift-tab-name">🍝 Turno Pranzo</span>
-            <span class="shift-tab-time">10:00 → 16:00</span>
+        <div class="shift-selector" role="tablist" aria-label="Turno">
+          <button type="button" class="shift-tab" data-shift="mattina" role="tab" aria-selected="false">
+            Turno Mattina
           </button>
-          <button type="button" class="shift-tab" data-shift="sera" role="tab" aria-selected="false">
-            <span class="shift-tab-name">🌙 Turno Sera</span>
-            <span class="shift-tab-time">16:00 → 10:00</span>
+          <button type="button" class="shift-tab" data-shift="pomeriggio" role="tab" aria-selected="false">
+            Turno Pomeriggio
           </button>
         </div>
-
-        <p id="shift-hint" class="shift-hint"></p>
 
         <form id="daily-log-form" class="entry-form-grid" onsubmit="event.preventDefault();">
           <!-- Tabacchi -->
@@ -235,18 +231,12 @@
                una sola riga, senza numerazione. -->
           <div class="totali-turni-block">
             <div class="totale-turno-row">
-              <span class="totale-turno-label">
-                <span id="label-turno-pranzo">Totale Turno 1</span>
-                <em id="sublabel-turno-pranzo">Chiusura di pranzo</em>
-              </span>
-              <span id="display-totale-turno-pranzo" class="totale-turno-value">0,00 €</span>
+              <span class="totale-turno-label" id="label-turno-mattina">Totale Turno 1</span>
+              <span id="display-totale-turno-mattina" class="totale-turno-value">0,00 €</span>
             </div>
-            <div class="totale-turno-row" id="row-turno-sera">
-              <span class="totale-turno-label">
-                Totale Turno 2
-                <em>Lettura serale meno il pranzo</em>
-              </span>
-              <span id="display-totale-turno-sera" class="totale-turno-value">0,00 €</span>
+            <div class="totale-turno-row" id="row-turno-pomeriggio">
+              <span class="totale-turno-label">Totale Turno 2</span>
+              <span id="display-totale-turno-pomeriggio" class="totale-turno-value">0,00 €</span>
             </div>
           </div>
 
@@ -349,88 +339,128 @@
         <div class="doc-header-line"></div>
       </div>
 
-      <!-- Le celle importo sono compilate via data-doc, non una per una via id -->
-      <table class="doc-table doc-table-turni">
+      <!-- TURNO MATTINA -->
+      <div class="doc-shift-title">Turno Mattina</div>
+      <table class="doc-table">
         <thead>
           <tr>
             <th>Voce Operativa</th>
-            <th class="doc-col-amount">Pranzo</th>
-            <th class="doc-col-amount">Sera <small>(cumul.)</small></th>
-            <th class="doc-col-amount">Turno 2</th>
+            <th style="text-align: right;">Importo (&euro;)</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
-            <td class="doc-amount" data-doc="pranzo.tabacchi">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.tabacchi">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.tabacchi">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.tabacchi">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
-            <td class="doc-amount" data-doc="pranzo.sisal">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.sisal">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.sisal">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.sisal">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Lis</td>
-            <td class="doc-amount" data-doc="pranzo.lis">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.lis">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.lis">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.lis">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Printer</td>
-            <td class="doc-amount" data-doc="pranzo.printer">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.printer">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.printer">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.printer">0,00</td>
           </tr>
           <tr class="doc-section-divider">
-            <td colspan="4">MOVIMENTI LOTTO</td>
+            <td colspan="2">MOVIMENTI LOTTO</td>
           </tr>
           <tr>
             <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
-            <td class="doc-amount" data-doc="pranzo.lotto_entrate">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.lotto_entrate">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.lotto_entrate">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.lotto_entrate">0,00</td>
           </tr>
           <tr>
             <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
-            <td class="doc-amount" data-doc="pranzo.lotto_uscite">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.lotto_uscite">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.lotto_uscite">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.lotto_uscite">0,00</td>
           </tr>
           <tr class="doc-subtotal-row">
-            <td colspan="3"><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto della giornata</strong></td>
-            <td class="doc-amount" data-doc="lotto.netto"><strong>0,00 €</strong></td>
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="mattina.lotto_netto"><strong>0,00</strong></td>
           </tr>
           <tr>
-            <td colspan="3" style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary);">
+            <td style="padding-left: 1.25rem;" class="doc-note-row">
               <em>Aggio stimato Lotto (8% non sommato al totale)</em>
             </td>
-            <td class="doc-amount" data-doc="lotto.aggio" style="font-size: 0.85rem; color: var(--text-secondary);">0,00 €</td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_aggio">0,00</td>
           </tr>
           <tr class="doc-section-divider">
-            <td colspan="4">USCITE E FATTURE</td>
+            <td colspan="2">USCITE E FATTURE</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
-            <td class="doc-amount" data-doc="pranzo.fatture">0,00 €</td>
-            <td class="doc-amount" data-doc="sera.fatture">0,00 €</td>
-            <td class="doc-amount doc-amount-derived" data-doc="turno2.fatture">0,00 €</td>
+            <td class="doc-amount" data-doc="mattina.fatture">0,00</td>
           </tr>
         </tbody>
         <tfoot>
           <tr class="doc-shift-total-row">
-            <td colspan="3"><span class="doc-symbol sym-equal">=</span> Totale Turno 1 <small>(pranzo)</small></td>
-            <td class="doc-amount" data-doc="totale.turno1">0,00 €</td>
+            <td><span class="doc-symbol sym-equal">=</span> TOTALE TURNO</td>
+            <td class="doc-amount" data-doc="totale.turno1">0,00</td>
           </tr>
-          <tr class="doc-shift-total-row">
-            <td colspan="3"><span class="doc-symbol sym-equal">=</span> Totale Turno 2 <small>(sera − pranzo)</small></td>
-            <td class="doc-amount" data-doc="totale.turno2">0,00 €</td>
+        </tfoot>
+      </table>
+
+      <!-- TURNO POMERIGGIO -->
+      <div class="doc-shift-title">Turno Pomeriggio</div>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Voce Operativa</th>
+            <th style="text-align: right;">Importo (&euro;)</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
+            <td class="doc-amount" data-doc="pomeriggio.tabacchi">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
+            <td class="doc-amount" data-doc="pomeriggio.sisal">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Lis</td>
+            <td class="doc-amount" data-doc="pomeriggio.lis">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Printer</td>
+            <td class="doc-amount" data-doc="pomeriggio.printer">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">MOVIMENTI LOTTO</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
+            <td class="doc-amount" data-doc="pomeriggio.lotto_entrate">0,00</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
+            <td class="doc-amount" data-doc="pomeriggio.lotto_uscite">0,00</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="pomeriggio.lotto_netto"><strong>0,00</strong></td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;" class="doc-note-row">
+              <em>Aggio stimato Lotto (8% non sommato al totale)</em>
+            </td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_aggio">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">USCITE E FATTURE</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
+            <td class="doc-amount" data-doc="pomeriggio.fatture">0,00</td>
+          </tr>
+        </tbody>
+        <tfoot>
           <tr class="doc-grand-total-row">
-            <td colspan="3"><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>
-            <td class="doc-total-amount" data-doc="totale.giornata">0,00 €</td>
+            <td><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>
+            <td class="doc-total-amount" data-doc="totale.giornata">0,00</td>
           </tr>
         </tfoot>
       </table>

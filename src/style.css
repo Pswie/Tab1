@@ -642,19 +642,20 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.6rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 1.25rem;
 }
 
 .shift-tab {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0.75rem 0.5rem;
+  justify-content: center;
+  padding: 0.8rem 0.5rem;
   background: var(--surface-card-inner);
   border: 1.5px solid var(--border-pearl);
   border-radius: var(--radius-inner);
   font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 800;
   color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -665,39 +666,11 @@ body {
   border-color: var(--border-strong);
 }
 
-.shift-tab-name {
-  font-size: 0.98rem;
-  font-weight: 800;
-}
-
-.shift-tab-time {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-}
-
 .shift-tab.is-active {
   background: #FFFFFF;
   border-color: var(--ferrari-red);
   color: var(--text-primary);
   box-shadow: 0 0 0 3px var(--ferrari-red-glow);
-}
-
-.shift-tab.is-active .shift-tab-time {
-  color: var(--ferrari-red);
-}
-
-.shift-hint {
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  background: var(--surface-subtle);
-  border-left: 3px solid var(--accent-green-line);
-  padding: 0.6rem 0.85rem;
-  border-radius: var(--radius-sm);
-  margin-bottom: 1.25rem;
 }
 
 /* ==========================================================================
@@ -722,18 +695,9 @@ body {
 }
 
 .totale-turno-label {
-  display: flex;
-  flex-direction: column;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.totale-turno-label em {
-  font-style: normal;
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .totale-turno-row.is-hidden {
@@ -1383,45 +1347,31 @@ body {
   font-weight: 600;
 }
 
-/* Tabella a tre colonne di importi: pranzo, lettura serale cumulativa e turno 2 */
-.doc-col-amount {
-  text-align: right;
+/* Titolo che separa i due turni nel documento stampato */
+.doc-shift-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ferrari-red);
+  border-bottom: 2px solid var(--ferrari-red);
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.5rem;
 }
 
-.doc-col-amount small {
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.doc-table-turni th,
-.doc-table-turni td {
-  padding: 0.5rem 0.55rem;
-  font-size: 0.86rem;
-}
-
-.doc-table-turni .doc-amount {
-  font-size: 0.88rem;
-  white-space: nowrap;
-}
-
-/* La colonna Turno 2 è un valore derivato: si distingue dalle letture inserite */
-.doc-amount-derived {
-  color: var(--accent-green-text);
-  font-weight: 700;
+/* Riga dell'aggio: informativa, non entra nei totali */
+.doc-note-row {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
 .doc-shift-total-row td {
-  padding: 0.6rem 0.55rem;
-  font-size: 0.92rem;
-  font-weight: 700;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+  font-weight: 800;
   background-color: #F8FAFC;
-  border-top: 1px solid #E2E8F0;
-}
-
-.doc-shift-total-row small {
-  font-weight: 600;
-  color: var(--text-secondary);
+  border-top: 2px solid var(--text-primary);
+  border-bottom: 1px solid #E2E8F0;
 }
 
 .doc-section-divider td {
@@ -1534,6 +1484,90 @@ body {
   .doc-table, .doc-table tr, .doc-table td, .doc-table th {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* COMPATTAZIONE PER I DUE TURNI
+     Il foglio riporta due prospetti completi, non uno: con le spaziature
+     pensate per un turno solo il secondo finirebbe fuori pagina. Il documento
+     non viene mai mostrato a schermo, quindi queste misure valgono solo qui. */
+  .doc-header {
+    margin-bottom: 0.7rem !important;
+  }
+
+  .doc-brand-title {
+    font-size: 1.85rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+
+  .doc-sub-title {
+    font-size: 0.92rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+
+  .doc-date-text {
+    font-size: 0.78rem !important;
+  }
+
+  .doc-header-line {
+    height: 2px !important;
+    margin-top: 0.4rem !important;
+  }
+
+  .doc-shift-title {
+    font-size: 0.8rem !important;
+    margin-top: 0.75rem !important;
+    margin-bottom: 0.25rem !important;
+    padding-bottom: 0.15rem !important;
+  }
+
+  .doc-table {
+    margin-bottom: 0.3rem !important;
+  }
+
+  .doc-table th,
+  .doc-table td {
+    padding: 0.22rem 0.7rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .doc-table th {
+    font-size: 0.7rem !important;
+  }
+
+  .doc-amount {
+    font-size: 0.84rem !important;
+  }
+
+  .doc-symbol {
+    width: 16px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .doc-section-divider td {
+    padding: 0.18rem 0.7rem !important;
+    font-size: 0.66rem !important;
+  }
+
+  .doc-note-row {
+    font-size: 0.66rem !important;
+  }
+
+  .doc-shift-total-row td {
+    padding: 0.3rem 0.7rem !important;
+    font-size: 0.88rem !important;
+  }
+
+  .doc-grand-total-row td {
+    padding: 0.45rem 0.7rem !important;
+    font-size: 1rem !important;
+  }
+
+  .doc-total-amount {
+    font-size: 1.25rem !important;
+  }
+
+  .print-document-sheet {
+    padding: 12mm 14mm !important;
   }
 
   .doc-brand-title {

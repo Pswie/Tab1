@@ -127,21 +127,21 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
   const writableColumns = {
     date: dateStr,
 
-    pranzo_tabacchi: formData.pranzo.tabacchi,
-    pranzo_sisal: formData.pranzo.sisal,
-    pranzo_lis: formData.pranzo.lis,
-    pranzo_printer: formData.pranzo.printer,
-    pranzo_lotto_entrate: formData.pranzo.lotto_entrate,
-    pranzo_lotto_uscite: formData.pranzo.lotto_uscite,
-    pranzo_fatture: formData.pranzo.fatture,
+    mattina_tabacchi: formData.mattina.tabacchi,
+    mattina_sisal: formData.mattina.sisal,
+    mattina_lis: formData.mattina.lis,
+    mattina_printer: formData.mattina.printer,
+    mattina_lotto_entrate: formData.mattina.lotto_entrate,
+    mattina_lotto_uscite: formData.mattina.lotto_uscite,
+    mattina_fatture: formData.mattina.fatture,
 
-    sera_tabacchi: formData.sera.tabacchi,
-    sera_sisal: formData.sera.sisal,
-    sera_lis: formData.sera.lis,
-    sera_printer: formData.sera.printer,
-    sera_lotto_entrate: formData.sera.lotto_entrate,
-    sera_lotto_uscite: formData.sera.lotto_uscite,
-    sera_fatture: formData.sera.fatture,
+    pomeriggio_tabacchi: formData.pomeriggio.tabacchi,
+    pomeriggio_sisal: formData.pomeriggio.sisal,
+    pomeriggio_lis: formData.pomeriggio.lis,
+    pomeriggio_printer: formData.pomeriggio.printer,
+    pomeriggio_lotto_entrate: formData.pomeriggio.lotto_entrate,
+    pomeriggio_lotto_uscite: formData.pomeriggio.lotto_uscite,
+    pomeriggio_fatture: formData.pomeriggio.fatture,
 
     notes: formData.notes || '',
     chat_notes: formData.chat_notes || [],
@@ -149,14 +149,14 @@ export async function autoSaveDailyLog(dateStr: string, formData: LogFormData): 
   };
 
   // Copia locale con i totali calcolati, usata come fallback e valore di ritorno
-  const totals = calculateDayTotals(formData.pranzo, formData.sera);
+  const totals = calculateDayTotals(formData.mattina, formData.pomeriggio);
 
   const entry: DailyLogEntry = {
     ...writableColumns,
     id: `log-${dateStr}`,
     created_at: new Date().toISOString(),
-    totale_turno_pranzo: totals.totaleTurnoPranzo,
-    totale_turno_sera: totals.totaleTurnoSera,
+    totale_turno_mattina: totals.totaleTurnoMattina,
+    totale_turno_pomeriggio: totals.totaleTurnoPomeriggio,
     totale_giornata: totals.totaleGiornata,
     lotto_aggio: totals.lottoAggio,
     lotto_netto: totals.lottoNetto

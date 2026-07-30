@@ -2,6 +2,8 @@ import './style.css';
 import { LogFormData, NoteItem, SaveStatus, ShiftKey, ShiftValues, TodoItem } from './types';
 import {
   calculateDayTotals,
+  calculateLottoAggio,
+  calculateLottoNet,
   emptyShiftValues,
   formatCurrency,
   formatDateItalian,
@@ -19,7 +21,7 @@ import { requestNotificationPermission, sendWebNotification } from './utils/noti
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
-// 10:00 si sta ancora chiudendo la serata del giorno precedente.
+// 10:00 si sta ancora chiudendo il pomeriggio del giorno precedente.
 let selectedDate: string = getWorkingDateString();
 let currentShift: ShiftKey = getActiveShift();
 let saveDebounceTimer: number | null = null;
@@ -27,8 +29,8 @@ let lastSaveError: string | undefined;
 
 // Voci dei due turni della giornata caricata
 let shiftData: Record<ShiftKey, ShiftValues> = {
-  pranzo: emptyShiftValues(),
-  sera: emptyShiftValues()
+  mattina: emptyShiftValues(),
+  pomeriggio: emptyShiftValues()
 };
 
 // In-memory Chat Notes & To-Do State per date
@@ -50,14 +52,13 @@ const inputFatture = document.getElementById('input-fatture') as HTMLInputElemen
 const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as HTMLButtonElement;
 
 const shiftTabs = Array.from(document.querySelectorAll('.shift-tab')) as HTMLButtonElement[];
-const shiftHint = document.getElementById('shift-hint') as HTMLParagraphElement;
 
 const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTMLSpanElement;
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
-const displayTotaleTurnoPranzo = document.getElementById('display-totale-turno-pranzo') as HTMLSpanElement;
-const displayTotaleTurnoSera = document.getElementById('display-totale-turno-sera') as HTMLSpanElement;
-const rowTurnoSera = document.getElementById('row-turno-sera') as HTMLDivElement;
-const labelTurnoPranzo = document.getElementById('label-turno-pranzo') as HTMLSpanElement;
+const displayTotaleTurnoMattina = document.getElementById('display-totale-turno-mattina') as HTMLSpanElement;
+const displayTotaleTurnoPomeriggio = document.getElementById('display-totale-turno-pomeriggio') as HTMLSpanElement;
+const rowTurnoPomeriggio = document.getElementById('row-turno-pomeriggio') as HTMLDivElement;
+const labelTurnoMattina = document.getElementById('label-turno-mattina') as HTMLSpanElement;
 const displayTotaleGiornata = document.getElementById('display-totale-giornata') as HTMLSpanElement;
 
 const autoSaveBadge = document.getElementById('auto-save-badge') as HTMLDivElement;
@@ -201,8 +202,8 @@ function syncCurrentShiftFromInputs() {
 function getFormData(): LogFormData {
   return {
     date: selectedDate,
-    pranzo: shiftData.pranzo,
-    sera: shiftData.sera,
+    mattina: shiftData.mattina,
+    pomeriggio: shiftData.pomeriggio,
     chat_notes: currentChatNotes,
     todos: currentTodos
   };
@@ -218,21 +219,15 @@ function renderShiftSelector() {
     tab.setAttribute('aria-selected', String(isActive));
   });
 
-  if (shiftHint) {
-    shiftHint.textContent = currentShift === 'pranzo'
-      ? 'Chiusura di metà giornata. Inserisci le letture rilevate a fine turno pranzo.'
-      : 'Chiusura di fine giornata: inserisci le letture TOTALI, comprensive del pranzo. Il Turno 2 viene calcolato sottraendo la chiusura di pranzo.';
-  }
-
-  // Durante il pranzo il secondo turno non esiste ancora: si mostra un solo
+  // Nel turno mattina il secondo turno non esiste ancora: si mostra un solo
   // totale, e senza numero non c'è un "Turno 1" che rimandi a un turno assente.
-  const soloPranzo = currentShift === 'pranzo';
+  const soloMattina = currentShift === 'mattina';
 
-  if (rowTurnoSera) {
-    rowTurnoSera.classList.toggle('is-hidden', soloPranzo);
+  if (rowTurnoPomeriggio) {
+    rowTurnoPomeriggio.classList.toggle('is-hidden', soloMattina);
   }
-  if (labelTurnoPranzo) {
-    labelTurnoPranzo.textContent = soloPranzo ? 'Totale Turno' : 'Totale Turno 1';
+  if (labelTurnoMattina) {
+    labelTurnoMattina.textContent = soloMattina ? 'Totale Turno' : 'Totale Turno 1';
   }
 }
 
@@ -241,7 +236,7 @@ function renderShiftSelector() {
  */
 function updateCalculatedDisplays() {
   syncCurrentShiftFromInputs();
-  const totals = calculateDayTotals(shiftData.pranzo, shiftData.sera);
+  const totals = calculateDayTotals(shiftData.mattina, shiftData.pomeriggio);
 
   if (displayLottoAggio) {
     displayLottoAggio.textContent = formatCurrency(totals.lottoAggio);
@@ -249,12 +244,12 @@ function updateCalculatedDisplays() {
   if (displayLottoNetto) {
     displayLottoNetto.textContent = formatCurrency(totals.lottoNetto);
   }
-  if (displayTotaleTurnoPranzo) {
-    displayTotaleTurnoPranzo.textContent = formatCurrency(totals.totaleTurnoPranzo);
+  if (displayTotaleTurnoMattina) {
+    displayTotaleTurnoMattina.textContent = formatCurrency(totals.totaleTurnoMattina);
   }
-  if (displayTotaleTurnoSera) {
-    displayTotaleTurnoSera.textContent = totals.seraCompilata
-      ? formatCurrency(totals.totaleTurnoSera)
+  if (displayTotaleTurnoPomeriggio) {
+    displayTotaleTurnoPomeriggio.textContent = totals.pomeriggioCompilato
+      ? formatCurrency(totals.totaleTurnoPomeriggio)
       : '—';
   }
   if (displayTotaleGiornata) {
@@ -319,8 +314,8 @@ async function loadDateIntoForm(dateStr: string) {
   const log = await fetchLogByDate(targetDate);
 
   shiftData = {
-    pranzo: readShiftValues(log, 'pranzo'),
-    sera: readShiftValues(log, 'sera')
+    mattina: readShiftValues(log, 'mattina'),
+    pomeriggio: readShiftValues(log, 'pomeriggio')
   };
 
   if (log) {
@@ -535,8 +530,8 @@ async function renderHistorySidebar() {
     // I totali arrivano già calcolati dal database, ma in fallback LocalStorage
     // conviene ricalcolarli per non mostrare celle vuote
     const totals = calculateDayTotals(
-      readShiftValues(log, 'pranzo'),
-      readShiftValues(log, 'sera')
+      readShiftValues(log, 'mattina'),
+      readShiftValues(log, 'pomeriggio')
     );
 
     return `
@@ -549,12 +544,12 @@ async function renderHistorySidebar() {
         </div>
         <div class="history-metrics-summary">
           <div class="metric-item">
-            Turno 1 (Pranzo)
-            <span>${formatCurrency(totals.totaleTurnoPranzo)}</span>
+            Turno 1 (Mattina)
+            <span>${formatCurrency(totals.totaleTurnoMattina)}</span>
           </div>
           <div class="metric-item">
-            Turno 2 (Sera)
-            <span>${totals.seraCompilata ? formatCurrency(totals.totaleTurnoSera) : '—'}</span>
+            Turno 2 (Pomeriggio)
+            <span>${totals.pomeriggioCompilato ? formatCurrency(totals.totaleTurnoPomeriggio) : '—'}</span>
           </div>
         </div>
         <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
@@ -678,11 +673,11 @@ function setupEventListeners() {
     }
   });
 
-  // Cambio turno manuale (pranzo / sera)
+  // Cambio turno manuale (mattina / pomeriggio)
   shiftTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const shift = tab.getAttribute('data-shift') as ShiftKey | null;
-      if (shift === 'pranzo' || shift === 'sera') {
+      if (shift === 'mattina' || shift === 'pomeriggio') {
         switchShift(shift);
       }
     });
@@ -739,30 +734,33 @@ function setupEventListeners() {
 function fillPrintDocument() {
   syncCurrentShiftFromInputs();
 
-  const { pranzo, sera } = shiftData;
-  const totals = calculateDayTotals(pranzo, sera);
+  const { mattina, pomeriggio } = shiftData;
+  const totals = calculateDayTotals(mattina, pomeriggio);
 
   const docDateDisplay = document.getElementById('doc-date-display');
   if (docDateDisplay) {
     docDateDisplay.textContent = `Data: ${formatDateItalian(selectedDate)}`;
   }
 
-  // Il turno 2 è una differenza: ha senso solo dopo la chiusura serale
-  const turno2 = (voce: keyof ShiftValues) =>
-    totals.seraCompilata ? Number((sera[voce] - pranzo[voce]).toFixed(2)) : null;
-
   const valori: Record<string, number | null> = {
-    'lotto.netto': totals.lottoNetto,
-    'lotto.aggio': totals.lottoAggio,
-    'totale.turno1': totals.totaleTurnoPranzo,
-    'totale.turno2': totals.seraCompilata ? totals.totaleTurnoSera : null,
-    'totale.giornata': totals.totaleGiornata
+    'totale.turno1': totals.totaleTurnoMattina,
+    // Il turno 2 è una differenza: ha senso solo dopo la chiusura del pomeriggio
+    'totale.turno2': totals.pomeriggioCompilato ? totals.totaleTurnoPomeriggio : null,
+    'totale.giornata': totals.totaleGiornata,
+
+    'mattina.lotto_netto': calculateLottoNet(mattina.lotto_entrate, mattina.lotto_uscite),
+    'mattina.lotto_aggio': calculateLottoAggio(mattina.lotto_entrate),
+    'pomeriggio.lotto_netto': totals.pomeriggioCompilato
+      ? calculateLottoNet(pomeriggio.lotto_entrate, pomeriggio.lotto_uscite)
+      : null,
+    'pomeriggio.lotto_aggio': totals.pomeriggioCompilato
+      ? calculateLottoAggio(pomeriggio.lotto_entrate)
+      : null
   };
 
-  (Object.keys(pranzo) as Array<keyof ShiftValues>).forEach(voce => {
-    valori[`pranzo.${voce}`] = pranzo[voce];
-    valori[`sera.${voce}`] = totals.seraCompilata ? sera[voce] : null;
-    valori[`turno2.${voce}`] = turno2(voce);
+  (Object.keys(mattina) as Array<keyof ShiftValues>).forEach(voce => {
+    valori[`mattina.${voce}`] = mattina[voce];
+    valori[`pomeriggio.${voce}`] = totals.pomeriggioCompilato ? pomeriggio[voce] : null;
   });
 
   document.querySelectorAll<HTMLElement>('#document-print-sheet [data-doc]').forEach(cell => {

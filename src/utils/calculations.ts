@@ -1,10 +1,10 @@
 import { DayTotals, ShiftKey, ShiftValues } from '../types';
 
-/** Ora in cui si passa dalla chiusura serale del giorno prima a quella di pranzo */
-const ORA_INIZIO_PRANZO = 10;
+/** Ora in cui si passa dal turno pomeriggio del giorno prima a quello mattina */
+const ORA_INIZIO_MATTINA = 10;
 
-/** Ora in cui si passa dalla chiusura di pranzo a quella serale */
-const ORA_INIZIO_SERA = 16;
+/** Ora in cui si passa dal turno mattina a quello pomeriggio */
+const ORA_INIZIO_POMERIGGIO = 16;
 
 /**
  * Gli orari dei turni e le date sono sempre quelli italiani: il fuso del
@@ -143,28 +143,28 @@ export function calculateShiftReading(values: ShiftValues): number {
  * lettura serale. Se la sera non è ancora stata compilata, il totale della
  * giornata è quello del solo turno di pranzo.
  */
-export function calculateDayTotals(pranzo: ShiftValues, sera: ShiftValues): DayTotals {
-  const seraCompilata = isShiftFilled(sera);
+export function calculateDayTotals(mattina: ShiftValues, pomeriggio: ShiftValues): DayTotals {
+  const pomeriggioCompilato = isShiftFilled(pomeriggio);
 
-  const totaleTurnoPranzo = calculateShiftReading(pranzo);
-  const letturaSerale = calculateShiftReading(sera);
+  const totaleTurnoMattina = calculateShiftReading(mattina);
+  const letturaPomeriggio = calculateShiftReading(pomeriggio);
 
-  const totaleTurnoSera = seraCompilata
-    ? Number((letturaSerale - totaleTurnoPranzo).toFixed(2))
+  const totaleTurnoPomeriggio = pomeriggioCompilato
+    ? Number((letturaPomeriggio - totaleTurnoMattina).toFixed(2))
     : 0;
 
-  const totaleGiornata = seraCompilata ? letturaSerale : totaleTurnoPranzo;
+  const totaleGiornata = pomeriggioCompilato ? letturaPomeriggio : totaleTurnoMattina;
 
-  // Anche le voci Lotto sono letture cumulative: quelle del giorno sono le serali
-  const lottoDelGiorno = seraCompilata ? sera : pranzo;
+  // Anche le voci Lotto sono letture cumulative: quelle del giorno sono le pomeridiane
+  const lottoDelGiorno = pomeriggioCompilato ? pomeriggio : mattina;
 
   return {
-    totaleTurnoPranzo,
-    totaleTurnoSera,
+    totaleTurnoMattina,
+    totaleTurnoPomeriggio,
     totaleGiornata,
     lottoAggio: calculateLottoAggio(lottoDelGiorno.lotto_entrate),
     lottoNetto: calculateLottoNet(lottoDelGiorno.lotto_entrate, lottoDelGiorno.lotto_uscite),
-    seraCompilata
+    pomeriggioCompilato
   };
 }
 
@@ -175,15 +175,15 @@ export function calculateDayTotals(pranzo: ShiftValues, sera: ShiftValues): DayT
  */
 export function getActiveShift(now: Date = new Date()): ShiftKey {
   const hour = getItalianHour(now);
-  return hour >= ORA_INIZIO_PRANZO && hour < ORA_INIZIO_SERA ? 'pranzo' : 'sera';
+  return hour >= ORA_INIZIO_MATTINA && hour < ORA_INIZIO_POMERIGGIO ? 'mattina' : 'pomeriggio';
 }
 
 /**
  * Giornata su cui si sta lavorando in base all'orario italiano. Prima delle
- * 10:00 si sta ancora chiudendo la serata precedente, quindi la data è ieri.
+ * 10:00 si sta ancora chiudendo il pomeriggio precedente, quindi la data è ieri.
  */
 export function getWorkingDateString(now: Date = new Date()): string {
-  return getItalianHour(now) < ORA_INIZIO_PRANZO
+  return getItalianHour(now) < ORA_INIZIO_MATTINA
     ? italianDateShifted(-1, now)
     : italianDateShifted(0, now);
 }
@@ -192,7 +192,7 @@ export function getWorkingDateString(now: Date = new Date()): string {
  * Etichetta leggibile del turno
  */
 export function getShiftLabel(shift: ShiftKey): string {
-  return shift === 'pranzo' ? 'Turno Pranzo' : 'Turno Sera';
+  return shift === 'mattina' ? 'Turno Mattina' : 'Turno Pomeriggio';
 }
 
 /**
