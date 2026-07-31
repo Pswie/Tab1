@@ -52,6 +52,10 @@ const inputLottoEntrate = document.getElementById('input-lotto-entrate') as HTML
 const inputLottoUscite = document.getElementById('input-lotto-uscite') as HTMLInputElement;
 const inputFatture = document.getElementById('input-fatture') as HTMLInputElement;
 const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as HTMLButtonElement;
+const btnToggleMooneySign = document.getElementById('btn-toggle-mooney-sign') as HTMLButtonElement;
+
+// Campi che possono chiudere in negativo, con il rispettivo pulsante ±
+const campiConSegno: Array<[HTMLInputElement, HTMLButtonElement]> = [];
 
 const shiftTabs = Array.from(document.querySelectorAll('.shift-tab')) as HTMLButtonElement[];
 
@@ -111,30 +115,32 @@ function updateSaveStatusBadge(status: SaveStatus) {
 }
 
 /**
- * Sincronizza lo stato visivo del toggle ± con il contenuto attuale del campo Sisal
+ * Sincronizza lo stato visivo dei pulsanti ± con il contenuto dei campi
  */
-function updateSisalSignState() {
-  const isNegative = inputSisal.value.trim().startsWith('-');
+function updateSignStates() {
+  campiConSegno.forEach(([campo, pulsante]) => {
+    const negativo = campo.value.trim().startsWith('-');
 
-  inputSisal.classList.toggle('is-negative', isNegative);
+    campo.classList.toggle('is-negative', negativo);
 
-  if (btnToggleSisalSign) {
-    btnToggleSisalSign.classList.toggle('is-negative', isNegative);
-    btnToggleSisalSign.setAttribute('aria-pressed', String(isNegative));
-  }
+    if (pulsante) {
+      pulsante.classList.toggle('is-negative', negativo);
+      pulsante.setAttribute('aria-pressed', String(negativo));
+    }
+  });
 }
 
 /**
- * Inverte il segno del campo Sisal (a volte la giornata Sisal chiude in negativo).
- * Agisce sul testo e non sul numero, così la formattazione digitata resta intatta
- * ed è possibile premere ± a campo vuoto per poi scrivere le cifre.
+ * Inverte il segno di un campo importo (Sisal e Mooney possono chiudere in
+ * negativo). Agisce sul testo e non sul numero, così la formattazione digitata
+ * resta intatta ed è possibile premere ± a campo vuoto per poi scrivere le cifre.
  */
-function toggleSisalSign() {
-  const raw = inputSisal.value.trim();
-  inputSisal.value = raw.startsWith('-') ? raw.slice(1) : `-${raw}`;
+function toggleSign(campo: HTMLInputElement) {
+  const raw = campo.value.trim();
+  campo.value = raw.startsWith('-') ? raw.slice(1) : `-${raw}`;
 
-  updateSisalSignState();
-  inputSisal.focus();
+  updateSignStates();
+  campo.focus();
   triggerAutoSave();
 }
 
@@ -167,7 +173,7 @@ function applyShiftValuesToInputs(values: ShiftValues) {
   inputLottoUscite.value = formatInputValue(values.lotto_uscite);
   inputFatture.value = formatInputValue(values.fatture);
 
-  updateSisalSignState();
+  updateSignStates();
 }
 
 /**
@@ -321,9 +327,9 @@ async function loadDateIntoForm(dateStr: string) {
   };
 
   if (log) {
-    currentTodos = log.todos || getDefaultTodos();
+    currentTodos = log.todos || [];
   } else {
-    currentTodos = getDefaultTodos();
+    currentTodos = [];
   }
 
   applyShiftValuesToInputs(shiftData[currentShift]);
@@ -333,17 +339,6 @@ async function loadDateIntoForm(dateStr: string) {
   updateSaveStatusBadge('idle');
 
   await caricaInventario(targetDate);
-}
-
-/**
- * Genera i task di default per il punto vendita tabaccheria se non ancora definiti
- */
-function getDefaultTodos(): TodoItem[] {
-  return [
-    { id: 'todo-1', text: 'Verifica giacenza rotoli di carta cassa e Sisal', completed: false, createdBy: 'Sistema', createdAt: '08:00' },
-    { id: 'todo-2', text: 'Controllo cassetto valori bollati e francobolli', completed: false, createdBy: 'Sistema', createdAt: '08:00' },
-    { id: 'todo-3', text: 'Chiusura contabile serale terminale Lotto e Lis', completed: false, createdBy: 'Sistema', createdAt: '19:30' }
-  ];
 }
 
 /**
@@ -678,10 +673,12 @@ function setupEventListeners() {
 
   // Toggle segno ± sul campo Sisal (indispensabile da telefono: il tastierino
   // decimale di iOS e Android non ha il tasto meno)
-  if (btnToggleSisalSign) {
-    btnToggleSisalSign.addEventListener('click', toggleSisalSign);
-  }
-  inputSisal.addEventListener('input', updateSisalSignState);
+  campiConSegno.push([inputSisal, btnToggleSisalSign], [inputMooney, btnToggleMooneySign]);
+
+  campiConSegno.forEach(([campo, pulsante]) => {
+    pulsante?.addEventListener('click', () => toggleSign(campo));
+    campo.addEventListener('input', updateSignStates);
+  });
 
   // Eventi To-Do Task
   btnAddTodo.addEventListener('click', addNewTodoItem);

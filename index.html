@@ -159,9 +159,19 @@
             <div class="field-label-group">
               <span class="field-label">Mooney</span>
             </div>
-            <div class="input-currency-wrapper">
-              <span class="currency-symbol">€</span>
-              <input type="text" id="input-mooney" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            <div class="input-with-sign">
+              <button
+                type="button"
+                id="btn-toggle-mooney-sign"
+                class="btn-sign-toggle"
+                aria-pressed="false"
+                aria-label="Inverti il segno del valore Mooney"
+                title="Inverti il segno (per registrare un valore negativo)"
+              >&plusmn;</button>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-mooney" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
             </div>
           </div>
 
@@ -554,11 +564,11 @@
         </tbody>
         <tfoot>
           <tr class="doc-shift-total-row">
-            <td><span class="doc-symbol sym-equal">=</span> TURNO 1 <small>(mattina)</small></td>
+            <td><span class="doc-symbol sym-equal">=</span> TURNO 1</td>
             <td class="doc-amount" data-doc="totale.turno1">0,00</td>
           </tr>
           <tr class="doc-shift-total-row">
-            <td><span class="doc-symbol sym-equal">=</span> TURNO 2 <small>(pomeriggio &minus; mattina)</small></td>
+            <td><span class="doc-symbol sym-equal">=</span> TURNO 2</td>
             <td class="doc-amount" data-doc="totale.turno2">0,00</td>
           </tr>
           <tr class="doc-grand-total-row">
