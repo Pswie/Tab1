@@ -1739,3 +1739,222 @@ body {
 .todo-link-btn.is-hidden {
   display: none;
 }
+
+/* ==========================================================================
+   INVENTARIO
+   ========================================================================== */
+
+.inv-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.inv-tab {
+  padding: 0.8rem 0.5rem;
+  background: var(--surface-card-inner);
+  border: 1.5px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.inv-tab:hover {
+  border-color: var(--border-strong);
+}
+
+.inv-tab.is-active {
+  background: #FFFFFF;
+  border-color: var(--ferrari-red);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+/* Un solo inventario per volta */
+.inv-pane {
+  display: none;
+}
+
+.inv-pane.is-active {
+  display: block;
+}
+
+.inv-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.1rem;
+}
+
+.inv-total-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.inv-total-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.inv-total-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.inv-total-value.is-negative {
+  color: var(--ferrari-red);
+}
+
+.inv-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.inv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inv-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0.25rem;
+  border-bottom: 2px solid var(--border-pearl);
+  margin-bottom: 0.2rem;
+}
+
+.inv-group-price {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ferrari-red);
+}
+
+.inv-group-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.inv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  transition: var(--transition-fast);
+}
+
+.inv-row:focus-within {
+  border-color: var(--ferrari-red);
+  background: #FFFFFF;
+}
+
+.inv-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.inv-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.inv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.inv-field-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.inv-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Versione ridotta del ± usato nel campo Sisal: qui le righe sono molte */
+.btn-sign-toggle.is-compact {
+  width: 32px;
+  height: 38px;
+  font-size: 1rem;
+}
+
+.inv-input {
+  width: 62px;
+  height: 38px;
+  padding: 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: right;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.inv-input:focus {
+  border-color: var(--ferrari-red);
+}
+
+.inv-input.is-negative {
+  color: #B91C1C;
+}
+
+@media (max-width: 768px) {
+  .inv-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .inv-name {
+    font-size: 1rem;
+  }
+
+  .inv-fields {
+    justify-content: space-between;
+  }
+
+  .inv-input {
+    width: 78px;
+    height: 44px;
+  }
+
+  .btn-sign-toggle.is-compact {
+    height: 44px;
+    width: 38px;
+  }
+}

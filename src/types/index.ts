@@ -1,3 +1,30 @@
+/**
+ * Differenza rilevata a magazzino per un Gratta e Vinci.
+ * I valori possono essere negativi (mancante) o positivi (in più).
+ */
+export interface GrattaEVinciConta {
+  gioco: string;
+  prezzo: number;
+  pacchi: number;
+  pezzi: number;
+}
+
+/**
+ * Differenza rilevata a magazzino per una marca di sigarette
+ */
+export interface SigaretteConta {
+  marca: string;
+  stecche: number;
+  pacchetti: number;
+}
+
+/** L'inventario di una giornata */
+export interface InventarioGiornata {
+  date: string;
+  grattaEVinci: GrattaEVinciConta[];
+  sigarette: SigaretteConta[];
+}
+
 /** Filtro attivo nella lista delle attività */
 export type TodoFilter = 'tutte' | 'da-fare' | 'fatte';
 

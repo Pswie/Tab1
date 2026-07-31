@@ -26,6 +26,8 @@ DROP FUNCTION IF EXISTS public.archivia_versione_precedente();
 DROP TABLE IF EXISTS public.daily_logs_storico;
 DROP TABLE IF EXISTS public.daily_logs;
 DROP TABLE IF EXISTS public.daily_notes;
+DROP TABLE IF EXISTS public.inventario_gratta_e_vinci;
+DROP TABLE IF EXISTS public.inventario_sigarette;
 
 -- =========================================================================
 -- 1. TABELLA PRINCIPALE: una riga per turno
@@ -222,3 +224,54 @@ CREATE POLICY "Scrittura note" ON public.daily_notes
 -- Così una copia di sicurezza non può essere sovrascritta o cancellata.
 CREATE POLICY "Lettura storico" ON public.daily_logs_storico
     FOR SELECT USING (true);
+
+-- =========================================================================
+-- 6. INVENTARIO
+--
+-- Si registrano le DIFFERENZE rilevate contando il magazzino, non le giacenze
+-- totali: un valore negativo indica merce mancante, uno positivo merce trovata
+-- in più. Zero significa che il conto torna.
+-- =========================================================================
+CREATE TABLE public.inventario_gratta_e_vinci (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL,
+    gioco TEXT NOT NULL,
+    prezzo NUMERIC(10,2) NOT NULL,
+
+    pacchi INTEGER NOT NULL DEFAULT 0,
+    pezzi INTEGER NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    UNIQUE (date, gioco)
+);
+
+CREATE INDEX idx_inv_gev_date ON public.inventario_gratta_e_vinci(date DESC);
+
+CREATE TABLE public.inventario_sigarette (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL,
+    marca TEXT NOT NULL,
+
+    stecche INTEGER NOT NULL DEFAULT 0,
+    pacchetti INTEGER NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    UNIQUE (date, marca)
+);
+
+CREATE INDEX idx_inv_sig_date ON public.inventario_sigarette(date DESC);
+
+ALTER TABLE public.inventario_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventario_sigarette ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lettura inventario gratta e vinci" ON public.inventario_gratta_e_vinci
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura inventario gratta e vinci" ON public.inventario_gratta_e_vinci
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Lettura inventario sigarette" ON public.inventario_sigarette
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura inventario sigarette" ON public.inventario_sigarette
+    FOR ALL USING (true) WITH CHECK (true);

@@ -272,20 +272,60 @@
 
     <!-- TAB 2: INVENTARIO -->
     <div id="tab-inventario" class="tab-pane">
-      <section class="card-section">
+      <!-- Si registrano le differenze del conteggio: negativo se manca,
+           positivo se si trova merce in più. -->
+      <div class="inv-selector" role="tablist" aria-label="Tipo di inventario">
+        <button type="button" class="inv-tab is-active" data-inv="gratta" role="tab" aria-selected="true">
+          Gratta e Vinci
+        </button>
+        <button type="button" class="inv-tab" data-inv="sigarette" role="tab" aria-selected="false">
+          Sigarette
+        </button>
+      </div>
+
+      <!-- INVENTARIO GRATTA E VINCI -->
+      <section class="card-section inv-pane is-active" id="inv-pane-gratta">
         <div class="section-header">
           <div class="section-title">
-            <span>Inventario</span>
+            <span>Inventario Gratta e Vinci</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Differenza</span>
+            <span id="inv-gratta-totale" class="inv-total-value">0,00 €</span>
           </div>
         </div>
 
-        <div class="empty-state">
-          <span class="empty-state-icon">📦</span>
-          <p class="empty-state-title">Sezione da definire</p>
-          <p class="empty-state-text">
-            Le voci da tenere sotto controllo non sono ancora state stabilite.
-          </p>
+        <p class="inv-hint">
+          Segna quanto manca o quanto si trova in più. Usa &plusmn; per il segno meno.
+        </p>
+
+        <div id="inv-gratta-lista" class="inv-lista"></div>
+      </section>
+
+      <!-- INVENTARIO SIGARETTE -->
+      <section class="card-section inv-pane" id="inv-pane-sigarette">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Inventario Sigarette</span>
+          </div>
         </div>
+
+        <p class="inv-hint">
+          Segna quanto manca o quanto si trova in più. Usa &plusmn; per il segno meno.
+        </p>
+
+        <div class="todo-add-row">
+          <input
+            type="text"
+            id="inv-sigarette-marca"
+            class="todo-add-input"
+            placeholder="Aggiungi una marca"
+            autocomplete="off"
+          />
+          <button type="button" id="btn-add-marca" class="todo-add-btn">Aggiungi</button>
+        </div>
+
+        <div id="inv-sigarette-lista" class="inv-lista"></div>
       </section>
     </div>
 

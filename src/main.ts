@@ -16,6 +16,7 @@ import {
   parseInputValue
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
+import { caricaInventario, initInventario } from './ui/inventarioUI';
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
@@ -330,6 +331,8 @@ async function loadDateIntoForm(dateStr: string) {
   updateCalculatedDisplays();
   renderTodoList();
   updateSaveStatusBadge('idle');
+
+  await caricaInventario(targetDate);
 }
 
 /**
@@ -764,6 +767,7 @@ function fillPrintDocument() {
  */
 async function initApp() {
   setupEventListeners();
+  initInventario();
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
 }
