@@ -817,6 +817,11 @@ body {
   padding: 0 0.25rem;
 }
 
+/* Nel turno mattina l'aggio non compare: si calcola sulla lettura cumulativa */
+.lotto-aggio-subtext.is-hidden {
+  display: none;
+}
+
 .lotto-aggio-subtext strong {
   font-family: var(--font-mono);
   font-size: 0.92rem;
@@ -872,117 +877,6 @@ body {
   background: var(--ferrari-red);
   box-shadow: 0 6px 20px var(--ferrari-red-glow);
   transform: translateY(-2px);
-}
-
-/* ==========================================================================
-   WHATSAPP CHAT NOTES SECTION
-   ========================================================================== */
-
-.wa-chat-container {
-  background: #E5DDD5;
-  border-radius: var(--radius-inner);
-  padding: 1.25rem;
-  height: 320px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  border: 1px solid var(--border-pearl);
-}
-
-.wa-bubble {
-  max-width: 80%;
-  padding: 0.65rem 0.95rem;
-  border-radius: 12px;
-  font-size: 0.92rem;
-  position: relative;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  line-height: 1.45;
-}
-
-.wa-bubble.bubble-mine {
-  align-self: flex-end;
-  background-color: #E7FCE3;
-  color: #111B21;
-  border-bottom-right-radius: 2px;
-}
-
-.wa-bubble.bubble-other {
-  align-self: flex-start;
-  background-color: #FFFFFF;
-  color: #111B21;
-  border-bottom-left-radius: 2px;
-}
-
-.wa-bubble-author {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: #075E54;
-  margin-bottom: 0.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.wa-bubble-time {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: #667781;
-}
-
-.wa-chat-input-bar {
-  display: flex;
-  gap: 0.6rem;
-  margin-top: 1rem;
-}
-
-.wa-chat-text-input {
-  flex: 1;
-  height: 46px;
-  padding: 0 1rem;
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-inner);
-  font-family: var(--font-sans);
-  font-size: 0.92rem;
-  outline: none;
-}
-
-.wa-chat-text-input:focus {
-  border-color: #075E54;
-}
-
-.wa-btn-send-message {
-  background-color: #075E54;
-  color: #FFFFFF;
-  border: none;
-  padding: 0 1.25rem;
-  border-radius: var(--radius-inner);
-  font-weight: 700;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.wa-btn-send-message:hover {
-  background-color: #054C44;
-}
-
-/* Buttons Generic */
-.btn-secondary-action {
-  background: #FFFFFF;
-  border: 1px solid var(--border-pearl);
-  color: var(--text-primary);
-  padding: 0.6rem 1.1rem;
-  border-radius: var(--radius-inner);
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.btn-secondary-action:hover {
-  border-color: var(--ferrari-red);
-  color: var(--ferrari-red);
 }
 
 /* ==========================================================================
@@ -1263,7 +1157,7 @@ body {
 
 .doc-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 .doc-brand-title {
@@ -1300,11 +1194,11 @@ body {
 .doc-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .doc-table th, .doc-table td {
-  padding: 0.8rem 1rem;
+  padding: 0.58rem 1rem;
   border-bottom: 1px solid #E5E7EB;
   font-size: 1.02rem;
 }
@@ -1477,7 +1371,7 @@ body {
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 16mm 18mm !important;
+    padding: 12mm 15mm !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -1521,4 +1415,327 @@ body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+}
+
+/* ==========================================================================
+   DATA FISSA DELLA GIORNATA
+   ========================================================================== */
+
+.date-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.date-display {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   STATO VUOTO
+   ========================================================================== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 1.9rem;
+  opacity: 0.75;
+}
+
+.empty-state-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.empty-state-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  max-width: 34ch;
+}
+
+/* ==========================================================================
+   TASK TO-DO
+   ========================================================================== */
+
+.todo-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.todo-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-pearl-warm);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.todo-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: var(--radius-full);
+  background: var(--ferrari-red);
+  transition: width 0.35s var(--ease-spring), background-color var(--transition-fast);
+}
+
+.todo-progress-fill.is-complete {
+  background: var(--accent-green-line);
+}
+
+.todo-progress-count {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.todo-add-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.todo-add-input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.todo-add-input:focus {
+  border-color: var(--ferrari-red);
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+.todo-add-btn {
+  flex-shrink: 0;
+  height: 46px;
+  padding: 0 1.15rem;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.todo-add-btn:hover {
+  background: var(--ferrari-red-hover);
+}
+
+.todo-filters {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.todo-filter {
+  padding: 0.35rem 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.todo-filter:hover {
+  border-color: var(--border-strong);
+}
+
+.todo-filter.is-active {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border-color: var(--text-primary);
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  transition: var(--transition-fast);
+}
+
+.todo-item:hover {
+  border-color: var(--border-strong);
+}
+
+/* Casella di spunta disegnata a mano: quella di sistema non si può stilare
+   in modo coerente fra browser e su iOS resta grigia */
+.todo-check {
+  flex-shrink: 0;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  background: #FFFFFF;
+  border: 2px solid var(--border-strong);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.todo-check:hover {
+  border-color: var(--accent-green-line);
+}
+
+.todo-check::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  width: 5px;
+  height: 10px;
+  border: solid #FFFFFF;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 0.18s var(--ease-spring);
+}
+
+.todo-item.is-done .todo-check {
+  background: var(--accent-green-line);
+  border-color: var(--accent-green-line);
+}
+
+.todo-item.is-done .todo-check::after {
+  transform: rotate(45deg) scale(1);
+}
+
+.todo-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.todo-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.todo-item.is-done .todo-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.todo-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.todo-edit-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--ferrari-red);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.todo-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.todo-icon-btn:hover {
+  background: var(--bg-pearl-warm);
+  color: var(--text-primary);
+}
+
+.todo-icon-btn.is-danger:hover {
+  background: #FEF2F2;
+  color: var(--ferrari-red);
+}
+
+.todo-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.todo-link-btn {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  padding: 0.3rem 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: var(--transition-fast);
+}
+
+.todo-link-btn:hover {
+  color: var(--ferrari-red);
+}
+
+.todo-link-btn.is-hidden {
+  display: none;
 }

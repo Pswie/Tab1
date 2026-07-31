@@ -58,11 +58,11 @@
           <span>Inserimento dati e stampa A4</span>
         </div>
       </button>
-      <button type="button" class="hotdog-menu-item" data-tab="tab-chat">
-        <span class="hotdog-icon">💬</span>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
+        <span class="hotdog-icon">📦</span>
         <div class="hotdog-text">
-          <strong>Note Chat WhatsApp</strong>
-          <span>Note di servizio e notifiche push</span>
+          <strong>Inventario</strong>
+          <span>Giacenze e scorte del punto vendita</span>
         </div>
       </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-todos">
@@ -82,8 +82,8 @@
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
         <span class="tab-icon">📊</span> Incassi Giornalieri
       </button>
-      <button type="button" class="nav-tab-item" data-tab="tab-chat">
-        <span class="tab-icon">💬</span> Note Chat WhatsApp
+      <button type="button" class="nav-tab-item" data-tab="tab-inventario">
+        <span class="tab-icon">📦</span> Inventario
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-todos">
         <span class="tab-icon">✅</span> Task To-Do
@@ -100,10 +100,12 @@
           <div class="section-title">
             <span>Inserimento Dati Giornalieri</span>
           </div>
-          <!-- Selettore Data Odierna per Dipendenti -->
+          <!-- Data della giornata in lavorazione.
+               Non è modificabile: la determina l'orario italiano e può essere
+               al massimo quella di ieri, per chiudere il pomeriggio precedente. -->
           <div class="date-selector-box">
-            <label for="entry-date-input">Data:</label>
-            <input type="date" id="entry-date-input" class="date-input" readonly />
+            <span class="date-label">Data:</span>
+            <output id="entry-date-display" class="date-display">--</output>
           </div>
         </div>
 
@@ -149,6 +151,17 @@
                 <span class="currency-symbol">€</span>
                 <input type="text" id="input-sisal" class="currency-input" placeholder="0,00" inputmode="decimal" />
               </div>
+            </div>
+          </div>
+
+          <!-- Mooney -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Mooney</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-mooney" class="currency-input" placeholder="0,00" inputmode="decimal" />
             </div>
           </div>
 
@@ -208,8 +221,9 @@
               <span id="display-lotto-netto" class="subtotal-value">0,00 €</span>
             </div>
 
-            <!-- Aggio Lotto Calcolato (8%) - Messo in piccolo in fondo al box Lotto -->
-            <div class="lotto-aggio-subtext">
+            <!-- Aggio Lotto (8%): riguarda la giornata, quindi compare solo
+                 nel turno pomeriggio dove la lettura è quella cumulativa -->
+            <div class="lotto-aggio-subtext" id="lotto-aggio-row">
               <span>Aggio stimato Lotto (8% su entrate):</span>
               <strong id="display-lotto-aggio">0,00 €</strong>
             </div>
@@ -256,74 +270,70 @@
       </section>
     </div>
 
-    <!-- TAB 2: NOTE & COMUNICAZIONI (STILE CHAT WHATSAPP) -->
-    <div id="tab-chat" class="tab-pane">
-      <div class="card-section" style="padding: 1.5rem;">
-        <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.75rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-            <div>
-              <h2 class="section-title" style="font-size: 1.1rem; color: #075E54;">
-                💬 Note & Comunicazioni Turno
-              </h2>
-              <p style="font-size: 0.78rem; color: var(--text-secondary);">Messaggi e note di servizio stile WhatsApp</p>
-            </div>
-            <button type="button" id="btn-request-notifications" class="btn-secondary-action" style="font-size: 0.75rem;">
-              🔔 Attiva Notifiche Push
-            </button>
+    <!-- TAB 2: INVENTARIO -->
+    <div id="tab-inventario" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Inventario</span>
           </div>
         </div>
 
-        <!-- Profilo Autore Nota -->
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; background: var(--bg-pearl-warm); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
-          <label for="wa-author-input" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">Il tuo nome/ruolo:</label>
-          <input type="text" id="wa-author-input" class="date-input" style="flex: 1; max-width: 220px;" placeholder="es. Marco (Dipendente)" value="Dipendente" />
+        <div class="empty-state">
+          <span class="empty-state-icon">📦</span>
+          <p class="empty-state-title">Sezione da definire</p>
+          <p class="empty-state-text">
+            Le voci da tenere sotto controllo non sono ancora state stabilite.
+          </p>
         </div>
-
-        <!-- CONTAINER MESAGGI CHAT STILE WHATSAPP -->
-        <div id="wa-chat-messages" class="wa-chat-container">
-          <!-- Messaggi generati dinamicamente -->
-        </div>
-
-        <!-- CHAT INPUT BAR STILE WHATSAPP -->
-        <div class="wa-chat-input-bar">
-          <input type="text" id="wa-chat-input" class="wa-chat-text-input" placeholder="Scrivi una nota per i colleghi o il prossimo turno..." />
-          <button type="button" id="wa-btn-send" class="wa-btn-send-message">
-            Invia ➔
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
 
     <!-- TAB 3: ATTIVITÀ & TASK TO-DO -->
     <div id="tab-todos" class="tab-pane">
-      <div class="card-section" style="padding: 1.5rem;">
-        <div class="section-header" style="margin-bottom: 1rem; padding-bottom: 0.75rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-            <div>
-              <h2 class="section-title" style="font-size: 1.1rem; color: var(--text-primary);">
-                ✅ Attività & Task To-Do
-              </h2>
-              <p style="font-size: 0.78rem; color: var(--text-secondary);">Cose da fare e controlli giornalieri del punto vendita</p>
-            </div>
-            <span id="todo-progress-badge" class="badge-tag tag-past" style="font-size: 0.75rem;">
-              0 completate
-            </span>
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Task To-Do</span>
           </div>
         </div>
 
-        <!-- Form Nuovo Task -->
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
-          <input type="text" id="todo-input-text" class="currency-input" style="text-align: left; padding-left: 0.85rem; font-family: var(--font-sans); font-size: 0.9rem;" placeholder="Aggiungi una nuova attività (es. Ricarica rotoli cassa, verifica Sisal...)" />
-          <button type="button" id="btn-add-todo" class="btn-secondary-action" style="white-space: nowrap; font-weight: 700;">
-            + Aggiungi Task
-          </button>
+        <!-- Avanzamento -->
+        <div class="todo-progress">
+          <div class="todo-progress-bar">
+            <div id="todo-progress-fill" class="todo-progress-fill"></div>
+          </div>
+          <span id="todo-progress-badge" class="todo-progress-count">0 / 0</span>
         </div>
 
-        <!-- LISTA TASK CHECKBOX -->
-        <div id="todo-list-container" class="todo-list-grid">
-          <!-- Task generati dinamicamente -->
+        <!-- Nuovo task -->
+        <div class="todo-add-row">
+          <input
+            type="text"
+            id="todo-input-text"
+            class="todo-add-input"
+            placeholder="Aggiungi un'attività"
+            autocomplete="off"
+          />
+          <button type="button" id="btn-add-todo" class="todo-add-btn">Aggiungi</button>
         </div>
-      </div>
+
+        <!-- Filtri -->
+        <div class="todo-filters" role="tablist">
+          <button type="button" class="todo-filter is-active" data-filter="tutte">Tutte</button>
+          <button type="button" class="todo-filter" data-filter="da-fare">Da fare</button>
+          <button type="button" class="todo-filter" data-filter="fatte">Fatte</button>
+        </div>
+
+        <!-- Lista -->
+        <div id="todo-list-container" class="todo-list"></div>
+
+        <div class="todo-footer">
+          <button type="button" id="btn-clear-completed" class="todo-link-btn">
+            Rimuovi le attività completate
+          </button>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -359,6 +369,10 @@
             <td class="doc-amount" data-doc="mattina.sisal">0,00</td>
           </tr>
           <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Mooney</td>
+            <td class="doc-amount" data-doc="mattina.mooney">0,00</td>
+          </tr>
+          <tr>
             <td><span class="doc-symbol sym-plus">+</span> Lis</td>
             <td class="doc-amount" data-doc="mattina.lis">0,00</td>
           </tr>
@@ -380,12 +394,6 @@
           <tr class="doc-subtotal-row">
             <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
             <td class="doc-amount" data-doc="mattina.lotto_netto"><strong>0,00</strong></td>
-          </tr>
-          <tr>
-            <td style="padding-left: 1.25rem;" class="doc-note-row">
-              <em>Aggio stimato Lotto (8% non sommato al totale)</em>
-            </td>
-            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_aggio">0,00</td>
           </tr>
           <tr class="doc-section-divider">
             <td colspan="2">USCITE E FATTURE</td>
@@ -423,6 +431,10 @@
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
             <td class="doc-amount" data-doc="pomeriggio.sisal">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-plus">+</span> Mooney</td>
+            <td class="doc-amount" data-doc="pomeriggio.mooney">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Lis</td>
@@ -465,6 +477,10 @@
           <tr class="doc-shift-total-row">
             <td><span class="doc-symbol sym-equal">=</span> TURNO 1 <small>(mattina)</small></td>
             <td class="doc-amount" data-doc="totale.turno1">0,00</td>
+          </tr>
+          <tr class="doc-shift-total-row">
+            <td><span class="doc-symbol sym-equal">=</span> TURNO 2 <small>(pomeriggio &minus; mattina)</small></td>
+            <td class="doc-amount" data-doc="totale.turno2">0,00</td>
           </tr>
           <tr class="doc-grand-total-row">
             <td><span class="doc-symbol sym-equal">=</span> TOTALE GIORNATA</td>

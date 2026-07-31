@@ -41,6 +41,7 @@ CREATE TABLE public.daily_logs (
 
     tabacchi NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     sisal NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    mooney NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lis NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     printer NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lotto_entrate NUMERIC(10,2) NOT NULL DEFAULT 0.00,
@@ -49,7 +50,7 @@ CREATE TABLE public.daily_logs (
 
     -- Totale della lettura di questo turno
     totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
-        (tabacchi + sisal + lis + printer
+        (tabacchi + sisal + mooney + lis + printer
             + (lotto_entrate - lotto_uscite)) - fatture
     ) STORED,
 
@@ -63,7 +64,7 @@ CREATE TABLE public.daily_logs (
 
     -- Distingue "turno a zero perché non ancora inserito" da "turno davvero a zero"
     compilato BOOLEAN GENERATED ALWAYS AS (
-        tabacchi <> 0 OR sisal <> 0 OR lis <> 0 OR printer <> 0
+        tabacchi <> 0 OR sisal <> 0 OR mooney <> 0 OR lis <> 0 OR printer <> 0
         OR lotto_entrate <> 0 OR lotto_uscite <> 0 OR fatture <> 0
     ) STORED,
 
@@ -73,13 +74,12 @@ CREATE TABLE public.daily_logs (
 CREATE INDEX idx_daily_logs_date ON public.daily_logs(date DESC, turno);
 
 -- =========================================================================
--- 2. NOTE, CHAT E TASK: sono della giornata, non del singolo turno
+-- 2. NOTE E TASK: sono della giornata, non del singolo turno
 -- =========================================================================
 CREATE TABLE public.daily_notes (
     date DATE PRIMARY KEY,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     notes TEXT DEFAULT '',
-    chat_notes JSONB DEFAULT '[]'::jsonb,
     todos JSONB DEFAULT '[]'::jsonb
 );
 
@@ -101,6 +101,7 @@ CREATE TABLE public.daily_logs_storico (
 
     tabacchi NUMERIC(10,2),
     sisal NUMERIC(10,2),
+    mooney NUMERIC(10,2),
     lis NUMERIC(10,2),
     printer NUMERIC(10,2),
     lotto_entrate NUMERIC(10,2),
@@ -130,10 +131,10 @@ AS $$
 DECLARE
     prossima_versione INTEGER;
 BEGIN
-    IF (OLD.tabacchi, OLD.sisal, OLD.lis, OLD.printer,
+    IF (OLD.tabacchi, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
         OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture)
        IS DISTINCT FROM
-       (NEW.tabacchi, NEW.sisal, NEW.lis, NEW.printer,
+       (NEW.tabacchi, NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
         NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture)
     THEN
         IF OLD.updated_at < now() - INTERVAL '2 hours' THEN
@@ -144,11 +145,11 @@ BEGIN
 
             INSERT INTO public.daily_logs_storico (
                 date, turno, versione, ferma_dal,
-                tabacchi, sisal, lis, printer,
+                tabacchi, sisal, mooney, lis, printer,
                 lotto_entrate, lotto_uscite, fatture, totale_turno
             ) VALUES (
                 OLD.date, OLD.turno, prossima_versione, OLD.updated_at,
-                OLD.tabacchi, OLD.sisal, OLD.lis, OLD.printer,
+                OLD.tabacchi, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
                 OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.totale_turno
             );
         END IF;

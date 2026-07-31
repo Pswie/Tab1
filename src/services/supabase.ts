@@ -25,6 +25,7 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
   return {
     tabacchi: Number(row.tabacchi) || 0,
     sisal: Number(row.sisal) || 0,
+    mooney: Number(row.mooney) || 0,
     lis: Number(row.lis) || 0,
     printer: Number(row.printer) || 0,
     lotto_entrate: Number(row.lotto_entrate) || 0,
@@ -42,7 +43,6 @@ function toDayRecord(date: string, rows: ShiftRow[], extras?: DayExtras): DayRec
     mattina: toShiftValues(rows.find(r => r.turno === 'mattina')),
     pomeriggio: toShiftValues(rows.find(r => r.turno === 'pomeriggio')),
     notes: extras?.notes || '',
-    chat_notes: extras?.chat_notes || [],
     todos: extras?.todos || []
   };
 }
@@ -152,7 +152,6 @@ export async function autoSaveDailyLog(
     mattina: turno === 'mattina' ? values : (precedente?.mattina || emptyShiftValues()),
     pomeriggio: turno === 'pomeriggio' ? values : (precedente?.pomeriggio || emptyShiftValues()),
     notes: extras.notes ?? precedente?.notes ?? '',
-    chat_notes: extras.chat_notes ?? precedente?.chat_notes ?? [],
     todos: extras.todos ?? precedente?.todos ?? []
   };
 
@@ -172,7 +171,6 @@ export async function autoSaveDailyLog(
           date: dateStr,
           updated_at: new Date().toISOString(),
           notes: record.notes,
-          chat_notes: record.chat_notes,
           todos: record.todos
         }, { onConflict: 'date' });
 

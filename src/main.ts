@@ -1,5 +1,5 @@
 import './style.css';
-import { NoteItem, SaveStatus, ShiftKey, ShiftValues, TodoItem } from './types';
+import { SaveStatus, ShiftKey, ShiftValues, TodoFilter, TodoItem } from './types';
 import {
   calculateDayTotals,
   calculateLottoAggio,
@@ -7,7 +7,6 @@ import {
   emptyShiftValues,
   formatCurrency,
   formatDateItalian,
-  formatDateLocalISO,
   formatInputValue,
   getActiveShift,
   getMaxAllowedDateString,
@@ -17,7 +16,6 @@ import {
   parseInputValue
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
-import { requestNotificationPermission, sendWebNotification } from './utils/notifications';
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
@@ -33,17 +31,20 @@ let shiftData: Record<ShiftKey, ShiftValues> = {
   pomeriggio: emptyShiftValues()
 };
 
-// In-memory Chat Notes & To-Do State per date
-let currentChatNotes: NoteItem[] = [];
+// Task della giornata caricata
 let currentTodos: TodoItem[] = [];
+let todoFilter: TodoFilter = 'tutte';
+
+// Il solo Date.now() non basta: due attività aggiunte nello stesso millisecondo
+// riceverebbero lo stesso id, e cancellandone una sparirebbero entrambe.
+let todoSeq = 0;
 
 // DOM Elements
-const dateInput = document.getElementById('entry-date-input') as HTMLInputElement;
-const btnPrevDay = document.getElementById('btn-prev-day') as HTMLButtonElement;
-const btnNextDay = document.getElementById('btn-next-day') as HTMLButtonElement;
+const dateDisplay = document.getElementById('entry-date-display') as HTMLOutputElement;
 
 const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
 const inputSisal = document.getElementById('input-sisal') as HTMLInputElement;
+const inputMooney = document.getElementById('input-mooney') as HTMLInputElement;
 const inputLis = document.getElementById('input-lis') as HTMLInputElement;
 const inputPrinter = document.getElementById('input-printer') as HTMLInputElement;
 const inputLottoEntrate = document.getElementById('input-lotto-entrate') as HTMLInputElement;
@@ -54,6 +55,7 @@ const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as H
 const shiftTabs = Array.from(document.querySelectorAll('.shift-tab')) as HTMLButtonElement[];
 
 const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTMLSpanElement;
+const lottoAggioRow = document.getElementById('lotto-aggio-row') as HTMLDivElement;
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
 const displayTotaleTurnoMattina = document.getElementById('display-totale-turno-mattina') as HTMLSpanElement;
 const displayTotaleTurnoPomeriggio = document.getElementById('display-totale-turno-pomeriggio') as HTMLSpanElement;
@@ -65,42 +67,18 @@ const autoSaveBadge = document.getElementById('auto-save-badge') as HTMLDivEleme
 const autoSaveText = document.getElementById('auto-save-text') as HTMLSpanElement;
 const historyListContainer = document.getElementById('history-list-container') as HTMLDivElement;
 
-// WhatsApp Chat DOM Elements
-const waAuthorInput = document.getElementById('wa-author-input') as HTMLInputElement;
-const waChatMessages = document.getElementById('wa-chat-messages') as HTMLDivElement;
-const waChatInput = document.getElementById('wa-chat-input') as HTMLInputElement;
-const waBtnSend = document.getElementById('wa-btn-send') as HTMLButtonElement;
-const btnRequestNotifications = document.getElementById('btn-request-notifications') as HTMLButtonElement;
 
 // To-Do DOM Elements
 const todoInputText = document.getElementById('todo-input-text') as HTMLInputElement;
 const btnAddTodo = document.getElementById('btn-add-todo') as HTMLButtonElement;
 const todoListContainer = document.getElementById('todo-list-container') as HTMLDivElement;
 const todoProgressBadge = document.getElementById('todo-progress-badge') as HTMLSpanElement;
+const todoProgressFill = document.getElementById('todo-progress-fill') as HTMLDivElement;
+const btnClearCompleted = document.getElementById('btn-clear-completed') as HTMLButtonElement;
+const todoFilterButtons = Array.from(document.querySelectorAll('.todo-filter')) as HTMLButtonElement[];
 
 // Stampa Documento
 const btnPrintDocument = document.getElementById('btn-print-document') as HTMLButtonElement;
-
-/**
- * Aggiorna i limiti min/max e lo stato attivo/disattivato delle frecce ◄ e ►
- */
-function updateDateNavBounds() {
-  const minDate = getMinAllowedDateString(); // Max 2 giorni indietro
-  const maxDate = getMaxAllowedDateString(); // Non oltre oggi
-
-  if (dateInput) {
-    dateInput.min = minDate;
-    dateInput.max = maxDate;
-  }
-
-  if (btnPrevDay) {
-    btnPrevDay.disabled = selectedDate <= minDate;
-  }
-
-  if (btnNextDay) {
-    btnNextDay.disabled = selectedDate >= maxDate;
-  }
-}
 
 /**
  * Aggiorna il badge di stato dell'auto-salvataggio
@@ -166,6 +144,7 @@ function getShiftValuesFromInputs(): ShiftValues {
   return {
     tabacchi: parseInputValue(inputTabacchi.value),
     sisal: parseInputValue(inputSisal.value),
+    mooney: parseInputValue(inputMooney.value),
     lis: parseInputValue(inputLis.value),
     printer: parseInputValue(inputPrinter.value),
     lotto_entrate: parseInputValue(inputLottoEntrate.value),
@@ -180,6 +159,7 @@ function getShiftValuesFromInputs(): ShiftValues {
 function applyShiftValuesToInputs(values: ShiftValues) {
   inputTabacchi.value = formatInputValue(values.tabacchi);
   inputSisal.value = formatInputValue(values.sisal);
+  inputMooney.value = formatInputValue(values.mooney);
   inputLis.value = formatInputValue(values.lis);
   inputPrinter.value = formatInputValue(values.printer);
   inputLottoEntrate.value = formatInputValue(values.lotto_entrate);
@@ -201,7 +181,6 @@ function syncCurrentShiftFromInputs() {
  */
 function getDayExtras() {
   return {
-    chat_notes: currentChatNotes,
     todos: currentTodos
   };
 }
@@ -226,6 +205,12 @@ function renderShiftSelector() {
   // totale, e senza numero non c'è un "Turno 1" che rimandi a un turno assente.
   const soloMattina = currentShift === 'mattina';
 
+  // L'aggio è un dato della giornata, calcolato sulla lettura cumulativa:
+  // nel turno mattina non avrebbe significato, quindi non si mostra.
+  if (lottoAggioRow) {
+    lottoAggioRow.classList.toggle('is-hidden', soloMattina);
+  }
+
   if (rowTurnoPomeriggio) {
     rowTurnoPomeriggio.classList.toggle('is-hidden', soloMattina);
   }
@@ -240,12 +225,19 @@ function renderShiftSelector() {
 function updateCalculatedDisplays() {
   syncCurrentShiftFromInputs();
   const totals = calculateDayTotals(shiftData.mattina, shiftData.pomeriggio);
+  const turnoCorrente = shiftData[currentShift];
 
-  if (displayLottoAggio) {
-    displayLottoAggio.textContent = formatCurrency(totals.lottoAggio);
-  }
+  // Lotto Netto è il parziale del turno che si sta compilando, non della giornata:
+  // a fine mattina deve mostrare le entrate meno le uscite di quel turno.
   if (displayLottoNetto) {
-    displayLottoNetto.textContent = formatCurrency(totals.lottoNetto);
+    displayLottoNetto.textContent = formatCurrency(
+      calculateLottoNet(turnoCorrente.lotto_entrate, turnoCorrente.lotto_uscite)
+    );
+  }
+  if (displayLottoAggio) {
+    displayLottoAggio.textContent = formatCurrency(
+      calculateLottoAggio(turnoCorrente.lotto_entrate)
+    );
   }
   if (displayTotaleTurnoMattina) {
     displayTotaleTurnoMattina.textContent = formatCurrency(totals.totaleTurnoMattina);
@@ -316,8 +308,9 @@ async function loadDateIntoForm(dateStr: string) {
   if (targetDate > maxDate) targetDate = maxDate;
 
   selectedDate = targetDate;
-  dateInput.value = targetDate;
-  updateDateNavBounds();
+  if (dateDisplay) {
+    dateDisplay.textContent = formatDateItalian(targetDate);
+  }
 
   const log = await fetchLogByDate(targetDate);
 
@@ -327,17 +320,14 @@ async function loadDateIntoForm(dateStr: string) {
   };
 
   if (log) {
-    currentChatNotes = log.chat_notes || [];
     currentTodos = log.todos || getDefaultTodos();
   } else {
-    currentChatNotes = [];
     currentTodos = getDefaultTodos();
   }
 
   applyShiftValuesToInputs(shiftData[currentShift]);
   renderShiftSelector();
   updateCalculatedDisplays();
-  renderWhatsAppChatNotes();
   renderTodoList();
   updateSaveStatusBadge('idle');
 }
@@ -354,154 +344,174 @@ function getDefaultTodos(): TodoItem[] {
 }
 
 /**
- * Renderizza le note di servizio in stile chat WhatsApp
+ * Attività visibili in base al filtro attivo
  */
-function renderWhatsAppChatNotes() {
-  if (!waChatMessages) return;
-
-  if (currentChatNotes.length === 0) {
-    waChatMessages.innerHTML = `
-      <div style="text-align: center; color: #667781; font-size: 0.82rem; margin: auto;">
-        Nessuna nota ancora pubblicata per questa giornata.<br/>Scrivi un messaggio qui sotto per lasciare un appunto ai colleghi!
-      </div>
-    `;
-    return;
-  }
-
-  const currentUser = waAuthorInput?.value?.trim() || 'Dipendente';
-
-  waChatMessages.innerHTML = currentChatNotes.map(note => {
-    const isMine = note.author.toLowerCase() === currentUser.toLowerCase() || note.isMine;
-    return `
-      <div class="wa-bubble ${isMine ? 'bubble-mine' : 'bubble-other'}">
-        <div class="wa-bubble-author">
-          <span>${note.author}</span>
-          <span class="wa-bubble-time">${note.timestamp}</span>
-        </div>
-        <div>${escapeHtml(note.text)}</div>
-      </div>
-    `;
-  }).join('');
-
-  // Scroll automatico in fondo alla chat
-  waChatMessages.scrollTop = waChatMessages.scrollHeight;
+function getTodosVisibili(): TodoItem[] {
+  if (todoFilter === 'da-fare') return currentTodos.filter(t => !t.completed);
+  if (todoFilter === 'fatte') return currentTodos.filter(t => t.completed);
+  return currentTodos;
 }
 
 /**
- * Invia una nuova nota in stile WhatsApp con Notifica Push
- */
-function sendNewChatNote() {
-  const text = waChatInput?.value?.trim();
-  const author = waAuthorInput?.value?.trim() || 'Dipendente';
-
-  if (!text) return;
-
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
-  const newNote: NoteItem = {
-    id: `note-${Date.now()}`,
-    author: author,
-    text: text,
-    timestamp: timeStr,
-    date: selectedDate,
-    isMine: true
-  };
-
-  currentChatNotes.push(newNote);
-  waChatInput.value = '';
-  renderWhatsAppChatNotes();
-
-  // Invia Notifica Web del Browser
-  sendWebNotification('💬 Nuova Nota Tabaccheria', `${author}: ${text}`);
-
-  triggerAutoSave();
-}
-
-/**
- * Renderizza la lista di attività Task To-Do
+ * Renderizza la lista delle attività, l'avanzamento e lo stato dei filtri
  */
 function renderTodoList() {
   if (!todoListContainer) return;
 
-  const completedCount = currentTodos.filter(t => t.completed).length;
+  const totale = currentTodos.length;
+  const fatte = currentTodos.filter(t => t.completed).length;
+
   if (todoProgressBadge) {
-    todoProgressBadge.textContent = `${completedCount} di ${currentTodos.length} completati`;
-    todoProgressBadge.className = completedCount === currentTodos.length && currentTodos.length > 0
-      ? 'badge-tag tag-tomorrow'
-      : 'badge-tag tag-past';
+    todoProgressBadge.textContent = `${fatte} / ${totale}`;
+  }
+  if (todoProgressFill) {
+    todoProgressFill.style.width = totale === 0 ? '0%' : `${Math.round((fatte / totale) * 100)}%`;
+    todoProgressFill.classList.toggle('is-complete', totale > 0 && fatte === totale);
   }
 
-  if (currentTodos.length === 0) {
+  todoFilterButtons.forEach(btn => {
+    btn.classList.toggle('is-active', btn.getAttribute('data-filter') === todoFilter);
+  });
+
+  if (btnClearCompleted) {
+    btnClearCompleted.classList.toggle('is-hidden', fatte === 0);
+  }
+
+  const visibili = getTodosVisibili();
+
+  if (visibili.length === 0) {
+    const messaggio = totale === 0
+      ? 'Nessuna attività per oggi. Aggiungine una qui sopra.'
+      : todoFilter === 'fatte'
+        ? 'Nessuna attività completata.'
+        : 'Tutto fatto.';
+
     todoListContainer.innerHTML = `
-      <div style="text-align: center; color: var(--text-secondary); font-size: 0.85rem; padding: 1rem;">
-        Nessuna attività presente. Aggiungine una dal campo in alto!
+      <div class="empty-state">
+        <span class="empty-state-icon">${totale > 0 && todoFilter === 'da-fare' ? '🎉' : '📝'}</span>
+        <p class="empty-state-text">${messaggio}</p>
       </div>
     `;
     return;
   }
 
-  todoListContainer.innerHTML = currentTodos.map(todo => `
-    <div class="todo-item-card ${todo.completed ? 'completed' : ''}">
-      <label class="todo-checkbox-label">
-        <input type="checkbox" class="todo-checkbox" data-id="${todo.id}" ${todo.completed ? 'checked' : ''} />
+  todoListContainer.innerHTML = visibili.map(todo => `
+    <div class="todo-item ${todo.completed ? 'is-done' : ''}" data-id="${todo.id}">
+      <button
+        type="button"
+        class="todo-check"
+        data-action="toggle"
+        aria-pressed="${todo.completed}"
+        aria-label="${todo.completed ? 'Segna da fare' : 'Segna completata'}"
+      ></button>
+
+      <div class="todo-body">
         <span class="todo-text">${escapeHtml(todo.text)}</span>
-      </label>
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <span class="todo-meta-tag">${todo.createdBy} • ${todo.createdAt}</span>
-        <button type="button" class="btn-todo-delete" data-id="${todo.id}" title="Elimina Task">&times;</button>
+        <span class="todo-meta">${escapeHtml(todo.createdBy)} · ${escapeHtml(todo.createdAt)}</span>
+      </div>
+
+      <div class="todo-actions">
+        <button type="button" class="todo-icon-btn" data-action="edit" aria-label="Modifica">✎</button>
+        <button type="button" class="todo-icon-btn is-danger" data-action="delete" aria-label="Elimina">×</button>
       </div>
     </div>
   `).join('');
+}
 
-  // Listener per toggle completato
-  todoListContainer.querySelectorAll('.todo-checkbox').forEach(input => {
-    input.addEventListener('change', (e) => {
-      const target = e.target as HTMLInputElement;
-      const id = target.getAttribute('data-id');
-      const item = currentTodos.find(t => t.id === id);
-      if (item) {
-        item.completed = target.checked;
-        renderTodoList();
-        triggerAutoSave();
-      }
-    });
+/**
+ * Sostituisce il testo di un'attività con un campo per modificarla al volo
+ */
+function avviaModificaTodo(riga: HTMLElement, todo: TodoItem) {
+  const corpo = riga.querySelector('.todo-body');
+  if (!corpo) return;
+
+  corpo.innerHTML = '';
+
+  const campo = document.createElement('input');
+  campo.type = 'text';
+  campo.className = 'todo-edit-input';
+  campo.value = todo.text;
+  corpo.appendChild(campo);
+  campo.focus();
+  campo.setSelectionRange(campo.value.length, campo.value.length);
+
+  let concluso = false;
+
+  const conferma = (salva: boolean) => {
+    if (concluso) return;
+    concluso = true;
+
+    const testo = campo.value.trim();
+    if (salva && testo && testo !== todo.text) {
+      todo.text = testo;
+      renderTodoList();
+      triggerAutoSave();
+    } else {
+      renderTodoList();
+    }
+  };
+
+  campo.addEventListener('keydown', e => {
+    if (e.key === 'Enter') conferma(true);
+    if (e.key === 'Escape') conferma(false);
   });
+  campo.addEventListener('blur', () => conferma(true));
+}
 
-  // Listener per eliminazione task
-  todoListContainer.querySelectorAll('.btn-todo-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const id = target.getAttribute('data-id');
+/**
+ * Un solo listener sul contenitore: le righe vengono ridisegnate spesso e
+ * riagganciare un gestore per ogni pulsante a ogni render è superfluo.
+ */
+function setupTodoListDelegation() {
+  if (!todoListContainer) return;
+
+  todoListContainer.addEventListener('click', e => {
+    const pulsante = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+    if (!pulsante) return;
+
+    const riga = pulsante.closest('.todo-item') as HTMLElement | null;
+    const id = riga?.getAttribute('data-id');
+    const todo = currentTodos.find(t => t.id === id);
+    if (!riga || !todo) return;
+
+    const azione = pulsante.getAttribute('data-action');
+
+    if (azione === 'toggle') {
+      todo.completed = !todo.completed;
+      renderTodoList();
+      triggerAutoSave();
+    } else if (azione === 'edit') {
+      avviaModificaTodo(riga, todo);
+    } else if (azione === 'delete') {
       currentTodos = currentTodos.filter(t => t.id !== id);
       renderTodoList();
       triggerAutoSave();
-    });
+    }
   });
 }
 
 /**
- * Aggiunge un nuovo task To-Do
+ * Aggiunge una nuova attività
  */
 function addNewTodoItem() {
   const text = todoInputText?.value?.trim();
-  const author = waAuthorInput?.value?.trim() || 'Dipendente';
-
   if (!text) return;
 
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const orario = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-  const newTodo: TodoItem = {
-    id: `todo-${Date.now()}`,
-    text: text,
+  currentTodos.push({
+    id: `todo-${Date.now()}-${++todoSeq}`,
+    text,
     completed: false,
-    createdBy: author,
-    createdAt: timeStr
-  };
+    createdBy: 'Dipendente',
+    createdAt: orario
+  });
 
-  currentTodos.push(newTodo);
   todoInputText.value = '';
+
+  // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito
+  if (todoFilter === 'fatte') todoFilter = 'tutte';
+
   renderTodoList();
   triggerAutoSave();
 }
@@ -642,31 +652,6 @@ function setupEventListeners() {
     });
   });
 
-  dateInput.addEventListener('change', () => {
-    if (dateInput.value) {
-      loadDateIntoForm(dateInput.value);
-    }
-  });
-
-  // Navigazione Data con Frecce ◄ e ► (Max 2 Giorni Indietro, Max Giorno Corrente)
-  if (btnPrevDay) {
-    btnPrevDay.addEventListener('click', () => {
-      const current = new Date(selectedDate);
-      current.setDate(current.getDate() - 1);
-      const newDateStr = formatDateLocalISO(current);
-      loadDateIntoForm(newDateStr);
-    });
-  }
-
-  if (btnNextDay) {
-    btnNextDay.addEventListener('click', () => {
-      const current = new Date(selectedDate);
-      current.setDate(current.getDate() + 1);
-      const newDateStr = formatDateLocalISO(current);
-      loadDateIntoForm(newDateStr);
-    });
-  }
-
   const allInputs = [
     inputTabacchi, inputSisal, inputLis, inputPrinter,
     inputLottoEntrate, inputLottoUscite, inputFatture
@@ -695,26 +680,6 @@ function setupEventListeners() {
   }
   inputSisal.addEventListener('input', updateSisalSignState);
 
-  // Eventi Chat WhatsApp Note
-  waBtnSend.addEventListener('click', sendNewChatNote);
-  waChatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      sendNewChatNote();
-    }
-  });
-
-  // Notifiche Web Permessi
-  btnRequestNotifications.addEventListener('click', async () => {
-    const granted = await requestNotificationPermission();
-    if (granted) {
-      btnRequestNotifications.textContent = '✓ Notifiche Attive';
-      btnRequestNotifications.style.borderColor = '#10B981';
-      btnRequestNotifications.style.color = '#047857';
-    } else {
-      alert('Notifiche non consentite o disabilitate dal browser.');
-    }
-  });
-
   // Eventi To-Do Task
   btnAddTodo.addEventListener('click', addNewTodoItem);
   todoInputText.addEventListener('keydown', (e) => {
@@ -722,6 +687,23 @@ function setupEventListeners() {
       addNewTodoItem();
     }
   });
+
+  setupTodoListDelegation();
+
+  todoFilterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      todoFilter = (btn.getAttribute('data-filter') as TodoFilter) || 'tutte';
+      renderTodoList();
+    });
+  });
+
+  if (btnClearCompleted) {
+    btnClearCompleted.addEventListener('click', () => {
+      currentTodos = currentTodos.filter(t => !t.completed);
+      renderTodoList();
+      triggerAutoSave();
+    });
+  }
 
   // Stampa diretta del documento contabile, senza passare da un'anteprima
   if (btnPrintDocument) {
@@ -749,6 +731,8 @@ function fillPrintDocument() {
 
   const valori: Record<string, number | null> = {
     'totale.turno1': totals.totaleTurnoMattina,
+    // Il turno 2 è una differenza: ha senso solo dopo la chiusura del pomeriggio
+    'totale.turno2': totals.pomeriggioCompilato ? totals.totaleTurnoPomeriggio : null,
     'totale.giornata': totals.totaleGiornata,
 
     'mattina.lotto_netto': calculateLottoNet(mattina.lotto_entrate, mattina.lotto_uscite),
@@ -779,7 +763,6 @@ function fillPrintDocument() {
  * Inizializzazione dell'Applicazione Web
  */
 async function initApp() {
-  dateInput.value = selectedDate;
   setupEventListeners();
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();

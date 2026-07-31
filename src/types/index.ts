@@ -1,11 +1,5 @@
-export interface NoteItem {
-  id: string;
-  author: string; // Nome dipendente
-  text: string;
-  timestamp: string; // HH:mm
-  date: string; // YYYY-MM-DD
-  isMine?: boolean;
-}
+/** Filtro attivo nella lista delle attività */
+export type TodoFilter = 'tutte' | 'da-fare' | 'fatte';
 
 export interface TodoItem {
   id: string;
@@ -32,6 +26,7 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
 export interface ShiftValues {
   tabacchi: number;
   sisal: number;
+  mooney: number;
   lis: number;
   printer: number;
   lotto_entrate: number;
@@ -65,7 +60,6 @@ export interface DayRecord {
   mattina: ShiftValues;
   pomeriggio: ShiftValues;
   notes?: string;
-  chat_notes?: NoteItem[];
   todos?: TodoItem[];
 }
 
@@ -75,7 +69,6 @@ export interface DayRecord {
  */
 export interface DayExtras {
   notes?: string;
-  chat_notes?: NoteItem[];
   todos?: TodoItem[];
 }
 

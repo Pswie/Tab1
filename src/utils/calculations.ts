@@ -75,6 +75,7 @@ export function emptyShiftValues(): ShiftValues {
   return {
     tabacchi: 0,
     sisal: 0,
+    mooney: 0,
     lis: 0,
     printer: 0,
     lotto_entrate: 0,
@@ -92,6 +93,7 @@ export function isShiftFilled(values: ShiftValues): boolean {
   return (
     values.tabacchi !== 0 ||
     values.sisal !== 0 ||
+    values.mooney !== 0 ||
     values.lis !== 0 ||
     values.printer !== 0 ||
     values.lotto_entrate !== 0 ||
@@ -127,6 +129,7 @@ export function calculateShiftReading(values: ShiftValues): number {
   const totale =
     safe(values.tabacchi) +
     safe(values.sisal) +
+    safe(values.mooney) +
     safe(values.lis) +
     safe(values.printer) +
     (safe(values.lotto_entrate) - safe(values.lotto_uscite)) -
@@ -276,10 +279,11 @@ export function getTodayDateString(): string {
 }
 
 /**
- * Data minima consentita (max 2 giorni indietro)
+ * Data minima consentita: solo il giorno prima, il tempo di chiudere il
+ * pomeriggio precedente. Più indietro di così non si torna.
  */
 export function getMinAllowedDateString(): string {
-  return italianDateShifted(-2);
+  return italianDateShifted(-1);
 }
 
 /**
@@ -290,8 +294,8 @@ export function getMaxAllowedDateString(): string {
 }
 
 /**
- * Elenco delle date consentite per i dipendenti (oggi e max 2 giorni fa)
+ * Elenco delle date consentite per i dipendenti: oggi e ieri
  */
 export function getEmployeeAllowedDateRange(): string[] {
-  return [italianDateShifted(0), italianDateShifted(-1), italianDateShifted(-2)];
+  return [italianDateShifted(0), italianDateShifted(-1)];
 }
