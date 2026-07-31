@@ -40,6 +40,9 @@ let todoFilter: TodoFilter = 'tutte';
 // riceverebbero lo stesso id, e cancellandone una sparirebbero entrambe.
 let todoSeq = 0;
 
+const ICONA_ELENCO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
+const ICONA_TUTTO_FATTO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>`;
+
 // DOM Elements
 const dateDisplay = document.getElementById('entry-date-display') as HTMLOutputElement;
 
@@ -98,16 +101,16 @@ function updateSaveStatusBadge(status: SaveStatus) {
     autoSaveText.textContent = 'Salvataggio in corso...';
   } else if (status === 'saved') {
     autoSaveBadge.classList.add('status-saved');
-    autoSaveText.textContent = 'Salvato sul cloud ✓';
+    autoSaveText.textContent = 'Salvato sul cloud';
   } else if (status === 'saved-local') {
     // Non spacciare per salvato sul cloud un dato rimasto solo nel browser
     autoSaveBadge.classList.add('status-local');
-    autoSaveText.textContent = 'Salvato solo su questo dispositivo ⚠️';
+    autoSaveText.textContent = 'Salvato solo su questo dispositivo';
     autoSaveBadge.title = lastSaveError || 'Supabase non raggiungibile';
   } else if (status === 'error') {
     autoSaveBadge.style.backgroundColor = '#FEE2E2';
     autoSaveBadge.style.color = '#991B1B';
-    autoSaveText.textContent = 'Errore salvataggio ⚠️';
+    autoSaveText.textContent = 'Errore di salvataggio';
   } else {
     autoSaveBadge.classList.add('status-saved');
     autoSaveText.textContent = 'Auto-salvataggio attivo';
@@ -386,7 +389,7 @@ function renderTodoList() {
 
     todoListContainer.innerHTML = `
       <div class="empty-state">
-        <span class="empty-state-icon">${totale > 0 && todoFilter === 'da-fare' ? '🎉' : '📝'}</span>
+        ${totale > 0 && todoFilter === 'da-fare' ? ICONA_TUTTO_FATTO : ICONA_ELENCO}
         <p class="empty-state-text">${messaggio}</p>
       </div>
     `;
@@ -409,8 +412,8 @@ function renderTodoList() {
       </div>
 
       <div class="todo-actions">
-        <button type="button" class="todo-icon-btn" data-action="edit" aria-label="Modifica">✎</button>
-        <button type="button" class="todo-icon-btn is-danger" data-action="delete" aria-label="Elimina">×</button>
+        <button type="button" class="todo-icon-btn" data-action="edit" aria-label="Modifica"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button type="button" class="todo-icon-btn is-danger" data-action="delete" aria-label="Elimina"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
     </div>
   `).join('');
@@ -569,8 +572,8 @@ async function renderHistorySidebar() {
           Totale Giornata: <strong style="color: var(--ferrari-red); font-family: var(--font-mono);">${formatCurrency(totals.totaleGiornata)}</strong>
         </div>
         <div class="history-card-actions">
-          <button type="button" class="btn-icon-gear btn-edit-gear" data-date="${log.date}" title="Modifica questa giornata (Rotella)">
-            ⚙️
+          <button type="button" class="btn-icon-gear btn-edit-gear" data-date="${log.date}" title="Apri questa giornata">
+            
           </button>
           <button type="button" class="btn-secondary-action btn-select-date" data-date="${log.date}">
             Carica Dati
@@ -596,7 +599,7 @@ async function renderHistorySidebar() {
  * Inizializza i gestori degli eventi
  */
 function setupEventListeners() {
-  // Hot-Dog Menu (Hamburger 🍔) DOM Elements & Toggle Functions
+  // Menu di navigazione per schermi stretti
   const btnHamburgerMenu = document.getElementById('btn-hamburger-menu') as HTMLButtonElement;
   const hotdogMenuDrawer = document.getElementById('hotdog-menu-drawer') as HTMLDivElement;
   const hotdogBackdrop = document.getElementById('hotdog-backdrop') as HTMLDivElement;

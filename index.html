@@ -27,14 +27,14 @@
   <header class="app-header">
     <div class="header-container">
       <div class="brand-badge">
-        <div class="brand-logo-mark">T</div>
+        <img class="brand-logo-mark" src="/icon-192.png" alt="iNES caffè" width="44" height="44" />
         <div class="brand-title-group">
-          <h1>Tabaccheria</h1>
-          <p>Registro Incassi Giornalieri</p>
+          <h1>Tabaccheria iNES caffè</h1>
+          <p>Gestionale amministrativo</p>
         </div>
       </div>
       <div class="header-actions">
-        <!-- Hot-Dog Menu Button (Hamburger 🍔) -->
+        <!-- Menu di navigazione per schermi stretti -->
         <button type="button" id="btn-hamburger-menu" class="hamburger-btn" aria-label="Apri Menu Navigazione">
           <span class="hamburger-line"></span>
           <span class="hamburger-line"></span>
@@ -52,21 +52,21 @@
     </div>
     <div class="hotdog-menu-items">
       <button type="button" class="hotdog-menu-item active" data-tab="tab-incassi">
-        <span class="hotdog-icon">📊</span>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span>
         <div class="hotdog-text">
           <strong>Incassi Giornalieri</strong>
           <span>Inserimento dati e stampa A4</span>
         </div>
       </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
-        <span class="hotdog-icon">📦</span>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span>
         <div class="hotdog-text">
           <strong>Inventario</strong>
           <span>Giacenze e scorte del punto vendita</span>
         </div>
       </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-todos">
-        <span class="hotdog-icon">✅</span>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span>
         <div class="hotdog-text">
           <strong>Task To-Do</strong>
           <span>Checklist e controlli punto vendita</span>
@@ -80,13 +80,13 @@
   <nav class="app-nav-tabs">
     <div class="nav-tabs-container">
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
-        <span class="tab-icon">📊</span> Incassi Giornalieri
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-inventario">
-        <span class="tab-icon">📦</span> Inventario
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-todos">
-        <span class="tab-icon">✅</span> Task To-Do
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span> Task To-Do
       </button>
     </div>
   </nav>
@@ -273,7 +273,7 @@
           <!-- Action Bar: Stampa diretta (nessuna anteprima) -->
           <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
             <button type="button" id="btn-print-document" class="btn-latex-export">
-              🖨️ Stampa Documento Giornaliero
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg><span>Stampa</span>
             </button>
           </div>
         </form>
@@ -319,7 +319,7 @@
           />
           <button type="button" id="btn-modifica-gratta" class="btn-secondary-action">Modifica</button>
           <button type="button" id="btn-print-inventario-gratta" class="btn-latex-export">
-            🖨️ Stampa
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg><span>Stampa</span>
           </button>
         </div>
 
@@ -363,7 +363,7 @@
           />
           <button type="button" id="btn-modifica-tabacchi" class="btn-secondary-action">Modifica</button>
           <button type="button" id="btn-print-inventario-sigarette" class="btn-latex-export">
-            🖨️ Stampa
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg><span>Stampa</span>
           </button>
         </div>
 

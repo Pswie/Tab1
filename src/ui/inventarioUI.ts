@@ -110,24 +110,29 @@ function campoHtml(etichetta: string, campo: string, valore: number): string {
 
 function pulsanteElimina(inModifica: boolean): string {
   return inModifica
-    ? '<button type="button" class="todo-icon-btn is-danger" data-action="elimina" aria-label="Elimina dal catalogo">×</button>'
+    ? '<button type="button" class="todo-icon-btn is-danger" data-action="elimina" aria-label="Elimina dal catalogo"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>'
     : '';
 }
 
 /**
- * Un gruppo richiudibile: con oltre cento articoli, tenerli tutti aperti
- * renderebbe la pagina impraticabile. Si apre da solo se contiene differenze
- * o se la ricerca ha ristretto l'elenco.
+ * Un gruppo di articoli, sempre aperto: dover cliccare per vedere cosa c'è
+ * dentro rallenta chi sta contando la merce con l'inventario in mano.
  */
-function gruppoHtml(titolo: string, meta: string, righe: string, aperto: boolean): string {
+function gruppoHtml(titolo: string, meta: string, righe: string, colonne: [string, string]): string {
   return `
-    <details class="inv-group" ${aperto ? 'open' : ''}>
-      <summary class="inv-group-header">
-        <span class="inv-group-price">${titolo}</span>
+    <section class="inv-group">
+      <header class="inv-group-header">
+        <h3 class="inv-group-title">${titolo}</h3>
         <span class="inv-group-meta">${meta}</span>
-      </summary>
+      </header>
+
+      <div class="inv-legend" aria-hidden="true">
+        <span class="inv-legend-label">${colonne[0]}</span>
+        <span class="inv-legend-label">${colonne[1]}</span>
+      </div>
+
       <div class="inv-group-body">${righe}</div>
-    </details>
+    </section>
   `;
 }
 
@@ -144,10 +149,6 @@ function renderGratta() {
 
     if (voci.length === 0) return '';
 
-    const conDifferenze = voci.some(v => {
-      const c = contaGratta.get(v.gioco);
-      return c && (c.pacchi !== 0 || c.pezzi !== 0);
-    });
 
     const righe = voci.map(voce => {
       const c = contaGratta.get(voce.gioco) || { pacchi: 0, pezzi: 0 };
@@ -167,15 +168,15 @@ function renderGratta() {
 
     return gruppoHtml(
       `${prezzo} €`,
-      `${pezzi} pezzi per pacco`,
+      `${voci.length} giochi · ${pezzi} pezzi per pacco`,
       righe,
-      conDifferenze || filtroGratta !== '' || modificaGratta
+      ['Pacchi', 'Pezzi']
     );
   }).join('');
 
   listaGratta.innerHTML = gruppi || `
     <div class="empty-state">
-      <span class="empty-state-icon">🔍</span>
+      <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <p class="empty-state-text">Nessun gioco corrisponde alla ricerca.</p>
     </div>
   `;
@@ -205,10 +206,6 @@ function renderTabacchi() {
 
     if (voci.length === 0) return '';
 
-    const conDifferenze = voci.some(v => {
-      const c = contaTabacchi.get(v.prodotto);
-      return c && (c.stecche !== 0 || c.pacchetti !== 0);
-    });
 
     const righe = voci.map(voce => {
       const c = contaTabacchi.get(voce.prodotto) || { stecche: 0, pacchetti: 0 };
@@ -224,17 +221,12 @@ function renderTabacchi() {
       `;
     }).join('');
 
-    return gruppoHtml(
-      escapeHtml(marca),
-      `${voci.length} articoli`,
-      righe,
-      conDifferenze || filtroTabacchi !== '' || modificaTabacchi
-    );
+    return gruppoHtml(escapeHtml(marca), `${voci.length}`, righe, ['Stecche', 'Pacchetti']);
   }).join('');
 
   listaTabacchi.innerHTML = gruppi || `
     <div class="empty-state">
-      <span class="empty-state-icon">🔍</span>
+      <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <p class="empty-state-text">Nessun prodotto in questa categoria.</p>
     </div>
   `;

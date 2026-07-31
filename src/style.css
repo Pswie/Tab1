@@ -100,27 +100,20 @@ body {
 }
 
 .brand-logo-mark {
-  width: 42px;
-  height: 42px;
-  background-color: var(--ferrari-red);
-  color: #FFFFFF;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
   border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: 800;
-  font-size: 1.4rem;
-  letter-spacing: -0.04em;
-  box-shadow: 0 4px 14px var(--ferrari-red-glow);
+  padding: 3px;
 }
 
 .brand-title-group h1 {
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-primary);
-  text-transform: uppercase;
 }
 
 .brand-title-group p {
@@ -185,7 +178,7 @@ body {
 }
 
 /* ==========================================================================
-   HOT-DOG (HAMBURGER 🍔) MENU STYLES
+   MENU DI NAVIGAZIONE PER SCHERMI STRETTI
    ========================================================================== */
 
 .hamburger-btn {
@@ -1137,8 +1130,9 @@ body {
    PRINTABLE DOCUMENT SHEET (Full-Scale A4 Print with Symbols & No Border Shrink)
    ========================================================================== */
 
-/* Il foglio non compare mai a schermo: nessuna anteprima, si va dritti in stampa */
-#print-document-host {
+/* I fogli di stampa non compaiono mai a schermo: nessuna anteprima, si va
+   dritti in stampa. Vale per tutti, non solo per quello contabile. */
+.print-host {
   display: none;
 }
 
@@ -1408,7 +1402,6 @@ body {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-
 
   .doc-brand-title {
     font-size: 2.4rem !important;
@@ -1759,25 +1752,52 @@ body {
   display: none;
 }
 
+
+/* ==========================================================================
+   ICONE
+   ========================================================================== */
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.icon-sm {
+  width: 15px;
+  height: 15px;
+}
+
+.tab-icon,
+.hotdog-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ==========================================================================
    INVENTARIO
+   Elenco lungo: niente scatole per ogni riga, solo filetti di separazione.
+   Le scatole moltiplicate per 160 articoli fanno rumore e nascondono i dati.
    ========================================================================== */
 
 .inv-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-  margin-bottom: 1.25rem;
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-pearl-warm);
+  border-radius: var(--radius-full);
 }
 
 .inv-tab {
-  padding: 0.8rem 0.5rem;
-  background: var(--surface-card-inner);
-  border: 1.5px solid var(--border-pearl);
-  border-radius: var(--radius-inner);
+  padding: 0.5rem 1.15rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
   font-family: var(--font-sans);
-  font-size: 0.98rem;
-  font-weight: 800;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -1785,17 +1805,19 @@ body {
 }
 
 .inv-tab:hover {
-  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .inv-tab.is-active {
   background: #FFFFFF;
-  border-color: var(--ferrari-red);
   color: var(--text-primary);
-  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
-/* Un solo inventario per volta */
+.inv-tab:active {
+  transform: scale(0.98);
+}
+
 .inv-pane {
   display: none;
 }
@@ -1805,29 +1827,32 @@ body {
 }
 
 .inv-hint {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 1.1rem;
+  margin-bottom: 1.25rem;
+  max-width: 60ch;
 }
 
 .inv-total-box {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 0.1rem;
 }
 
 .inv-total-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
 .inv-total-value {
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
@@ -1835,255 +1860,12 @@ body {
   color: var(--ferrari-red);
 }
 
-.inv-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
-}
-
-.inv-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.inv-group-header {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.4rem 0.25rem;
-  border-bottom: 2px solid var(--border-pearl);
-  margin-bottom: 0.2rem;
-}
-
-.inv-group-price {
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--ferrari-red);
-}
-
-.inv-group-meta {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.inv-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.7rem 0.9rem;
-  background: var(--surface-card-inner);
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-inner);
-  transition: var(--transition-fast);
-}
-
-.inv-row:focus-within {
-  border-color: var(--ferrari-red);
-  background: #FFFFFF;
-}
-
-.inv-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
-.inv-fields {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.6rem;
-  flex-shrink: 0;
-}
-
-.inv-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.inv-field-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-.inv-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-/* Versione ridotta del ± usato nel campo Sisal: qui le righe sono molte */
-.btn-sign-toggle.is-compact {
-  width: 32px;
-  height: 38px;
-  font-size: 1rem;
-}
-
-.inv-input {
-  width: 62px;
-  height: 38px;
-  padding: 0 0.5rem;
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 700;
-  text-align: right;
-  color: var(--text-primary);
-  background: #FFFFFF;
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: var(--transition-fast);
-}
-
-.inv-input:focus {
-  border-color: var(--ferrari-red);
-}
-
-.inv-input.is-negative {
-  color: #B91C1C;
-}
-
-@media (max-width: 768px) {
-  .inv-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.6rem;
-  }
-
-  .inv-name {
-    font-size: 1rem;
-  }
-
-  .inv-fields {
-    justify-content: space-between;
-  }
-
-  .inv-input {
-    width: 78px;
-    height: 44px;
-  }
-
-  .btn-sign-toggle.is-compact {
-    height: 44px;
-    width: 38px;
-  }
-}
-
-/* ==========================================================================
-   INVENTARIO: BARRA STRUMENTI E GRUPPI RICHIUDIBILI
-   ========================================================================== */
-
+/* Barra strumenti: ricerca larga, azioni compatte a destra */
 .inv-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   gap: 0.5rem;
-  margin-bottom: 1.1rem;
-}
-
-.inv-toolbar .todo-add-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.inv-toolbar .btn-latex-export {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-details.inv-group {
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-inner);
-  background: var(--surface-card-outer);
-  overflow: hidden;
-}
-
-details.inv-group > summary.inv-group-header {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.75rem 0.9rem;
-  margin: 0;
-  border-bottom: none;
-  cursor: pointer;
-  list-style: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: var(--transition-fast);
-}
-
-/* La freccia predefinita cambia forma da un browser all'altro */
-details.inv-group > summary::-webkit-details-marker {
-  display: none;
-}
-
-details.inv-group > summary.inv-group-header::before {
-  content: '▸';
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  transition: transform 0.2s var(--ease-spring);
-}
-
-details.inv-group[open] > summary.inv-group-header::before {
-  transform: rotate(90deg);
-}
-
-details.inv-group > summary.inv-group-header:hover {
-  background: var(--surface-subtle);
-}
-
-details.inv-group[open] > summary.inv-group-header {
-  border-bottom: 1px solid var(--border-pearl);
-}
-
-.inv-group-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem;
-}
-
-.inv-group-body .inv-row {
-  background: var(--surface-card-inner);
-}
-
-/* Modulo per aggiungere articoli al catalogo, visibile in modalità modifica */
-.inv-edit-form {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.1rem;
-  padding: 0.75rem;
-  background: var(--surface-subtle);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-inner);
-}
-
-.inv-edit-form.is-hidden {
-  display: none;
-}
-
-.inv-edit-num {
-  width: 120px;
-  flex-shrink: 0;
-  height: 46px;
-  padding: 0 0.7rem;
-  font-family: var(--font-sans);
-  font-size: 0.92rem;
-  color: var(--text-primary);
-  background: #FFFFFF;
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-sm);
-  outline: none;
-}
-
-.inv-edit-num:focus {
-  border-color: var(--ferrari-red);
+  margin-bottom: 1.25rem;
 }
 
 .inv-categorie {
@@ -2093,20 +1875,249 @@ details.inv-group[open] > summary.inv-group-header {
   margin-bottom: 1rem;
 }
 
-/* Il tasto Modifica resta acceso finché la modalità è attiva */
+/* --- Gruppi ------------------------------------------------------------- */
+
+.inv-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.inv-group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1.5px solid var(--text-primary);
+}
+
+.inv-group-title {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.inv-group-meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.inv-group-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Righe -------------------------------------------------------------- */
+
+.inv-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.25rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast);
+}
+
+.inv-row:last-child {
+  border-bottom: none;
+}
+
+.inv-row:focus-within {
+  background: var(--surface-subtle);
+}
+
+.inv-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.inv-fields {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inv-field {
+  display: grid;
+  gap: 0.15rem;
+  justify-items: end;
+}
+
+.inv-field-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.inv-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+/* Versione ridotta del ± usato nel campo Sisal: qui le righe sono molte */
+.btn-sign-toggle.is-compact {
+  width: 28px;
+  height: 34px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+
+.inv-input {
+  width: 58px;
+  height: 34px;
+  padding: 0 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: right;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 6px;
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.inv-input:focus {
+  border-color: var(--text-primary);
+}
+
+.inv-input.is-negative {
+  color: var(--ferrari-red);
+}
+
+/* --- Modalità modifica -------------------------------------------------- */
+
+.inv-edit-form {
+  display: grid;
+  grid-template-columns: 1fr 130px 100px auto;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+#form-nuovo-tabacco {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.inv-edit-form.is-hidden {
+  display: none;
+}
+
+.inv-edit-num {
+  height: 44px;
+  padding: 0 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  outline: none;
+  min-width: 0;
+}
+
+.inv-edit-num:focus {
+  border-color: var(--text-primary);
+}
+
+/* Segnala che il catalogo è in modifica senza urlare */
 .btn-secondary-action.is-active {
-  background: var(--ferrari-red);
-  border-color: var(--ferrari-red);
+  background: var(--text-primary);
+  border-color: var(--text-primary);
   color: #FFFFFF;
 }
 
 @media (max-width: 768px) {
-  .inv-toolbar,
-  .inv-edit-form {
-    flex-wrap: wrap;
+  .inv-toolbar {
+    grid-template-columns: 1fr auto;
   }
 
-  .inv-edit-num {
-    width: calc(50% - 0.25rem);
+  .inv-toolbar .todo-add-input {
+    grid-column: 1 / -1;
+  }
+
+  .inv-edit-form,
+  #form-nuovo-tabacco {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inv-edit-form .todo-add-input {
+    grid-column: 1 / -1;
+  }
+
+  .inv-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.8rem 0.25rem;
+  }
+
+  .inv-name {
+    font-size: 1rem;
+  }
+
+  .inv-fields {
+    justify-content: flex-start;
+  }
+
+  .inv-input {
+    width: 72px;
+    height: 42px;
+    font-size: 1.05rem;
+  }
+
+  .btn-sign-toggle.is-compact {
+    width: 34px;
+    height: 42px;
+  }
+}
+
+/* Legenda delle colonne: una volta per gruppo invece che su ogni riga.
+   Su mobile la riga si impila e tornano utili le etichette per campo. */
+.inv-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 0.25rem 0.35rem 0.25rem;
+}
+
+.inv-legend-label {
+  width: 88px;
+  text-align: right;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.inv-field-label {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .inv-legend {
+    display: none;
+  }
+
+  .inv-field-label {
+    display: block;
   }
 }
