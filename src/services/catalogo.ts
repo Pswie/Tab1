@@ -114,29 +114,37 @@ async function sincronizzaPendenti(): Promise<void> {
 
   const restano = pendentiVuoti();
 
-  for (const v of p.grattaAggiunti) {
-    const { error } = await supabase
-      .from('catalogo_gratta_e_vinci')
-      .upsert({ gioco: v.gioco, prezzo: v.prezzo, pezzi_per_pacco: v.pezziPerPacco }, { onConflict: 'gioco' });
-    if (error) restano.grattaAggiunti.push(v);
-  }
+  // Una rete che cade fa sollevare un'eccezione, non restituire un errore.
+  // Senza questa protezione l'eccezione risalirebbe fino al caricamento del
+  // catalogo e l'inventario resterebbe vuoto invece di ripiegare sui dati locali.
+  try {
+    for (const v of p.grattaAggiunti) {
+      const { error } = await supabase
+        .from('catalogo_gratta_e_vinci')
+        .upsert({ gioco: v.gioco, prezzo: v.prezzo, pezzi_per_pacco: v.pezziPerPacco }, { onConflict: 'gioco' });
+      if (error) restano.grattaAggiunti.push(v);
+    }
 
-  for (const gioco of p.grattaRimossi) {
-    const { error } = await supabase.from('catalogo_gratta_e_vinci').delete().eq('gioco', gioco);
-    if (error) restano.grattaRimossi.push(gioco);
-  }
+    for (const gioco of p.grattaRimossi) {
+      const { error } = await supabase.from('catalogo_gratta_e_vinci').delete().eq('gioco', gioco);
+      if (error) restano.grattaRimossi.push(gioco);
+    }
 
-  for (const v of p.tabacchiAggiunti) {
-    const { error } = await supabase.from('catalogo_tabacchi').upsert(v, { onConflict: 'prodotto' });
-    if (error) restano.tabacchiAggiunti.push(v);
-  }
+    for (const v of p.tabacchiAggiunti) {
+      const { error } = await supabase.from('catalogo_tabacchi').upsert(v, { onConflict: 'prodotto' });
+      if (error) restano.tabacchiAggiunti.push(v);
+    }
 
-  for (const prodotto of p.tabacchiRimossi) {
-    const { error } = await supabase.from('catalogo_tabacchi').delete().eq('prodotto', prodotto);
-    if (error) restano.tabacchiRimossi.push(prodotto);
-  }
+    for (const prodotto of p.tabacchiRimossi) {
+      const { error } = await supabase.from('catalogo_tabacchi').delete().eq('prodotto', prodotto);
+      if (error) restano.tabacchiRimossi.push(prodotto);
+    }
 
-  scriviPendenti(restano);
+    scriviPendenti(restano);
+  } catch (err) {
+    // Le modifiche restano in coda e si riproveranno al prossimo avvio
+    console.warn('Sincronizzazione catalogo rimandata:', err);
+  }
 }
 
 /** Applica all'elenco letto dal database le modifiche non ancora sincronizzate */

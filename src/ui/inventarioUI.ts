@@ -581,10 +581,16 @@ export async function initInventario() {
   if (btnStampaGratta) btnStampaGratta.addEventListener('click', () => stampaInventario('gratta'));
   if (btnStampaTabacchi) btnStampaTabacchi.addEventListener('click', () => stampaInventario('tabacchi'));
 
-  [catalogoGratta, catalogoTabacchi] = await Promise.all([
-    caricaCatalogoGratta(),
-    caricaCatalogoTabacchi()
-  ]) as [VoceCatalogoGratta[], VoceCatalogoTabacco[]];
+  // Se il caricamento dei cataloghi fallisce l'inventario resterebbe vuoto:
+  // meglio partire dagli elenchi di riserva e aggiornarli se la rete risponde.
+  try {
+    [catalogoGratta, catalogoTabacchi] = await Promise.all([
+      caricaCatalogoGratta(),
+      caricaCatalogoTabacchi()
+    ]) as [VoceCatalogoGratta[], VoceCatalogoTabacco[]];
+  } catch (err) {
+    console.error('Cataloghi non caricati, uso gli elenchi locali:', err);
+  }
 
   renderGratta();
   renderTabacchi();
