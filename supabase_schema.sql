@@ -28,6 +28,8 @@ DROP TABLE IF EXISTS public.daily_logs;
 DROP TABLE IF EXISTS public.daily_notes;
 DROP TABLE IF EXISTS public.inventario_gratta_e_vinci;
 DROP TABLE IF EXISTS public.inventario_sigarette;
+DROP TABLE IF EXISTS public.catalogo_gratta_e_vinci;
+DROP TABLE IF EXISTS public.catalogo_tabacchi;
 
 -- =========================================================================
 -- 1. TABELLA PRINCIPALE: una riga per turno
@@ -274,4 +276,43 @@ CREATE POLICY "Scrittura inventario gratta e vinci" ON public.inventario_gratta_
 CREATE POLICY "Lettura inventario sigarette" ON public.inventario_sigarette
     FOR SELECT USING (true);
 CREATE POLICY "Scrittura inventario sigarette" ON public.inventario_sigarette
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 7. CATALOGHI
+--
+-- L'elenco degli articoli è modificabile dall'app, quindi vive nel database e
+-- non nel codice. Al primo avvio, se le tabelle sono vuote, l'app le riempie
+-- con gli articoli ricavati dagli ordini e dalle fatture.
+-- =========================================================================
+CREATE TABLE public.catalogo_gratta_e_vinci (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    gioco TEXT NOT NULL UNIQUE,
+    prezzo NUMERIC(10,2) NOT NULL,
+    pezzi_per_pacco INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.catalogo_tabacchi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prodotto TEXT NOT NULL UNIQUE,
+    marca TEXT NOT NULL,
+    categoria TEXT NOT NULL
+        CHECK (categoria IN ('sigarette', 'elettronico', 'sigari', 'busta_scatola')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_cat_tab_categoria ON public.catalogo_tabacchi(categoria, marca);
+
+ALTER TABLE public.catalogo_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.catalogo_tabacchi ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lettura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Lettura catalogo tabacchi" ON public.catalogo_tabacchi
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura catalogo tabacchi" ON public.catalogo_tabacchi
     FOR ALL USING (true) WITH CHECK (true);

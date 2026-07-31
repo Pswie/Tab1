@@ -1347,7 +1347,12 @@ body {
 
   /* Nasconde tutta l'interfaccia tranne il foglio. Elencare i singoli blocchi era
      fragile: bastava un elemento dimenticato per far uscire una seconda pagina. */
-  body > *:not(#print-document-host) {
+  body > *:not(.print-host) {
+    display: none !important;
+  }
+
+  /* Dei due fogli si stampa solo quello marcato */
+  .print-host {
     display: none !important;
   }
 
@@ -1355,7 +1360,7 @@ body {
      così la stampa è sempre e solo di una pagina */
   /* 296mm invece di 297mm: lasciare un millimetro di margine evita che un
      arrotondamento sub-pixel faccia traboccare il foglio su una seconda pagina */
-  #print-document-host {
+  #print-document-host.is-printing {
     display: block !important;
     position: relative !important;
     width: 210mm !important;
@@ -1365,6 +1370,20 @@ body {
     page-break-before: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  #print-inventario-host.is-printing {
+    display: block !important;
+    width: 210mm !important;
+  }
+
+  /* L'inventario puo' occupare piu' pagine: non va ritagliato */
+  #print-inventario-host .print-document-sheet {
+    height: auto !important;
+    overflow: visible !important;
+    page-break-after: auto !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
   .print-document-sheet {
@@ -1956,5 +1975,138 @@ body {
   .btn-sign-toggle.is-compact {
     height: 44px;
     width: 38px;
+  }
+}
+
+/* ==========================================================================
+   INVENTARIO: BARRA STRUMENTI E GRUPPI RICHIUDIBILI
+   ========================================================================== */
+
+.inv-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+
+.inv-toolbar .todo-add-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inv-toolbar .btn-latex-export {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+details.inv-group {
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  background: var(--surface-card-outer);
+  overflow: hidden;
+}
+
+details.inv-group > summary.inv-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  margin: 0;
+  border-bottom: none;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: var(--transition-fast);
+}
+
+/* La freccia predefinita cambia forma da un browser all'altro */
+details.inv-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.inv-group > summary.inv-group-header::before {
+  content: '▸';
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: transform 0.2s var(--ease-spring);
+}
+
+details.inv-group[open] > summary.inv-group-header::before {
+  transform: rotate(90deg);
+}
+
+details.inv-group > summary.inv-group-header:hover {
+  background: var(--surface-subtle);
+}
+
+details.inv-group[open] > summary.inv-group-header {
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.inv-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+}
+
+.inv-group-body .inv-row {
+  background: var(--surface-card-inner);
+}
+
+/* Modulo per aggiungere articoli al catalogo, visibile in modalità modifica */
+.inv-edit-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+  padding: 0.75rem;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-inner);
+}
+
+.inv-edit-form.is-hidden {
+  display: none;
+}
+
+.inv-edit-num {
+  width: 120px;
+  flex-shrink: 0;
+  height: 46px;
+  padding: 0 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.inv-edit-num:focus {
+  border-color: var(--ferrari-red);
+}
+
+.inv-categorie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+/* Il tasto Modifica resta acceso finché la modalità è attiva */
+.btn-secondary-action.is-active {
+  background: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+  color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+  .inv-toolbar,
+  .inv-edit-form {
+    flex-wrap: wrap;
+  }
+
+  .inv-edit-num {
+    width: calc(50% - 0.25rem);
   }
 }

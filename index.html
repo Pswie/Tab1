@@ -299,6 +299,28 @@
           Segna quanto manca o quanto si trova in più. Usa &plusmn; per il segno meno.
         </p>
 
+        <div class="inv-toolbar">
+          <input
+            type="search"
+            id="inv-gratta-cerca"
+            class="todo-add-input"
+            placeholder="Cerca un gioco"
+            autocomplete="off"
+          />
+          <button type="button" id="btn-modifica-gratta" class="btn-secondary-action">Modifica</button>
+          <button type="button" id="btn-print-inventario-gratta" class="btn-latex-export">
+            🖨️ Stampa
+          </button>
+        </div>
+
+        <!-- Visibile solo in modalità modifica -->
+        <div class="inv-edit-form is-hidden" id="form-nuovo-gratta">
+          <input type="text" id="nuovo-gratta-nome" class="todo-add-input" placeholder="Nome del gioco" autocomplete="off" />
+          <input type="text" id="nuovo-gratta-costo" class="inv-edit-num" placeholder="Costo pacco €" inputmode="decimal" />
+          <input type="text" id="nuovo-gratta-pezzi" class="inv-edit-num" placeholder="Pezzi" inputmode="numeric" />
+          <button type="button" id="btn-add-gratta" class="todo-add-btn">Aggiungi</button>
+        </div>
+
         <div id="inv-gratta-lista" class="inv-lista"></div>
       </section>
 
@@ -314,15 +336,32 @@
           Segna quanto manca o quanto si trova in più. Usa &plusmn; per il segno meno.
         </p>
 
-        <div class="todo-add-row">
+        <div class="inv-categorie" role="tablist" aria-label="Categoria">
+          <button type="button" class="todo-filter is-active" data-categoria="sigarette">Sigarette</button>
+          <button type="button" class="todo-filter" data-categoria="elettronico">Elettronico</button>
+          <button type="button" class="todo-filter" data-categoria="sigari">Sigari</button>
+          <button type="button" class="todo-filter" data-categoria="busta_scatola">Busta e scatola</button>
+        </div>
+
+        <div class="inv-toolbar">
           <input
-            type="text"
-            id="inv-sigarette-marca"
+            type="search"
+            id="inv-sigarette-cerca"
             class="todo-add-input"
-            placeholder="Aggiungi una marca"
+            placeholder="Cerca una marca o un prodotto"
             autocomplete="off"
           />
-          <button type="button" id="btn-add-marca" class="todo-add-btn">Aggiungi</button>
+          <button type="button" id="btn-modifica-tabacchi" class="btn-secondary-action">Modifica</button>
+          <button type="button" id="btn-print-inventario-sigarette" class="btn-latex-export">
+            🖨️ Stampa
+          </button>
+        </div>
+
+        <!-- Visibile solo in modalità modifica -->
+        <div class="inv-edit-form is-hidden" id="form-nuovo-tabacco">
+          <input type="text" id="nuovo-tabacco-nome" class="todo-add-input" placeholder="Nome del prodotto" autocomplete="off" />
+          <input type="text" id="nuovo-tabacco-marca" class="todo-add-input" placeholder="Marca" autocomplete="off" />
+          <button type="button" id="btn-add-tabacco" class="todo-add-btn">Aggiungi</button>
         </div>
 
         <div id="inv-sigarette-lista" class="inv-lista"></div>
@@ -380,7 +419,7 @@
   <!-- FOGLIO DOCUMENTO CONTABILE
        Non viene mai mostrato a schermo: esiste solo per essere stampato,
        occupa esattamente una pagina A4 e viene compilato al click su Stampa. -->
-  <div id="print-document-host" aria-hidden="true">
+  <div id="print-document-host" class="print-host is-printing" aria-hidden="true">
     <div id="document-print-sheet" class="print-document-sheet">
       <div class="doc-header">
         <h1 class="doc-brand-title">TABACCHERIA</h1>
@@ -529,6 +568,32 @@
         </tfoot>
       </table>
       </section>
+    </div>
+  </div>
+
+
+  <!-- FOGLIO INVENTARIO
+       Come quello contabile: mai a schermo, esiste solo per la stampa. -->
+  <div id="print-inventario-host" class="print-host" aria-hidden="true">
+    <div class="print-document-sheet">
+      <div class="doc-header">
+        <h1 class="doc-brand-title">TABACCHERIA</h1>
+        <h2 class="doc-sub-title" id="doc-inv-titolo">Inventario</h2>
+        <p id="doc-inv-data" class="doc-date-text">Data: --</p>
+        <div class="doc-header-line"></div>
+      </div>
+
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th>Articolo</th>
+            <th class="doc-col-amount" id="doc-inv-col1">Pacchi</th>
+            <th class="doc-col-amount" id="doc-inv-col2">Pezzi</th>
+          </tr>
+        </thead>
+        <tbody id="doc-inv-corpo"></tbody>
+        <tfoot id="doc-inv-piede"></tfoot>
+      </table>
     </div>
   </div>
 
