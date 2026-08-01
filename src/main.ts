@@ -27,6 +27,7 @@ import {
 import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { segnala } from './ui/segnalazioni';
+import { initAccesso } from './ui/accessoUI';
 import {
   attivaNotifiche,
   avvisaGliAltri,
@@ -918,5 +919,7 @@ async function initApp() {
 }
 
 // Start application
-initApp();
+// L'app parte solo a accesso concesso: prima di allora la schermata di
+// accesso copre tutto e nessuna pagina viene popolata.
+initAccesso(() => { initApp(); });
 

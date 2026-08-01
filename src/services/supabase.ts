@@ -11,7 +11,16 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 export const supabase = isSupabaseConfigured()
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        // La sessione resta sul dispositivo e il token si rinnova da solo
+        // prima di scadere: chi entra una volta non deve più riaccedere.
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      }
+    })
   : null;
 
 const LOCAL_STORAGE_KEY = 'tabaccheria_daily_logs_v3';

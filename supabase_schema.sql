@@ -477,3 +477,53 @@ CREATE POLICY "Lettura iscrizioni push" ON public.push_iscrizioni FOR SELECT USI
 DROP POLICY IF EXISTS "Scrittura iscrizioni push" ON public.push_iscrizioni;
 CREATE POLICY "Scrittura iscrizioni push" ON public.push_iscrizioni
     FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 12. ACCESSO
+--
+-- Chiunque può iscriversi, ma nessuno entra finché non gli viene concesso
+-- l'accesso: la colonna 'accesso' parte da false e si mette a true a mano
+-- dalla tabella su Supabase.
+--
+-- Il profilo viene creato da solo alla registrazione, così l'elenco delle
+-- persone da approvare si riempie senza doverci pensare.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.profili (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    nome TEXT NOT NULL DEFAULT '',
+
+    -- Da mettere a true per far entrare la persona
+    accesso BOOLEAN NOT NULL DEFAULT false,
+
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.crea_profilo()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.profili (id, email, nome)
+    VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'nome', ''))
+    ON CONFLICT (id) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_crea_profilo ON auth.users;
+CREATE TRIGGER trg_crea_profilo
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.crea_profilo();
+
+ALTER TABLE public.profili ENABLE ROW LEVEL SECURITY;
+
+-- Ognuno vede soltanto il proprio profilo: serve a sapere se può entrare,
+-- non a farsi l'elenco dei colleghi.
+DROP POLICY IF EXISTS "Lettura del proprio profilo" ON public.profili;
+CREATE POLICY "Lettura del proprio profilo" ON public.profili
+    FOR SELECT USING (auth.uid() = id);

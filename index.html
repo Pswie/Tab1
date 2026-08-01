@@ -23,6 +23,71 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <!-- SCHERMATA DI ACCESSO
+       Copre tutto finché non è chiaro chi sta usando l'app e se può entrare.
+       Resta visibile al primo colpo, così le pagine non compaiono per un
+       istante prima di essere nascoste. -->
+  <div class="accesso-schermo" id="accesso-schermo">
+    <div class="accesso-riquadro">
+      <img class="accesso-logo" src="/icon-192.png" alt="iNES caffè" width="56" height="56" />
+
+      <div class="accesso-intestazione">
+        <h1 class="accesso-titolo">Tabaccheria iNES caffè</h1>
+        <p class="accesso-sottotitolo">Gestionale amministrativo</p>
+      </div>
+
+      <!-- In attesa di sapere se la sessione è ancora valida -->
+      <div class="accesso-blocco" id="accesso-caricamento">
+        <div class="accesso-attesa" aria-hidden="true"></div>
+        <p class="accesso-nota">Verifica dell'accesso...</p>
+      </div>
+
+      <!-- Modulo di accesso e registrazione -->
+      <div class="accesso-blocco is-hidden" id="accesso-modulo">
+        <div class="accesso-schede" role="tablist">
+          <button type="button" class="accesso-scheda is-active" data-modo="accedi" role="tab">Accedi</button>
+          <button type="button" class="accesso-scheda" data-modo="registrati" role="tab">Registrati</button>
+        </div>
+
+        <form class="accesso-campi" id="accesso-form" autocomplete="on">
+          <label class="accesso-campo is-hidden" id="campo-nome">
+            <span class="accesso-etichetta">Nome e cognome</span>
+            <input type="text" id="accesso-nome" autocomplete="name" placeholder="Mario Rossi" />
+          </label>
+
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Email</span>
+            <input type="email" id="accesso-email" autocomplete="email" required placeholder="nome@esempio.it" />
+          </label>
+
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Password</span>
+            <input type="password" id="accesso-password" autocomplete="current-password" required
+                   minlength="6" placeholder="Almeno 6 caratteri" />
+          </label>
+
+          <p class="accesso-errore is-hidden" id="accesso-errore"></p>
+
+          <button type="submit" class="accesso-invio" id="accesso-invio">Entra</button>
+        </form>
+      </div>
+
+      <!-- Registrato ma non ancora abilitato dal titolare -->
+      <div class="accesso-blocco is-hidden" id="accesso-negato">
+        <div class="accesso-negato-segno" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M15 9 9 15"/><path d="m9 9 6 6"/>
+          </svg>
+        </div>
+        <h2 class="accesso-negato-titolo">Accesso negato</h2>
+        <p class="accesso-nota" id="accesso-negato-nota"></p>
+        <button type="button" class="accesso-secondario" id="accesso-riprova">Ho ottenuto l'accesso</button>
+        <button type="button" class="accesso-testo" id="accesso-esci">Esci</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Header App Brandizzato -->
   <header class="app-header">
     <div class="header-container">
@@ -34,6 +99,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <span class="header-saluto" id="header-saluto" hidden></span>
         <!-- Menu di navigazione per schermi stretti -->
         <button type="button" id="btn-hamburger-menu" class="hamburger-btn" aria-label="Apri Menu Navigazione">
           <span class="hamburger-dot" id="pallino-menu" hidden></span>
