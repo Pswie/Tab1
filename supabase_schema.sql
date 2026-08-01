@@ -499,6 +499,13 @@ CREATE TABLE IF NOT EXISTS public.profili (
     creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Chi amministra fa tutto quello che fa un dipendente e in più vede la
+-- dashboard con incassi e statistiche. Parte da false e si mette a true a mano
+-- dalla tabella su Supabase, come l'accesso: nessuna policy consente di
+-- scrivere su profili, quindi dall'app non ci si può promuovere da soli.
+ALTER TABLE public.profili
+    ADD COLUMN IF NOT EXISTS admin BOOLEAN NOT NULL DEFAULT false;
+
 CREATE OR REPLACE FUNCTION public.crea_profilo()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -527,3 +534,102 @@ ALTER TABLE public.profili ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Lettura del proprio profilo" ON public.profili;
 CREATE POLICY "Lettura del proprio profilo" ON public.profili
     FOR SELECT USING (auth.uid() = id);
+
+
+-- =========================================================================
+-- 13. REGISTRO NUMERI
+--
+-- La rubrica del negozio: fornitori, tecnici, clienti da richiamare. Sta qui
+-- e non sul telefono di chi l'ha scritta, così la trovano tutti.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.rubrica (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    nome TEXT NOT NULL,
+    telefono TEXT NOT NULL,
+
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    -- Chi l'ha messo in elenco, per sapere a chi chiedere se il numero non torna
+    creato_da TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_rubrica_nome ON public.rubrica(nome);
+
+ALTER TABLE public.rubrica ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Lettura rubrica" ON public.rubrica;
+CREATE POLICY "Lettura rubrica" ON public.rubrica FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura rubrica" ON public.rubrica;
+CREATE POLICY "Scrittura rubrica" ON public.rubrica FOR ALL USING (true) WITH CHECK (true);
+
+
+-- =========================================================================
+-- 14. DISTRIBUTORI H24
+--
+-- Le macchine lavorano anche a negozio chiuso. Si segna cosa manca dentro,
+-- per sapere cosa portare al prossimo giro, e mese per mese quanto hanno
+-- incassato: quel totale è quello che poi si dichiara.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.h24_prodotti (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    nome TEXT NOT NULL,
+
+    -- In quale delle tre macchine sta il prodotto
+    distributore TEXT NOT NULL DEFAULT 'vari'
+        CHECK (distributore IN ('drink', 'snack', 'vari')),
+
+    -- Quanti pezzi mancano per riempire la macchina: zero vuol dire piena
+    mancanti INTEGER NOT NULL DEFAULT 0,
+
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Su una tabella creata da una versione precedente la colonna va aggiunta
+ALTER TABLE public.h24_prodotti
+    ADD COLUMN IF NOT EXISTS distributore TEXT NOT NULL DEFAULT 'vari';
+
+ALTER TABLE public.h24_prodotti DROP CONSTRAINT IF EXISTS h24_prodotti_distributore_check;
+ALTER TABLE public.h24_prodotti
+    ADD CONSTRAINT h24_prodotti_distributore_check
+    CHECK (distributore IN ('drink', 'snack', 'vari'));
+
+CREATE INDEX IF NOT EXISTS idx_h24_prodotti_macchina
+    ON public.h24_prodotti(distributore, nome);
+
+-- Un incasso per mese. Il mese si conserva come primo giorno del mese, così
+-- resta una data vera e si ordina da sola.
+CREATE TABLE IF NOT EXISTS public.h24_incassi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    mese DATE NOT NULL UNIQUE,
+    importo NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+
+    -- La dichiarazione dei distributori si fa a mese concluso: finché questa
+    -- resta false, l'app continua a ricordarlo
+    dichiarato BOOLEAN NOT NULL DEFAULT false,
+    dichiarato_il TIMESTAMP WITH TIME ZONE,
+
+    nota TEXT NOT NULL DEFAULT '',
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_h24_incassi_mese ON public.h24_incassi(mese DESC);
+
+ALTER TABLE public.h24_prodotti ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.h24_incassi ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Lettura prodotti h24" ON public.h24_prodotti;
+CREATE POLICY "Lettura prodotti h24" ON public.h24_prodotti FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura prodotti h24" ON public.h24_prodotti;
+CREATE POLICY "Scrittura prodotti h24" ON public.h24_prodotti
+    FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Lettura incassi h24" ON public.h24_incassi;
+CREATE POLICY "Lettura incassi h24" ON public.h24_incassi FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura incassi h24" ON public.h24_incassi;
+CREATE POLICY "Scrittura incassi h24" ON public.h24_incassi
+    FOR ALL USING (true) WITH CHECK (true);

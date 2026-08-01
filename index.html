@@ -126,6 +126,22 @@
     </div>
 
     <div class="hotdog-menu-items">
+      <!-- Voce riservata a chi amministra: resta nascosta finché il profilo
+           non ha admin a true -->
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-dashboard" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Dashboard</strong>
+          <span>Incassi medi mensili e statistiche</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-h24" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Distributori H24 <span class="nav-badge" id="badge-menu-h24" hidden></span></strong>
+          <span>Cosa manca e incassi da dichiarare</span>
+        </div>
+      </button>
       <button type="button" class="hotdog-menu-item active" data-tab="tab-incassi">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span>
         <div class="hotdog-text">
@@ -154,6 +170,13 @@
           <span>Checklist e controlli punto vendita</span>
         </div>
       </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-rubrica">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7Z"/><circle cx="13.5" cy="10" r="2.4"/><path d="M10 17a3.5 3.5 0 0 1 7 0"/><path d="M7 7H4"/><path d="M7 12H4"/><path d="M7 17H4"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Registro numeri</strong>
+          <span>Nomi e numeri di telefono</span>
+        </div>
+      </button>
     </div>
   </div>
   <div id="hotdog-backdrop" class="hotdog-backdrop"></div>
@@ -161,6 +184,12 @@
   <!-- Navigation Bar Desktop & Tablet -->
   <nav class="app-nav-tabs">
     <div class="nav-tabs-container">
+      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-dashboard" hidden>
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span> Dashboard
+      </button>
+      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-h24" hidden>
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/></svg></span> Distributori H24 <span class="nav-badge" id="badge-nav-h24" hidden></span>
+      </button>
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
       </button>
@@ -173,11 +202,185 @@
       <button type="button" class="nav-tab-item" data-tab="tab-todos">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span> Task To-Do <span class="nav-badge" id="badge-nav-todos" hidden></span>
       </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-rubrica">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7Z"/><circle cx="13.5" cy="10" r="2.4"/><path d="M10 17a3.5 3.5 0 0 1 7 0"/><path d="M7 7H4"/><path d="M7 12H4"/><path d="M7 17H4"/></svg></span> Registro numeri
+      </button>
     </div>
   </nav>
 
   <!-- Content Main Wrapper Grid -->
   <main class="main-wrapper">
+    <!-- TAB RISERVATA: DASHBOARD
+         La vede solo chi ha admin a true nel proprio profilo. Non si inserisce
+         niente: si legge soltanto quello che è già stato registrato. -->
+    <div id="tab-dashboard" class="tab-pane">
+      <!-- Il mese in corso è un periodo suo, e non segue il filtro più in basso -->
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Mese in corso</span>
+          </div>
+          <span class="dash-periodo-nome" id="dash-mese-nome">&mdash;</span>
+        </div>
+
+        <div class="dash-hero">
+          <span class="dash-hero-etichetta">Incasso del mese finora</span>
+          <span class="dash-hero-valore" id="dash-mese-totale">&mdash;</span>
+          <span class="dash-hero-nota" id="dash-mese-nota"></span>
+        </div>
+
+        <div class="dash-riquadri" id="dash-riquadri-mese"></div>
+      </section>
+
+      <!-- Un filtro solo, sopra tutto quello che comanda -->
+      <div class="dash-filtro">
+        <span class="dash-filtro-etichetta">Periodo osservato</span>
+        <div class="dash-periodi" role="tablist" aria-label="Periodo osservato">
+          <button type="button" class="dash-periodo is-active" data-periodo="12" role="tab" aria-selected="true">Ultimi 12 mesi</button>
+          <button type="button" class="dash-periodo" data-periodo="anno" role="tab" aria-selected="false">Anno in corso</button>
+          <button type="button" class="dash-periodo" data-periodo="tutto" role="tab" aria-selected="false">Tutto</button>
+        </div>
+      </div>
+
+      <p class="dash-stato is-hidden" id="dash-stato"></p>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Incassi mensili</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Totale del periodo</span>
+            <span class="inv-total-value" id="dash-periodo-totale">&mdash;</span>
+          </div>
+        </div>
+
+        <div class="dash-riquadri" id="dash-riquadri-medie"></div>
+
+        <figure class="dash-figura">
+          <figcaption class="dash-figura-titolo">
+            Incasso per mese
+            <span class="dash-figura-nota">Il mese in corso è ancora parziale ed è segnato in rosso</span>
+          </figcaption>
+          <div class="dash-grafico" id="dash-grafico-mesi"></div>
+        </figure>
+
+        <!-- Gli stessi numeri del grafico, leggibili uno per uno -->
+        <div class="dash-tabella-guscio">
+          <table class="dash-tabella">
+            <caption class="dash-tabella-titolo">Dettaglio dei mesi</caption>
+            <thead>
+              <tr>
+                <th scope="col">Mese</th>
+                <th scope="col" class="dash-num">Giornate</th>
+                <th scope="col" class="dash-num">Incasso</th>
+                <th scope="col" class="dash-num">Media al giorno</th>
+                <th scope="col" class="dash-num">Sul mese prima</th>
+              </tr>
+            </thead>
+            <tbody id="dash-tabella-mesi"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Statistiche</span>
+          </div>
+        </div>
+
+        <div class="dash-riquadri" id="dash-riquadri-statistiche"></div>
+
+        <figure class="dash-figura">
+          <figcaption class="dash-figura-titolo">
+            Da dove arriva l'incasso
+            <span class="dash-figura-nota">Il Lotto entra come netto, cioè entrate meno uscite</span>
+          </figcaption>
+          <div class="dash-barre" id="dash-ripartizione"></div>
+        </figure>
+
+        <figure class="dash-figura">
+          <figcaption class="dash-figura-titolo">
+            Media per giorno della settimana
+            <span class="dash-figura-nota">Calcolata sulle sole giornate registrate</span>
+          </figcaption>
+          <div class="dash-grafico" id="dash-settimana"></div>
+        </figure>
+
+        <div class="dash-riquadri" id="dash-riquadri-extra"></div>
+      </section>
+    </div>
+
+    <!-- TAB RISERVATA: DISTRIBUTORI H24
+         Le macchine lavorano anche a negozio chiuso e hanno due registri
+         propri: cosa manca dentro e quanto hanno incassato ogni mese. -->
+    <div id="tab-h24" class="tab-pane">
+      <!-- Compare dal primo del mese finché la dichiarazione non è segnata fatta -->
+      <div class="h24-promemoria is-hidden" id="h24-promemoria">
+        <div class="h24-promemoria-testo">
+          <strong>Dichiarazione distributori</strong>
+          <span id="h24-promemoria-nota"></span>
+        </div>
+        <button type="button" class="h24-promemoria-btn" id="btn-h24-vai-incassi">Vai agli incassi</button>
+      </div>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Cosa manca nelle macchine</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Pezzi da portare</span>
+            <span id="h24-totale-mancanti" class="inv-total-value">0</span>
+          </div>
+        </div>
+
+        <div class="h24-aggiungi">
+          <input type="text" id="h24-nome-prodotto" class="todo-add-input" placeholder="Nome del prodotto" autocomplete="off" />
+          <input type="text" id="h24-mancanti-prodotto" class="todo-add-input h24-campo-quantita"
+                 inputmode="numeric" placeholder="Mancanti" autocomplete="off" />
+          <button type="button" id="btn-h24-aggiungi" class="todo-add-btn">Aggiungi</button>
+        </div>
+
+        <p class="rub-avviso is-hidden" id="h24-avviso"></p>
+
+        <div id="h24-lista-prodotti" class="h24-lista"></div>
+
+        <div class="todo-footer">
+          <button type="button" id="btn-h24-rifornito" class="todo-link-btn is-hidden">
+            Ho rifornito tutto: azzera i mancanti
+          </button>
+        </div>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Incassi mensili</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Totale dell'anno</span>
+            <span id="h24-totale-anno" class="inv-total-value">0,00 &euro;</span>
+          </div>
+        </div>
+
+        <!-- Un elenco di mesi e non un campo data: il selettore del mese non
+             esiste su Safari e su Firefox, dove diventerebbe una casella in cui
+             scrivere 2026-08 a mano -->
+        <div class="h24-aggiungi">
+          <select id="h24-mese" class="todo-add-input" aria-label="Mese dell'incasso"></select>
+          <input type="text" id="h24-importo" class="todo-add-input" inputmode="decimal"
+                 placeholder="Incasso del mese" autocomplete="off" aria-label="Incasso del mese" />
+          <button type="button" id="btn-h24-salva-incasso" class="todo-add-btn">Salva</button>
+        </div>
+
+        <p class="rub-avviso is-hidden" id="h24-avviso-incasso"></p>
+
+        <div id="h24-lista-incassi" class="h24-lista"></div>
+      </section>
+    </div>
+
     <!-- TAB 1: INSERIMENTO INCASSI GIORNALIERI -->
     <div id="tab-incassi" class="tab-pane active">
       <section class="card-section">
@@ -186,12 +389,26 @@
             <span>Inserimento Dati Giornalieri</span>
           </div>
           <!-- Data della giornata in lavorazione.
-               Non è modificabile: la determina l'orario italiano e può essere
-               al massimo quella di ieri, per chiudere il pomeriggio precedente. -->
-          <p class="entry-date">
-            <svg class="entry-date-icona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3 11h18"/></svg>
-            <output id="entry-date-display" class="entry-date-valore">--</output>
-          </p>
+               Per i dipendenti la determina l'orario italiano e può essere al
+               massimo quella di ieri, il tempo di chiudere il pomeriggio
+               precedente. Chi amministra torna indietro quanto vuole. -->
+          <div class="entry-date-blocco">
+            <p class="entry-date">
+              <svg class="entry-date-icona" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3 11h18"/></svg>
+              <output id="entry-date-display" class="entry-date-valore">--</output>
+            </p>
+
+            <div class="data-nav solo-admin" hidden>
+              <button type="button" class="date-arrow-btn" id="btn-data-indietro" aria-label="Giornata precedente">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <input type="date" class="date-input" id="input-data-admin" aria-label="Giornata da aprire" />
+              <button type="button" class="date-arrow-btn" id="btn-data-avanti" aria-label="Giornata successiva">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+              <button type="button" class="date-oggi-btn" id="btn-data-oggi">Oggi</button>
+            </div>
+          </div>
         </div>
 
         <!-- SELETTORE TURNO
@@ -555,6 +772,37 @@
             Rimuovi le attività completate
           </button>
         </div>
+      </section>
+    </div>
+
+    <!-- TAB: REGISTRO NUMERI
+         La rubrica del negozio: fornitori, tecnici, clienti che aspettano una
+         chiamata. Da telefono il numero si tocca e parte la chiamata. -->
+    <div id="tab-rubrica" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Registro numeri</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">In elenco</span>
+            <span id="rubrica-conteggio" class="inv-total-value">0</span>
+          </div>
+        </div>
+
+        <div class="rub-aggiungi">
+          <input type="text" id="rubrica-nome" class="todo-add-input" placeholder="Nome" autocomplete="off" />
+          <input type="tel" id="rubrica-telefono" class="todo-add-input" placeholder="Numero di telefono"
+                 inputmode="tel" autocomplete="off" />
+          <button type="button" id="btn-rubrica-aggiungi" class="todo-add-btn">Aggiungi</button>
+        </div>
+
+        <p class="rub-avviso is-hidden" id="rubrica-avviso"></p>
+
+        <input type="search" id="rubrica-cerca" class="todo-add-input rub-cerca"
+               placeholder="Cerca per nome o numero" autocomplete="off" />
+
+        <div id="rubrica-lista" class="rub-lista"></div>
       </section>
     </div>
   </main>

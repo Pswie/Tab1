@@ -12,7 +12,7 @@ import { isSupabaseConfigured, supabase } from './supabase';
  */
 
 export type EsitoAccesso =
-  | { stato: 'dentro'; nome: string; email: string }
+  | { stato: 'dentro'; nome: string; email: string; admin: boolean }
   | { stato: 'in-attesa'; email: string }
   | { stato: 'fuori' }
   | { stato: 'non-configurato' };
@@ -22,6 +22,9 @@ export interface Profilo {
   email: string;
   nome: string;
   accesso: boolean;
+
+  /** Chi amministra vede in più la dashboard di incassi e statistiche */
+  admin: boolean;
 }
 
 /** Copia locale del profilo: se la rete manca non si resta chiusi fuori */
@@ -61,7 +64,8 @@ async function leggiProfilo(id: string): Promise<Profilo | null> {
       id: String(data.id),
       email: String(data.email || ''),
       nome: String(data.nome || ''),
-      accesso: Boolean(data.accesso)
+      accesso: Boolean(data.accesso),
+      admin: Boolean(data.admin)
     };
 
     ricordaProfilo(profilo);
@@ -91,13 +95,23 @@ export async function statoAccesso(): Promise<EsitoAccesso> {
   if (!profilo) {
     const ricordato = profiloRicordato();
     if (ricordato && ricordato.id === utente.id && ricordato.accesso) {
-      return { stato: 'dentro', nome: ricordato.nome || ricordato.email, email: ricordato.email };
+      return {
+        stato: 'dentro',
+        nome: ricordato.nome || ricordato.email,
+        email: ricordato.email,
+        admin: Boolean(ricordato.admin)
+      };
     }
     return { stato: 'in-attesa', email: utente.email || '' };
   }
 
   return profilo.accesso
-    ? { stato: 'dentro', nome: profilo.nome || profilo.email, email: profilo.email }
+    ? {
+        stato: 'dentro',
+        nome: profilo.nome || profilo.email,
+        email: profilo.email,
+        admin: profilo.admin
+      }
     : { stato: 'in-attesa', email: profilo.email };
 }
 
@@ -110,6 +124,17 @@ export function nomeUtente(): string {
   if (!p || !p.accesso) return '';
 
   return p.nome || p.email || '';
+}
+
+/**
+ * Se chi sta usando l'app amministra, e quindi vede anche la dashboard.
+ *
+ * Decide solo cosa mostrare: i registri restano leggibili da chiunque abbia
+ * l'accesso, quindi nascondere la dashboard è una comodità e non una barriera.
+ */
+export function amministratore(): boolean {
+  const p = profiloRicordato();
+  return Boolean(p && p.accesso && p.admin);
 }
 
 export async function registrati(email: string, password: string, nome: string): Promise<string | null> {

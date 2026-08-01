@@ -7,6 +7,7 @@ import {
   emptyShiftValues,
   formatCurrency,
   formatDateItalian,
+  formatDateLocalISO,
   formatInputValue,
   getActiveShift,
   getMaxAllowedDateString,
@@ -26,9 +27,11 @@ import {
 } from './services/attivita';
 import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
+import { caricaDashboard, initDashboard } from './ui/dashboardUI';
+import { caricaRubrica, initRubrica } from './ui/rubricaUI';
 import { segnala } from './ui/segnalazioni';
 import { initAccesso } from './ui/accessoUI';
-import { nomeUtente } from './services/auth';
+import { amministratore, nomeUtente } from './services/auth';
 import {
   attivaNotifiche,
   avvisaGliAltri,
@@ -67,6 +70,12 @@ const ICONA_TUTTO_FATTO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fil
 
 // DOM Elements
 const dateDisplay = document.getElementById('entry-date-display') as HTMLOutputElement;
+
+// Navigazione fra le giornate: la vede solo chi amministra
+const inputDataAdmin = document.getElementById('input-data-admin') as HTMLInputElement;
+const btnDataIndietro = document.getElementById('btn-data-indietro') as HTMLButtonElement;
+const btnDataAvanti = document.getElementById('btn-data-avanti') as HTMLButtonElement;
+const btnDataOggi = document.getElementById('btn-data-oggi') as HTMLButtonElement;
 
 const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
 const inputBar = document.getElementById('input-bar') as HTMLInputElement;
@@ -315,12 +324,18 @@ function triggerAutoSave() {
     window.clearTimeout(saveDebounceTimer);
   }
 
+  // Giornata, turno e valori si fissano adesso: se nel frattempo si cambia
+  // data o turno, quanto è stato digitato deve finire dov'è stato scritto
+  const dataDaSalvare = selectedDate;
+  const turnoDaSalvare = currentShift;
+  const vociDaSalvare = shiftData[currentShift];
+
   saveDebounceTimer = window.setTimeout(async () => {
     try {
       const result = await autoSaveDailyLog(
-        selectedDate,
-        currentShift,
-        shiftData[currentShift],
+        dataDaSalvare,
+        turnoDaSalvare,
+        vociDaSalvare,
         getDayExtras()
       );
       lastSaveError = result.error;
@@ -334,10 +349,48 @@ function triggerAutoSave() {
 }
 
 /**
+ * Prima giornata raggiungibile.
+ *
+ * Ai dipendenti resta ieri, il tempo di chiudere il pomeriggio precedente.
+ * Chi amministra torna indietro quanto vuole: gli serve rivedere le chiusure
+ * di mesi fa senza passare dal database.
+ */
+const PRIMA_GIORNATA = '2020-01-01';
+
+function dataMinimaConsentita(): string {
+  return amministratore() ? PRIMA_GIORNATA : getMinAllowedDateString();
+}
+
+/** Allinea i comandi di navigazione alla giornata aperta */
+function aggiornaNavigazioneData(data: string) {
+  if (!inputDataAdmin) return;
+
+  const minima = dataMinimaConsentita();
+  const massima = getMaxAllowedDateString();
+
+  inputDataAdmin.min = minima;
+  inputDataAdmin.max = massima;
+  inputDataAdmin.value = data;
+
+  if (btnDataIndietro) btnDataIndietro.disabled = data <= minima;
+  if (btnDataAvanti) btnDataAvanti.disabled = data >= massima;
+  if (btnDataOggi) btnDataOggi.disabled = data === getWorkingDateString();
+}
+
+/** Giornata spostata di N giorni, in formato YYYY-MM-DD */
+function spostaGiornata(data: string, giorni: number): string {
+  const [anno, mese, giorno] = data.split('-').map(Number);
+  const d = new Date(anno, mese - 1, giorno);
+  d.setDate(d.getDate() + giorni);
+
+  return formatDateLocalISO(d);
+}
+
+/**
  * Carica una giornata specifica nel form (con vincoli min/max)
  */
 async function loadDateIntoForm(dateStr: string) {
-  const minDate = getMinAllowedDateString();
+  const minDate = dataMinimaConsentita();
   const maxDate = getMaxAllowedDateString();
 
   // Applica vincoli di navigazione
@@ -349,6 +402,8 @@ async function loadDateIntoForm(dateStr: string) {
   if (dateDisplay) {
     dateDisplay.textContent = formatDateItalian(targetDate);
   }
+
+  aggiornaNavigazioneData(targetDate);
 
   const log = await fetchLogByDate(targetDate);
 
@@ -798,10 +853,31 @@ function setupEventListeners() {
 
       if (targetTabId === 'tab-todos') apriSchedaTodo();
       if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
+      if (targetTabId === 'tab-rubrica') caricaRubrica();
+      if (targetTabId === 'tab-dashboard') caricaDashboard();
 
       closeHotdogMenu();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+  });
+
+  // Navigazione fra le giornate, riservata a chi amministra
+  btnDataIndietro?.addEventListener('click', () => {
+    loadDateIntoForm(spostaGiornata(selectedDate, -1));
+  });
+
+  btnDataAvanti?.addEventListener('click', () => {
+    loadDateIntoForm(spostaGiornata(selectedDate, 1));
+  });
+
+  btnDataOggi?.addEventListener('click', () => {
+    loadDateIntoForm(getWorkingDateString());
+  });
+
+  inputDataAdmin?.addEventListener('change', () => {
+    // Un campo data svuotato non è una richiesta di andare da nessuna parte
+    if (inputDataAdmin.value) loadDateIntoForm(inputDataAdmin.value);
+    else aggiornaNavigazioneData(selectedDate);
   });
 
   const allInputs = [
@@ -925,9 +1001,15 @@ async function initApp() {
   aggiornaPulsanteNotifiche();
   initInventario();
   initSoggiorno();
+  initRubrica();
+
+  // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
+  initDashboard();
+
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
   await caricaSoggiorni();
+  await caricaRubrica();
   currentTodos = await elencaAttivita();
   segnaTodoVisti(currentTodos.map(t => t.id));
   renderTodoList();

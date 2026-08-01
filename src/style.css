@@ -3018,3 +3018,754 @@ body {
     font-size: 1.2rem;
   }
 }
+
+/* ==========================================================================
+   VOCI RISERVATE A CHI AMMINISTRA
+   Restano nascoste finché il profilo non ha admin a true. L'attributo hidden
+   da solo non basta: queste voci hanno un display esplicito che lo scavalca.
+   ========================================================================== */
+
+.nav-tab-item[hidden],
+.hotdog-menu-item[hidden],
+.data-nav[hidden] {
+  display: none;
+}
+
+/* ==========================================================================
+   NAVIGAZIONE FRA LE GIORNATE
+   Ai dipendenti la data la decide l'orario; chi amministra torna indietro.
+   ========================================================================== */
+
+.entry-date-blocco {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.data-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.date-oggi-btn {
+  height: 36px;
+  padding: 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.date-oggi-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+/* Già sulla giornata di oggi: il pulsante non ha più niente da fare */
+.date-oggi-btn:disabled,
+.date-arrow-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.date-arrow-btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 768px) {
+  .entry-date-blocco {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .data-nav {
+    width: 100%;
+  }
+
+  .data-nav .date-input {
+    flex: 1;
+    height: 40px;
+    font-size: 0.95rem;
+  }
+}
+
+/* ==========================================================================
+   DASHBOARD
+   Solo lettura: numeri già registrati, rimessi in fila. Le marche dei
+   grafici sono sottili e di un colore solo, perché il dato è la lunghezza,
+   non la tinta; il rosso resta per il mese ancora aperto.
+   ========================================================================== */
+
+#tab-dashboard {
+  --dash-marca: #64748B;
+  --dash-marca-parziale: var(--ferrari-red);
+  --dash-pista: 190px;
+  --dash-aria: 1.5rem;
+  --dash-gutter: 3.6rem;
+}
+
+#tab-dashboard.active {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Mentre si rileggono i registri resta in vista quello di prima, smorzato:
+   svuotare tutto farebbe ballare la pagina a ogni apertura */
+#tab-dashboard.is-caricamento {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.dash-periodo-nome {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dash-stato {
+  margin: -0.4rem 0 0 0;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.dash-stato.is-errore {
+  color: #991B1B;
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+/* Il numero con cui si apre la pagina: uno solo, e nello stesso carattere
+   di tutto il resto. Cifre proporzionali: a questa misura quelle a larghezza
+   fissa fanno sembrare slabbrato un numero come 121. */
+.dash-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-hero-etichetta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.dash-hero-valore {
+  font-family: var(--font-sans);
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.dash-hero-nota {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* I riquadri dei numeri di riepilogo */
+.dash-riquadri {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+}
+
+.dash-riquadri:not(:last-child) {
+  margin-bottom: 1.75rem;
+}
+
+.dash-riquadri:empty {
+  display: none;
+}
+
+.dash-riquadro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.dash-riquadro-etichetta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dash-riquadro-valore {
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.dash-riquadro-nota {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+/* Il verso della variazione è scritto con la freccia e col segno: il colore
+   da solo non lo direbbe a chi non lo distingue */
+.dash-delta {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.dash-delta.is-su {
+  color: var(--accent-green-text);
+}
+
+.dash-delta.is-giu {
+  color: #B91C1C;
+}
+
+.dash-delta-nota {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Grafici */
+.dash-figura {
+  margin: 0 0 1.75rem 0;
+}
+
+.dash-figura-titolo {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.dash-figura-nota {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Le tacche stanno in una colonna a sinistra e le colonne nell'altra, ma
+   sovrapposte alla griglia: così i filetti restano fermi mentre le colonne
+   scorrono di lato quando i mesi sono tanti. */
+.dash-plot {
+  display: grid;
+  grid-template-columns: var(--dash-gutter) 1fr;
+  align-items: start;
+}
+
+.dash-livelli {
+  grid-area: 1 / 2;
+  position: relative;
+  height: var(--dash-pista);
+  margin-top: var(--dash-aria);
+  pointer-events: none;
+}
+
+/* Filetti pieni e sottilissimi: tratteggiati sembrerebbero una soglia */
+.dash-livello {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--border-pearl);
+}
+
+.dash-livello-valore {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  transform: translateY(-50%);
+  padding-right: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dash-colonne {
+  grid-area: 1 / 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  padding-top: var(--dash-aria);
+  overflow-x: auto;
+}
+
+.dash-colonna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 0;
+  min-width: 38px;
+}
+
+.dash-colonna-pista {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: var(--dash-pista);
+}
+
+/* Massimo 24px: la colonna non riempie mai la sua fetta, l'aria che avanza
+   è quella che tiene leggibile il grafico. Estremo arrotondato in cima e
+   squadrato sulla linea dello zero. */
+.dash-colonna-barra {
+  position: relative;
+  width: 100%;
+  max-width: 24px;
+  min-height: 2px;
+  background: var(--dash-marca);
+  border-radius: 4px 4px 0 0;
+}
+
+/* Il mese non ancora finito: il suo totale non è confrontabile con gli altri */
+.dash-colonna-barra.is-parziale {
+  background: var(--dash-marca-parziale);
+}
+
+.dash-colonna-valore {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dash-colonna-etichetta {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Barre orizzontali: il nome a sinistra, l'importo in fondo alla barra */
+.dash-barre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.dash-barra {
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dash-barra-nome {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dash-barra-nome small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.dash-barra-pista {
+  display: block;
+  height: 10px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.dash-barra-riempimento {
+  display: block;
+  height: 100%;
+  background: var(--dash-marca);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Una voce chiusa in perdita: la barra ne mostra la grandezza, il segno e il
+   colore dell'importo dicono da che parte sta */
+.dash-barra-riempimento.is-negativa {
+  background: var(--ferrari-red);
+}
+
+.dash-barra-valore {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dash-barra-valore.is-negativa {
+  color: var(--ferrari-red);
+}
+
+/* Gli stessi numeri del grafico, uno per uno */
+.dash-tabella-guscio {
+  overflow-x: auto;
+}
+
+.dash-tabella {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.dash-tabella-titolo {
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.dash-tabella th,
+.dash-tabella td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-pearl);
+  white-space: nowrap;
+}
+
+.dash-tabella thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dash-tabella tbody th {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* In colonna i numeri devono incolonnarsi: qui le cifre a larghezza fissa
+   servono, al contrario che nei numeri grandi */
+.dash-tabella .dash-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-tabella tbody tr:hover {
+  background: var(--surface-subtle);
+}
+
+.dash-tabella tr.is-parziale th,
+.dash-tabella tr.is-parziale td {
+  color: var(--text-secondary);
+}
+
+.dash-tabella-vuota {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.dash-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ferrari-red);
+  background: #FEF2F2;
+  border-radius: var(--radius-full);
+}
+
+/* Il filtro comanda tutte le sezioni che stanno sotto, quindi sta sopra
+   a tutte e non dentro a una scheda */
+.dash-filtro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0 0.35rem;
+}
+
+.dash-filtro-etichetta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.dash-periodi {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  background: var(--bg-pearl-warm);
+  border-radius: var(--radius-full);
+}
+
+.dash-periodo {
+  padding: 0.45rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dash-periodo:hover {
+  color: var(--text-primary);
+}
+
+.dash-periodo.is-active {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 768px) {
+  #tab-dashboard {
+    --dash-pista: 150px;
+    --dash-gutter: 3rem;
+  }
+
+  .dash-hero-valore {
+    font-size: 2.4rem;
+  }
+
+  .dash-filtro {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-periodi {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dash-barra {
+    grid-template-columns: 1fr auto;
+    gap: 0.35rem 0.75rem;
+  }
+
+  /* Su schermo stretto la barra passa sotto al nome, a tutta larghezza */
+  .dash-barra-pista {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* ==========================================================================
+   REGISTRO NUMERI
+   Elenco di nomi e numeri: righe separate da filetti, come l'inventario.
+   ========================================================================== */
+
+.rub-aggiungi {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.rub-avviso {
+  margin-bottom: 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ferrari-red);
+}
+
+.rub-cerca {
+  width: 100%;
+  margin-bottom: 1.25rem;
+}
+
+.rub-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.rub-riga {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.rub-riga:last-child {
+  border-bottom: none;
+}
+
+.rub-iniziali {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+}
+
+.rub-dati {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.rub-nome {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Da telefono il numero è un collegamento: si tocca e parte la chiamata */
+.rub-numero {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ferrari-red);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.rub-numero:hover {
+  text-decoration: underline;
+}
+
+.rub-firma {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.rub-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+
+.rub-modifica {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.rub-btn-testo {
+  padding: 0 0.85rem;
+  height: 46px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.rub-btn-testo:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.rub-btn-testo.is-danger {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+}
+
+.rub-btn-testo.is-danger:hover {
+  background: var(--ferrari-red-hover);
+}
+
+/* Un numero cancellato per sbaglio non si recupera: prima si chiede */
+.rub-riga.is-conferma {
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: #FEF2F2;
+  border-radius: var(--radius-inner);
+  padding: 0.85rem 1rem;
+}
+
+.rub-conferma-testo {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rub-riga.is-conferma .rub-btn-testo {
+  height: 38px;
+}
+
+@media (max-width: 640px) {
+  .rub-aggiungi,
+  .rub-modifica {
+    grid-template-columns: 1fr;
+  }
+}
