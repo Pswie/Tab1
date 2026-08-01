@@ -2372,41 +2372,22 @@ body {
 
 /* ==========================================================================
    SEGNALAZIONI SUL MENU
+   Solo un punto: il numero preciso si legge dentro la sezione.
    ========================================================================== */
 
 /* Senza questa riga il display dichiarato sotto vincerebbe sull'attributo
-   hidden e il contatore resterebbe visibile anche a zero. */
+   hidden e il punto resterebbe acceso anche senza niente da segnalare. */
 .nav-badge[hidden] {
   display: none;
 }
 
 .nav-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 5px;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
   margin-left: 0.4rem;
-  border-radius: var(--radius-full);
+  border-radius: 50%;
   background: var(--ferrari-red);
-  color: #FFFFFF;
-  font-family: var(--font-sans);
-  font-size: 0.65rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 17px;
-  letter-spacing: 0;
-  vertical-align: 1px;
-}
-
-/* Avviso che non conta nulla: solo un punto */
-.nav-badge.is-dot {
-  min-width: 6px;
-  width: 6px;
-  height: 6px;
-  padding: 0;
-  margin-left: 0.45rem;
   vertical-align: 3px;
 }
 
@@ -2435,61 +2416,12 @@ body {
   align-items: center;
 }
 
-/* Riquadri della tassa di soggiorno: chi parte oggi e chi resta */
-.sog-gruppo {
-  margin-bottom: 1.75rem;
+/* Chi è arrivato oggi: il filetto verde lo distingue da chi parte */
+.sog-gruppo.is-arrivo .sog-gruppo-testa {
+  border-bottom-color: var(--accent-green-line);
 }
 
-.sog-gruppo:last-child {
-  margin-bottom: 0;
-}
-
-.sog-gruppo-testa {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.25rem;
-  border-bottom: 1.5px solid var(--text-primary);
-}
-
-.sog-gruppo-titolo {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.sog-gruppo-meta {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-/* Chi parte oggi è l'ultima occasione per riscuotere: si distingue */
-.sog-gruppo.is-partenza .sog-gruppo-testa {
-  border-bottom-color: var(--ferrari-red);
-}
-
-.sog-gruppo.is-partenza .sog-gruppo-titolo,
-.sog-gruppo.is-partenza .sog-gruppo-meta {
-  color: var(--ferrari-red);
-}
-
-/* Quanto manca alla partenza: è il dato che serve al banco */
-.sog-quando {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.sog-row.is-arretrata .sog-quando {
-  color: var(--ferrari-red);
-}
-
-.sog-row.is-pagata .sog-quando {
-  color: var(--text-muted);
+.sog-gruppo.is-arrivo .sog-gruppo-titolo,
+.sog-gruppo.is-arrivo .sog-gruppo-meta {
+  color: var(--accent-green-text);
 }

@@ -15,7 +15,6 @@ let vista: Vista = 'presenti';
 
 const lista = document.getElementById('soggiorno-lista') as HTMLDivElement;
 const totaleDaPagare = document.getElementById('soggiorno-da-pagare') as HTMLSpanElement;
-const btnAggiorna = document.getElementById('btn-aggiorna-soggiorni') as HTMLButtonElement;
 const statoImport = document.getElementById('soggiorno-stato') as HTMLParagraphElement;
 const pulsantiVista = Array.from(document.querySelectorAll('.sog-vista')) as HTMLButtonElement[];
 
@@ -69,14 +68,20 @@ function inPartenza(): Soggiorno[] {
   return soggiorni.filter(s => s.dataInizio <= oggi && s.dataFine === oggi);
 }
 
-/** Ospiti che restano ancora almeno una notte */
-function inCasa(): Soggiorno[] {
+/** Chi è entrato oggi e resta almeno un'altra notte */
+function arrivatiOggi(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataInizio <= oggi && s.dataFine > oggi);
+  return soggiorni.filter(s => s.dataInizio === oggi && s.dataFine > oggi);
+}
+
+/** Chi era già qui da prima e non parte oggi */
+function giaInCasa(): Soggiorno[] {
+  const oggi = getTodayDateString();
+  return soggiorni.filter(s => s.dataInizio < oggi && s.dataFine > oggi);
 }
 
 function presenti(): Soggiorno[] {
-  return [...inPartenza(), ...inCasa()];
+  return [...inPartenza(), ...arrivatiOggi(), ...giaInCasa()];
 }
 
 /** Ospiti già ripartiti senza aver versato: la tassa resta da recuperare */
@@ -102,7 +107,7 @@ function messaggioVuoto(): string {
   if (vista === 'pagate') return 'Nessuna tassa ancora registrata come versata.';
 
   if (soggiorni.length === 0) {
-    return 'Nessun soggiorno importato. Premi Aggiorna per leggere i calendari.';
+    return 'Nessun soggiorno importato dai calendari.';
   }
 
   return 'Nessun ospite presente oggi.';
@@ -166,37 +171,27 @@ function vuoto(messaggio: string): string {
  */
 function contenutoPresenti(): string {
   const partenze = inPartenza().sort((a, b) => a.nome.localeCompare(b.nome));
-  const restano = inCasa().sort((a, b) => a.dataFine.localeCompare(b.dataFine));
+  const arrivi = arrivatiOggi().sort((a, b) => a.nome.localeCompare(b.nome));
+  const restanti = giaInCasa().sort((a, b) => a.dataFine.localeCompare(b.dataFine));
 
-  if (partenze.length === 0 && restano.length === 0) return vuoto(messaggioVuoto());
+  if (partenze.length + arrivi.length + restanti.length === 0) return vuoto(messaggioVuoto());
 
-  const blocchi: string[] = [];
-
-  if (partenze.length > 0) {
-    blocchi.push(`
-      <section class="sog-gruppo is-partenza">
+  const blocco = (titolo: string, meta: string, voci: Soggiorno[], classe = '') =>
+    voci.length === 0 ? '' : `
+      <section class="sog-gruppo ${classe}">
         <header class="sog-gruppo-testa">
-          <h3 class="sog-gruppo-titolo">In partenza oggi</h3>
-          <span class="sog-gruppo-meta">Ultimo giorno &middot; ${partenze.length}</span>
+          <h3 class="sog-gruppo-titolo">${titolo}</h3>
+          <span class="sog-gruppo-meta">${meta}</span>
         </header>
-        ${partenze.map(rigaHtml).join('')}
+        ${voci.map(rigaHtml).join('')}
       </section>
-    `);
-  }
+    `;
 
-  if (restano.length > 0) {
-    blocchi.push(`
-      <section class="sog-gruppo">
-        <header class="sog-gruppo-testa">
-          <h3 class="sog-gruppo-titolo">In casa</h3>
-          <span class="sog-gruppo-meta">${restano.length}</span>
-        </header>
-        ${restano.map(rigaHtml).join('')}
-      </section>
-    `);
-  }
-
-  return blocchi.join('');
+  return [
+    blocco('In partenza oggi', `Ultimo giorno &middot; ${partenze.length}`, partenze, 'is-partenza'),
+    blocco('Arrivati oggi', String(arrivi.length), arrivi, 'is-arrivo'),
+    blocco('Già in casa', String(restanti.length), restanti)
+  ].join('');
 }
 
 function contenutoSemplice(): string {
@@ -233,38 +228,22 @@ function rigaHtml(s: Soggiorno): string {
   `;
 }
 
-/** `automatico` distingue la rilettura giornaliera dal click sul pulsante */
-async function aggiorna(automatico = false) {
-  if (btnAggiorna) btnAggiorna.disabled = true;
-
-  if (statoImport && !automatico) {
-    statoImport.textContent = 'Lettura dei calendari in corso...';
-  }
-
+/** Rilegge i calendari e allinea l'elenco */
+async function aggiorna() {
   const esito = await importaDaCalendari();
   soggiorni = await elencaSoggiorni();
 
   if (esito.errori.length === 0) segnaImportato();
 
+  // Si scrive solo quando qualcosa non ha funzionato: il conteggio delle
+  // prenotazioni lette non interessa a chi lavora
   if (statoImport) {
-    const parti: string[] = [];
-    if (esito.nuovi > 0) parti.push(`${esito.nuovi} nuovi soggiorni`);
-    if (esito.aggiornati > 0) parti.push(`${esito.aggiornati} aggiornati`);
+    const problemi = esito.errori.length > 0;
 
-    if (esito.errori.length > 0) {
-      statoImport.textContent = `Calendari non letti: ${esito.errori.join('; ')}`;
-    } else if (parti.length > 0) {
-      statoImport.textContent = `${automatico ? 'Aggiornamento automatico: ' : ''}${parti.join(', ')}`;
-    } else if (!automatico) {
-      statoImport.textContent = 'Nessuna novità';
-    } else {
-      statoImport.textContent = '';
-    }
-
-    statoImport.classList.toggle('is-errore', esito.errori.length > 0);
+    statoImport.textContent = problemi ? `Calendari non letti: ${esito.errori.join('; ')}` : '';
+    statoImport.classList.toggle('is-errore', problemi);
   }
 
-  if (btnAggiorna) btnAggiorna.disabled = false;
   render();
 }
 
@@ -295,14 +274,12 @@ export async function caricaSoggiorni() {
   render();
 
   if (!importatoOggi()) {
-    await aggiorna(true);
+    await aggiorna();
   }
 }
 
 export function initSoggiorno() {
   if (!lista) return;
-
-  btnAggiorna?.addEventListener('click', () => aggiorna());
 
   pulsantiVista.forEach(btn => {
     btn.addEventListener('click', () => {

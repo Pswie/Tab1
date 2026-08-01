@@ -1,31 +1,30 @@
 /**
- * Pallini e contatori sulle voci di menu.
+ * Pallini di segnalazione sulle voci di menu.
  *
- * Servono a far vedere che c'è qualcosa di nuovo anche quando la notifica del
- * browser non può arrivare: su telefono, con l'app chiusa, la notifica non
+ * Servono a far vedere che c'è qualcosa da guardare anche quando la notifica
+ * del browser non può arrivare: su telefono, con l'app chiusa, la notifica non
  * parte, mentre il pallino resta lì alla riapertura.
+ *
+ * Non portano numeri: il conteggio preciso sta dentro la sezione, qui basta
+ * sapere se c'è o non c'è qualcosa.
  */
 export type Sezione = 'todos' | 'inventario' | 'soggiorno';
 
-const conteggi: Record<Sezione, number> = { todos: 0, inventario: 0, soggiorno: 0 };
+const attive: Record<Sezione, boolean> = { todos: false, inventario: false, soggiorno: false };
 
 /**
- * `quanti` a 0 nasconde il contatore; un numero lo mostra come +N;
- * 'pallino' segnala senza numero, per avvisi che non si contano.
+ * `quanti` a 0 spegne il pallino; qualsiasi valore positivo, o 'pallino',
+ * lo accende.
  */
 export function segnala(sezione: Sezione, quanti: number | 'pallino'): void {
-  conteggi[sezione] = quanti === 'pallino' ? -1 : quanti;
-
-  // Il numero da solo: il "+" davanti rendeva la pastiglia sgraziata
-  const testo = quanti === 'pallino' ? '' : String(quanti);
   const attivo = quanti === 'pallino' || quanti > 0;
+  attive[sezione] = attivo;
 
   ['nav', 'menu'].forEach(dove => {
     const el = document.getElementById(`badge-${dove}-${sezione}`);
     if (!el) return;
 
-    el.textContent = testo;
-    el.classList.toggle('is-dot', quanti === 'pallino');
+    el.textContent = '';
     el.hidden = !attivo;
   });
 
@@ -37,5 +36,5 @@ function aggiornaPallinoMenu(): void {
   const pallino = document.getElementById('pallino-menu');
   if (!pallino) return;
 
-  pallino.hidden = !Object.values(conteggi).some(v => v !== 0);
+  pallino.hidden = !Object.values(attive).some(Boolean);
 }
