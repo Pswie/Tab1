@@ -2259,72 +2259,6 @@ body {
 }
 
 /* ==========================================================================
-   SEGNALAZIONI SUL MENU
-   Devono farsi notare quando c'è qualcosa e sparire del tutto quando non c'è.
-   ========================================================================== */
-
-/* Senza questa riga il display dichiarato sotto vincerebbe sull'attributo
-   hidden, e le pastiglie resterebbero visibili mostrando "+0" su ogni voce. */
-.nav-badge[hidden] {
-  display: none;
-}
-
-.nav-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 0.32rem;
-  margin-left: 0.4rem;
-  border-radius: var(--radius-full);
-  background: var(--ferrari-red);
-  color: #FFFFFF;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  vertical-align: middle;
-}
-
-/* Avviso senza numero: un punto piccolo e fermo, nessuna animazione che
-   continui a muoversi mentre si lavora */
-.nav-badge.is-dot {
-  min-width: 7px;
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  margin-left: 0.45rem;
-}
-
-/* Sulla voce attiva il rosso finirebbe sopra la sottolineatura rossa */
-.nav-tab-item.active .nav-badge {
-  background: var(--text-primary);
-}
-
-/* Punto sul pulsante del menu, quando le voci non si vedono */
-.hamburger-btn {
-  position: relative;
-}
-
-.hamburger-dot {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--ferrari-red);
-  border: 2px solid #FFFFFF;
-}
-
-.hotdog-text strong {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* ==========================================================================
    PULSANTE SECONDARIO
    Lo stile base era andato perso in una ripulitura e restava il pulsante
    grezzo del browser.
@@ -2374,4 +2308,188 @@ body {
 .btn-latex-export,
 .todo-add-btn {
   height: 42px;
+}
+
+/* Viste della tassa di soggiorno: presenti, arretrate, già riscosse */
+.sog-viste {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+  background: var(--bg-pearl-warm);
+  border-radius: var(--radius-full);
+}
+
+.sog-vista {
+  padding: 0.45rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sog-vista:hover {
+  color: var(--text-primary);
+}
+
+.sog-vista.is-active {
+  background: #FFFFFF;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* Se ci sono tasse mai riscosse, la vista lo dice anche da chiusa */
+.sog-vista.ha-arretrate {
+  color: var(--ferrari-red);
+}
+
+/* Una tassa rimasta indietro va distinta da chi è ancora in casa */
+.sog-row.is-arretrata .sog-importo {
+  color: var(--ferrari-red);
+}
+
+@media (max-width: 768px) {
+  .sog-viste {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    border-radius: var(--radius-inner);
+  }
+
+  .sog-vista {
+    padding: 0.55rem 0.4rem;
+    font-size: 0.8rem;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ==========================================================================
+   SEGNALAZIONI SUL MENU
+   ========================================================================== */
+
+/* Senza questa riga il display dichiarato sotto vincerebbe sull'attributo
+   hidden e il contatore resterebbe visibile anche a zero. */
+.nav-badge[hidden] {
+  display: none;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  margin-left: 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 17px;
+  letter-spacing: 0;
+  vertical-align: 1px;
+}
+
+/* Avviso che non conta nulla: solo un punto */
+.nav-badge.is-dot {
+  min-width: 6px;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  margin-left: 0.45rem;
+  vertical-align: 3px;
+}
+
+/* Sulla voce attiva il rosso finirebbe sopra la sottolineatura rossa */
+.nav-tab-item.active .nav-badge {
+  background: var(--text-primary);
+}
+
+.hamburger-btn {
+  position: relative;
+}
+
+.hamburger-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ferrari-red);
+  border: 2px solid #FFFFFF;
+}
+
+.hotdog-text strong {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Riquadri della tassa di soggiorno: chi parte oggi e chi resta */
+.sog-gruppo {
+  margin-bottom: 1.75rem;
+}
+
+.sog-gruppo:last-child {
+  margin-bottom: 0;
+}
+
+.sog-gruppo-testa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1.5px solid var(--text-primary);
+}
+
+.sog-gruppo-titolo {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sog-gruppo-meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Chi parte oggi è l'ultima occasione per riscuotere: si distingue */
+.sog-gruppo.is-partenza .sog-gruppo-testa {
+  border-bottom-color: var(--ferrari-red);
+}
+
+.sog-gruppo.is-partenza .sog-gruppo-titolo,
+.sog-gruppo.is-partenza .sog-gruppo-meta {
+  color: var(--ferrari-red);
+}
+
+/* Quanto manca alla partenza: è il dato che serve al banco */
+.sog-quando {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sog-row.is-arretrata .sog-quando {
+  color: var(--ferrari-red);
+}
+
+.sog-row.is-pagata .sog-quando {
+  color: var(--text-muted);
 }

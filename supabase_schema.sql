@@ -44,6 +44,10 @@ CREATE TABLE public.daily_logs (
     user_id UUID,
 
     tabacchi NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+
+    -- Incasso del bar: si registra soltanto, non entra in nessun totale
+    bar NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+
     sisal NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     mooney NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lis NUMERIC(10,2) NOT NULL DEFAULT 0.00,
@@ -104,6 +108,7 @@ CREATE TABLE public.daily_logs_storico (
     ferma_dal TIMESTAMP WITH TIME ZONE,
 
     tabacchi NUMERIC(10,2),
+    bar NUMERIC(10,2),
     sisal NUMERIC(10,2),
     mooney NUMERIC(10,2),
     lis NUMERIC(10,2),
@@ -135,10 +140,10 @@ AS $$
 DECLARE
     prossima_versione INTEGER;
 BEGIN
-    IF (OLD.tabacchi, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
+    IF (OLD.tabacchi, OLD.bar, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
         OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture)
        IS DISTINCT FROM
-       (NEW.tabacchi, NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
+       (NEW.tabacchi, NEW.bar, NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
         NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture)
     THEN
         IF OLD.updated_at < now() - INTERVAL '2 hours' THEN
@@ -149,11 +154,11 @@ BEGIN
 
             INSERT INTO public.daily_logs_storico (
                 date, turno, versione, ferma_dal,
-                tabacchi, sisal, mooney, lis, printer,
+                tabacchi, bar, sisal, mooney, lis, printer,
                 lotto_entrate, lotto_uscite, fatture, totale_turno
             ) VALUES (
                 OLD.date, OLD.turno, prossima_versione, OLD.updated_at,
-                OLD.tabacchi, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
+                OLD.tabacchi, OLD.bar, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
                 OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.totale_turno
             );
         END IF;

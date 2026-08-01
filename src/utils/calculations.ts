@@ -74,6 +74,7 @@ function italianDateShifted(days: number, instant: Date = new Date()): string {
 export function emptyShiftValues(): ShiftValues {
   return {
     tabacchi: 0,
+    bar: 0,
     sisal: 0,
     mooney: 0,
     lis: 0,

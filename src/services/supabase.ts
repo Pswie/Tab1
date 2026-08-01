@@ -24,6 +24,7 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
 
   return {
     tabacchi: Number(row.tabacchi) || 0,
+    bar: Number(row.bar) || 0,
     sisal: Number(row.sisal) || 0,
     mooney: Number(row.mooney) || 0,
     lis: Number(row.lis) || 0,

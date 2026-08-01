@@ -52,6 +52,8 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
  */
 export interface ShiftValues {
   tabacchi: number;
+  /** Incasso del bar: si registra e basta, non entra in nessun totale */
+  bar: number;
   sisal: number;
   mooney: number;
   lis: number;

@@ -60,6 +60,7 @@ const ICONA_TUTTO_FATTO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fil
 const dateDisplay = document.getElementById('entry-date-display') as HTMLOutputElement;
 
 const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
+const inputBar = document.getElementById('input-bar') as HTMLInputElement;
 const inputSisal = document.getElementById('input-sisal') as HTMLInputElement;
 const inputMooney = document.getElementById('input-mooney') as HTMLInputElement;
 const inputLis = document.getElementById('input-lis') as HTMLInputElement;
@@ -166,6 +167,7 @@ function toggleSign(campo: HTMLInputElement) {
 function getShiftValuesFromInputs(): ShiftValues {
   return {
     tabacchi: parseInputValue(inputTabacchi.value),
+    bar: parseInputValue(inputBar.value),
     sisal: parseInputValue(inputSisal.value),
     mooney: parseInputValue(inputMooney.value),
     lis: parseInputValue(inputLis.value),
@@ -181,6 +183,7 @@ function getShiftValuesFromInputs(): ShiftValues {
  */
 function applyShiftValuesToInputs(values: ShiftValues) {
   inputTabacchi.value = formatInputValue(values.tabacchi);
+  inputBar.value = formatInputValue(values.bar);
   inputSisal.value = formatInputValue(values.sisal);
   inputMooney.value = formatInputValue(values.mooney);
   inputLis.value = formatInputValue(values.lis);
@@ -723,7 +726,7 @@ function setupEventListeners() {
   });
 
   const allInputs = [
-    inputTabacchi, inputSisal, inputMooney, inputLis, inputPrinter,
+    inputTabacchi, inputBar, inputSisal, inputMooney, inputLis, inputPrinter,
     inputLottoEntrate, inputLottoUscite, inputFatture
   ];
 

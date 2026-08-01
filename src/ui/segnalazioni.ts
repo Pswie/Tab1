@@ -16,7 +16,8 @@ const conteggi: Record<Sezione, number> = { todos: 0, inventario: 0, soggiorno: 
 export function segnala(sezione: Sezione, quanti: number | 'pallino'): void {
   conteggi[sezione] = quanti === 'pallino' ? -1 : quanti;
 
-  const testo = quanti === 'pallino' ? '' : `+${quanti}`;
+  // Il numero da solo: il "+" davanti rendeva la pastiglia sgraziata
+  const testo = quanti === 'pallino' ? '' : String(quanti);
   const attivo = quanti === 'pallino' || quanti > 0;
 
   ['nav', 'menu'].forEach(dove => {
