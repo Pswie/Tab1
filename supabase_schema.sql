@@ -318,43 +318,6 @@ CREATE POLICY "Scrittura catalogo tabacchi" ON public.catalogo_tabacchi
     FOR ALL USING (true) WITH CHECK (true);
 
 -- =========================================================================
--- 8. TASSA DI SOGGIORNO
---
--- Si registra un soggiorno per volta: l'importo dovuto è il numero di notti
--- moltiplicato per la tariffa a persona e per il numero di ospiti.
--- Esempio: una coppia per 5 notti a 3 € fa 5 x 3 x 2 = 30 €.
--- =========================================================================
-DROP TABLE IF EXISTS public.tassa_soggiorno;
-
-CREATE TABLE public.tassa_soggiorno (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    nome TEXT NOT NULL,
-    cognome TEXT NOT NULL,
-
-    persone INTEGER NOT NULL DEFAULT 1 CHECK (persone > 0),
-    giorni INTEGER NOT NULL DEFAULT 1 CHECK (giorni > 0),
-    tariffa NUMERIC(10,2) NOT NULL DEFAULT 3.00,
-
-    -- Giorni x tariffa x persone
-    importo NUMERIC(12,2) GENERATED ALWAYS AS (giorni * tariffa * persone) STORED,
-
-    pagata BOOLEAN NOT NULL DEFAULT false,
-    data_arrivo DATE,
-
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_soggiorno_pagata ON public.tassa_soggiorno(pagata, created_at DESC);
-
-ALTER TABLE public.tassa_soggiorno ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno
-    FOR SELECT USING (true);
-CREATE POLICY "Scrittura tassa soggiorno" ON public.tassa_soggiorno
-    FOR ALL USING (true) WITH CHECK (true);
-
--- =========================================================================
 -- 9. ATTIVITÀ
 --
 -- Le attività non appartengono a una giornata: restano in elenco finché non
@@ -381,4 +344,65 @@ ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Lettura attivita" ON public.attivita
     FOR SELECT USING (true);
 CREATE POLICY "Scrittura attivita" ON public.attivita
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 10. TASSA DI SOGGIORNO
+--
+-- I soggiorni non si inseriscono a mano: arrivano dai calendari iCal delle
+-- camere. Dal calendario si ricavano nome, date, notti e numero di ospiti,
+-- e l'imposta è notti x tariffa x ospiti.
+-- =========================================================================
+DROP TABLE IF EXISTS public.tassa_soggiorno;
+DROP TABLE IF EXISTS public.calendari_ical;
+
+-- Indirizzi dei calendari, uno per camera.
+-- Contengono un token personale, quindi si inseriscono dall'app e non stanno
+-- nel codice del progetto.
+CREATE TABLE public.calendari_ical (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etichetta TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL UNIQUE,
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    aggiornato_il TIMESTAMP WITH TIME ZONE,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.tassa_soggiorno (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identificativo dell'evento nel calendario: evita che un nuovo scarico
+    -- duplichi soggiorni già registrati e già incassati
+    uid TEXT NOT NULL UNIQUE,
+
+    nome TEXT NOT NULL DEFAULT 'Ospite',
+    data_inizio DATE NOT NULL,
+    data_fine DATE NOT NULL,
+
+    notti INTEGER NOT NULL DEFAULT 0,
+    ospiti INTEGER NOT NULL DEFAULT 1,
+    tariffa NUMERIC(10,2) NOT NULL DEFAULT 3.00,
+
+    -- Notti x tariffa x ospiti
+    importo NUMERIC(12,2) GENERATED ALWAYS AS (notti * tariffa * ospiti) STORED,
+
+    pagata BOOLEAN NOT NULL DEFAULT false,
+    pagata_il TIMESTAMP WITH TIME ZONE,
+
+    importato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_soggiorno_fine ON public.tassa_soggiorno(data_fine DESC, pagata);
+
+ALTER TABLE public.calendari_ical ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tassa_soggiorno ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lettura calendari" ON public.calendari_ical
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura calendari" ON public.calendari_ical
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura tassa soggiorno" ON public.tassa_soggiorno
     FOR ALL USING (true) WITH CHECK (true);

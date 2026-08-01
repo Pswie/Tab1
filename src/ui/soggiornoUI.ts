@@ -1,58 +1,57 @@
 import {
-  aggiungiSoggiorno,
-  calcolaImporto,
+  Calendario,
+  elencaCalendari,
   elencaSoggiorni,
-  eliminaSoggiorno,
+  importaDaCalendari,
+  salvaCalendari,
   segnaPagata,
   Soggiorno,
   TARIFFA_A_PERSONA
 } from '../services/soggiorno';
-import { formatCurrency } from '../utils/calculations';
+import { formatCurrency, getTodayDateString } from '../utils/calculations';
 import { segnala } from './segnalazioni';
 
 let soggiorni: Soggiorno[] = [];
+let calendari: Calendario[] = [];
+let mostraPagate = false;
 
 const lista = document.getElementById('soggiorno-lista') as HTMLDivElement;
 const totaleDaPagare = document.getElementById('soggiorno-da-pagare') as HTMLSpanElement;
-const anteprima = document.getElementById('soggiorno-anteprima') as HTMLParagraphElement;
-const btnAggiungi = document.getElementById('btn-add-soggiorno') as HTMLButtonElement;
-
-const campoNome = document.getElementById('soggiorno-nome') as HTMLInputElement;
-const campoCognome = document.getElementById('soggiorno-cognome') as HTMLInputElement;
-const campoPersone = document.getElementById('soggiorno-persone') as HTMLInputElement;
-const campoGiorni = document.getElementById('soggiorno-giorni') as HTMLInputElement;
+const btnAggiorna = document.getElementById('btn-aggiorna-soggiorni') as HTMLButtonElement;
+const btnCalendari = document.getElementById('btn-calendari') as HTMLButtonElement;
+const btnMostraPagate = document.getElementById('btn-mostra-pagate') as HTMLButtonElement;
+const pannelloCal = document.getElementById('pannello-calendari') as HTMLDivElement;
+const statoImport = document.getElementById('soggiorno-stato') as HTMLParagraphElement;
+const btnSalvaCal = document.getElementById('btn-salva-calendari') as HTMLButtonElement;
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function intero(campo: HTMLInputElement | null): number {
-  const n = parseInt((campo?.value || '').trim(), 10);
-  return isNaN(n) || n < 1 ? 0 : n;
+/** 2026-08-01 -> 1 ago */
+function dataBreve(iso: string): string {
+  const [a, m, g] = iso.split('-').map(Number);
+  return new Date(a, m - 1, g).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 }
 
-/** Mostra il conto mentre si digita, così il totale non è una sorpresa */
-function aggiornaAnteprima() {
-  if (!anteprima) return;
-
-  const persone = intero(campoPersone);
-  const giorni = intero(campoGiorni);
-
-  if (persone === 0 || giorni === 0) {
-    anteprima.textContent = `Tariffa ${formatCurrency(TARIFFA_A_PERSONA)} a persona per notte.`;
-    return;
-  }
-
-  const importo = calcolaImporto(giorni, persone);
-  anteprima.textContent =
-    `${giorni} notti x ${formatCurrency(TARIFFA_A_PERSONA)} x ${persone} ` +
-    `${persone === 1 ? 'persona' : 'persone'} = ${formatCurrency(importo)}`;
+/**
+ * Si mostrano solo i soggiorni conclusi: la tassa si riscuote alla partenza,
+ * quindi chi deve ancora andare via non è ancora dovuto.
+ */
+function daMostrare(): Soggiorno[] {
+  const oggi = getTodayDateString();
+  return soggiorni
+    .filter(s => s.dataFine <= oggi)
+    .filter(s => mostraPagate || !s.pagata)
+    .sort((a, b) => b.dataFine.localeCompare(a.dataFine));
 }
 
 function render() {
   if (!lista) return;
 
-  const daPagare = soggiorni.filter(s => !s.pagata);
+  const oggi = getTodayDateString();
+  const conclusi = soggiorni.filter(s => s.dataFine <= oggi);
+  const daPagare = conclusi.filter(s => !s.pagata);
 
   if (totaleDaPagare) {
     const totale = daPagare.reduce((somma, s) => somma + s.importo, 0);
@@ -60,109 +59,127 @@ function render() {
     totaleDaPagare.classList.toggle('is-negative', totale > 0);
   }
 
-  // Il pallino sul menu segnala quante tasse restano da versare
   segnala('soggiorno', daPagare.length);
 
-  if (soggiorni.length === 0) {
+  if (btnMostraPagate) {
+    btnMostraPagate.textContent = mostraPagate ? 'Nascondi pagate' : 'Mostra pagate';
+    btnMostraPagate.classList.toggle('is-active', mostraPagate);
+  }
+
+  const voci = daMostrare();
+
+  if (voci.length === 0) {
+    const inArrivo = soggiorni.length - conclusi.length;
+
     lista.innerHTML = `
       <div class="empty-state">
         <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/>
         </svg>
-        <p class="empty-state-text">Nessun soggiorno registrato.</p>
+        <p class="empty-state-text">
+          ${conclusi.length === 0
+            ? (soggiorni.length === 0
+                ? 'Nessun soggiorno importato. Configura i calendari e premi Aggiorna.'
+                : `Nessun soggiorno ancora concluso. ${inArrivo} in corso o in arrivo.`)
+            : 'Tutte le tasse dei soggiorni conclusi risultano versate.'}
+        </p>
       </div>
     `;
     return;
   }
 
-  lista.innerHTML = soggiorni.map(s => `
-    <div class="sog-row ${s.pagata ? 'is-pagata' : ''}" data-id="${escapeHtml(s.id)}">
+  lista.innerHTML = voci.map(s => `
+    <div class="sog-row ${s.pagata ? 'is-pagata' : ''}" data-uid="${escapeHtml(s.uid)}">
       <label class="sog-check">
-        <input type="checkbox" ${s.pagata ? 'checked' : ''} data-action="pagata" />
+        <input type="checkbox" ${s.pagata ? 'checked' : ''} data-action="pagata"
+               aria-label="Segna come versata" />
         <span class="sog-check-box" aria-hidden="true"></span>
       </label>
 
       <div class="sog-dati">
-        <span class="sog-nome">${escapeHtml(s.cognome)} ${escapeHtml(s.nome)}</span>
+        <span class="sog-nome">${escapeHtml(s.nome)}</span>
         <span class="sog-calcolo">
-          ${s.giorni} ${s.giorni === 1 ? 'notte' : 'notti'} ·
-          ${s.persone} ${s.persone === 1 ? 'persona' : 'persone'} ·
+          ${dataBreve(s.dataInizio)} &rarr; ${dataBreve(s.dataFine)} ·
+          ${s.notti} ${s.notti === 1 ? 'notte' : 'notti'} ·
+          ${s.ospiti} ${s.ospiti === 1 ? 'ospite' : 'ospiti'} ·
           ${formatCurrency(s.tariffa)} a testa
         </span>
       </div>
 
       <span class="sog-importo">${formatCurrency(s.importo)}</span>
-
-      <button type="button" class="todo-icon-btn is-danger" data-action="elimina" aria-label="Elimina">
-        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-        </svg>
-      </button>
     </div>
   `).join('');
 }
 
-async function aggiungi() {
-  const nome = campoNome?.value?.trim();
-  const cognome = campoCognome?.value?.trim();
-  const persone = intero(campoPersone);
-  const giorni = intero(campoGiorni);
+function renderCalendari() {
+  if (!pannelloCal) return;
 
-  if (!nome || !cognome || persone === 0 || giorni === 0) return;
-
-  const voce = await aggiungiSoggiorno({
-    nome,
-    cognome,
-    persone,
-    giorni,
-    tariffa: TARIFFA_A_PERSONA,
-    pagata: false
+  const campi = pannelloCal.querySelectorAll<HTMLInputElement>('.cal-url');
+  campi.forEach((campo, i) => {
+    campo.value = calendari[i]?.url || '';
   });
+}
 
-  soggiorni.unshift(voce);
+async function aggiorna() {
+  if (!btnAggiorna) return;
 
-  campoNome.value = '';
-  campoCognome.value = '';
-  campoPersone.value = '';
-  campoGiorni.value = '';
+  btnAggiorna.disabled = true;
+  if (statoImport) statoImport.textContent = 'Lettura dei calendari in corso...';
 
-  aggiornaAnteprima();
+  const esito = await importaDaCalendari();
+  soggiorni = await elencaSoggiorni();
+
+  if (statoImport) {
+    const parti: string[] = [];
+    if (esito.nuovi > 0) parti.push(`${esito.nuovi} nuovi soggiorni`);
+    if (esito.aggiornati > 0) parti.push(`${esito.aggiornati} aggiornati`);
+    if (parti.length === 0 && esito.errori.length === 0) parti.push('nessuna novità');
+
+    statoImport.textContent = parti.join(', ') +
+      (esito.errori.length > 0 ? ` — problemi: ${esito.errori.join('; ')}` : '');
+    statoImport.classList.toggle('is-errore', esito.errori.length > 0);
+  }
+
+  btnAggiorna.disabled = false;
   render();
-  campoNome.focus();
 }
 
 export async function caricaSoggiorni() {
-  soggiorni = await elencaSoggiorni();
+  [soggiorni, calendari] = await Promise.all([elencaSoggiorni(), elencaCalendari()]);
+  renderCalendari();
   render();
 }
 
 export function initSoggiorno() {
   if (!lista) return;
 
-  btnAggiungi?.addEventListener('click', aggiungi);
+  btnAggiorna?.addEventListener('click', aggiorna);
 
-  [campoNome, campoCognome, campoPersone, campoGiorni].forEach(campo => {
-    campo?.addEventListener('keydown', e => {
-      if ((e as KeyboardEvent).key === 'Enter') aggiungi();
-    });
+  btnCalendari?.addEventListener('click', () => {
+    pannelloCal?.classList.toggle('is-hidden');
+    btnCalendari.classList.toggle('is-active', !pannelloCal?.classList.contains('is-hidden'));
   });
 
-  campoPersone?.addEventListener('input', aggiornaAnteprima);
-  campoGiorni?.addEventListener('input', aggiornaAnteprima);
+  btnMostraPagate?.addEventListener('click', () => {
+    mostraPagate = !mostraPagate;
+    render();
+  });
 
-  lista.addEventListener('click', async e => {
-    const bersaglio = e.target as HTMLElement;
-    const riga = bersaglio.closest('.sog-row') as HTMLElement | null;
-    const id = riga?.getAttribute('data-id');
-    if (!riga || !id) return;
+  btnSalvaCal?.addEventListener('click', async () => {
+    const campi = Array.from(pannelloCal.querySelectorAll<HTMLInputElement>('.cal-url'));
 
-    if (bersaglio.closest('[data-action="elimina"]')) {
-      soggiorni = soggiorni.filter(s => s.id !== id);
-      await eliminaSoggiorno(id);
-      render();
-    }
+    await salvaCalendari(
+      campi.map((c, i) => ({ etichetta: `Camera ${i + 1}`, url: c.value.trim() }))
+    );
+
+    calendari = await elencaCalendari();
+    if (statoImport) statoImport.textContent = `${calendari.length} calendari salvati.`;
+
+    pannelloCal.classList.add('is-hidden');
+    btnCalendari?.classList.remove('is-active');
+
+    aggiorna();
   });
 
   lista.addEventListener('change', async e => {
@@ -170,16 +187,17 @@ export function initSoggiorno() {
     if (campo.getAttribute('data-action') !== 'pagata') return;
 
     const riga = campo.closest('.sog-row') as HTMLElement | null;
-    const id = riga?.getAttribute('data-id');
-    if (!id) return;
+    const uid = riga?.getAttribute('data-uid');
+    if (!uid) return;
 
-    const voce = soggiorni.find(s => s.id === id);
+    const voce = soggiorni.find(s => s.uid === uid);
     if (voce) voce.pagata = campo.checked;
 
-    await segnaPagata(id, campo.checked);
+    await segnaPagata(uid, campo.checked);
     render();
   });
 
-  aggiornaAnteprima();
   render();
 }
+
+export { TARIFFA_A_PERSONA };

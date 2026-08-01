@@ -392,7 +392,11 @@
     </div>
 
     <!-- TAB 3: ATTIVITÀ & TASK TO-DO -->
-    <!-- TAB: TASSA DI SOGGIORNO -->
+    <!-- TAB: TASSA DI SOGGIORNO
+         I soggiorni arrivano dai calendari iCal delle camere: nome, date,
+         notti e ospiti sono già lì dentro, e l'imposta è notti x 3 € x ospiti.
+         Si mostrano solo i soggiorni conclusi, perché la tassa si riscuote
+         alla partenza. -->
     <div id="tab-soggiorno" class="tab-pane">
       <section class="card-section">
         <div class="section-header">
@@ -405,16 +409,27 @@
           </div>
         </div>
 
-        <!-- L'imposta e' notti x tariffa x numero di ospiti -->
-        <div class="sog-form">
-          <input type="text" id="soggiorno-cognome" class="todo-add-input" placeholder="Cognome" autocomplete="off" />
-          <input type="text" id="soggiorno-nome" class="todo-add-input" placeholder="Nome" autocomplete="off" />
-          <input type="text" id="soggiorno-giorni" class="inv-edit-num" placeholder="Notti" inputmode="numeric" />
-          <input type="text" id="soggiorno-persone" class="inv-edit-num" placeholder="Persone" inputmode="numeric" />
-          <button type="button" id="btn-add-soggiorno" class="todo-add-btn">Registra</button>
+        <div class="sog-barra">
+          <button type="button" id="btn-aggiorna-soggiorni" class="btn-latex-export">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Aggiorna</span>
+          </button>
+          <button type="button" id="btn-mostra-pagate" class="btn-secondary-action">Mostra pagate</button>
+          <button type="button" id="btn-calendari" class="btn-secondary-action">Calendari</button>
         </div>
 
-        <p class="sog-anteprima" id="soggiorno-anteprima"></p>
+        <p class="sog-anteprima" id="soggiorno-stato"></p>
+
+        <!-- Gli indirizzi contengono un token personale: si inseriscono qui e
+             restano nel database, non nel codice del progetto. -->
+        <div class="sog-calendari is-hidden" id="pannello-calendari">
+          <p class="inv-hint">
+            Indirizzo iCal di ogni camera, copiato dal gestionale delle prenotazioni.
+          </p>
+          <input type="url" class="todo-add-input cal-url" placeholder="Calendario camera 1" autocomplete="off" />
+          <input type="url" class="todo-add-input cal-url" placeholder="Calendario camera 2" autocomplete="off" />
+          <input type="url" class="todo-add-input cal-url" placeholder="Calendario camera 3" autocomplete="off" />
+          <button type="button" id="btn-salva-calendari" class="todo-add-btn">Salva e aggiorna</button>
+        </div>
 
         <div id="soggiorno-lista" class="sog-lista"></div>
       </section>

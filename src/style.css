@@ -2341,3 +2341,33 @@ body {
   display: inline-flex;
   align-items: center;
 }
+
+/* Barra della tassa di soggiorno e pannello dei calendari */
+.sog-barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.sog-calendari {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.sog-calendari.is-hidden {
+  display: none;
+}
+
+.sog-anteprima.is-errore {
+  color: #92400E;
+}
+
+.sog-lista .sog-row {
+  grid-template-columns: auto 1fr auto;
+}
