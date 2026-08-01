@@ -441,11 +441,18 @@ function stampaInventario(tipo: 'gratta' | 'tabacchi') {
     host.classList.toggle('is-printing', host.id === 'print-inventario-host');
   });
 
-  window.print();
+  // Sul telefono window.print() non aspetta la stampa: rimettere subito a posto
+  // il foglio contabile manderebbe in stampa quello sbagliato. Si torna
+  // indietro solo a stampa conclusa.
+  const ripristina = () => {
+    document.querySelectorAll('.print-host').forEach(host => {
+      host.classList.toggle('is-printing', host.id === 'print-document-host');
+    });
+  };
 
-  document.querySelectorAll('.print-host').forEach(host => {
-    host.classList.toggle('is-printing', host.id === 'print-document-host');
-  });
+  window.addEventListener('afterprint', ripristina, { once: true });
+
+  window.print();
 }
 
 async function aggiungiNuovoGratta() {

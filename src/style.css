@@ -1068,9 +1068,20 @@ body {
     font-weight: 800;
   }
 
+  /* Su un telefono la testata ha poco spazio: il nome deve stare su una
+     riga sola, altrimenti scavalca il sottotitolo e il menu */
   .brand-title-group h1 {
-    font-size: 1.3rem;
+    font-size: 1.05rem;
     font-weight: 800;
+  }
+
+  .brand-badge {
+    gap: 0.6rem;
+  }
+
+  .brand-logo-mark {
+    width: 38px;
+    height: 38px;
   }
 
   .date-input {
@@ -1334,16 +1345,15 @@ body {
     display: none !important;
   }
 
-  /* Il foglio occupa esattamente una A4 e taglia l'eventuale eccedenza,
-     così la stampa è sempre e solo di una pagina */
-  /* 296mm invece di 297mm: lasciare un millimetro di margine evita che un
-     arrotondamento sub-pixel faccia traboccare il foglio su una seconda pagina */
+  /* Il foglio è alto quanto il suo contenuto e nulla più.
+     Imporgli l'altezza esatta di una A4 faceva uscire una seconda pagina
+     bianca ogni volta che la stampante applicava i propri margini: la parte
+     bassa del riquadro, vuota, non ci stava più e traboccava. */
   #print-document-host.is-printing {
     display: block !important;
     position: relative !important;
     width: 210mm !important;
-    height: 296mm !important;
-    overflow: hidden !important;
+    height: auto !important;
     page-break-after: avoid !important;
     page-break-before: avoid !important;
     page-break-inside: avoid !important;
@@ -1368,18 +1378,42 @@ body {
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 12mm 15mm !important;
+    padding: 10mm 14mm !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100% !important;
+    height: auto !important;
     background: #FFFFFF !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
     page-break-after: avoid !important;
     page-break-before: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* Il riepilogo sta comodo dentro una pagina: così resta uno solo anche
+     con i margini che certe stampanti aggiungono per conto loro. */
+  .doc-brand-title {
+    font-size: 1.9rem !important;
+  }
+
+  .doc-sub-title {
+    font-size: 1rem !important;
+  }
+
+  .doc-header {
+    margin-bottom: 0.7rem !important;
+  }
+
+  .doc-table th,
+  .doc-table td {
+    padding: 0.4rem 0.9rem !important;
+    font-size: 0.95rem !important;
+  }
+
+  .doc-footer {
+    margin-top: 0.9rem !important;
+    padding-top: 0.6rem !important;
   }
 
   .doc-table, .doc-table tr, .doc-table td, .doc-table th {
@@ -1388,7 +1422,6 @@ body {
   }
 
   .doc-brand-title {
-    font-size: 2.4rem !important;
     color: #E10600 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
