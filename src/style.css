@@ -508,6 +508,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.85rem 1.15rem;
   background: var(--surface-card-inner);
   border: 1px solid var(--border-pearl);
@@ -521,9 +522,13 @@ body {
   box-shadow: 0 0 0 3px var(--ferrari-red-glow);
 }
 
+/* L'etichetta cede spazio all'importo: con un nome lungo come Mooney il
+   campo finiva fuori dal riquadro su schermo stretto. */
 .field-label-group {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .field-label {
@@ -541,6 +546,8 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .currency-symbol {
@@ -555,6 +562,8 @@ body {
 
 .currency-input {
   width: 170px;
+  min-width: 0;
+  max-width: 100%;
   height: 48px;
   padding-left: 2rem;
   padding-right: 0.85rem;
@@ -581,6 +590,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .btn-sign-toggle {
@@ -1092,15 +1103,19 @@ body {
     text-align: center;
   }
 
+  /* Su schermo stretto tutti gli importi hanno la stessa larghezza: senza
+     un tetto comune ogni riga si adattava al proprio nome e la colonna
+     usciva a zig zag, con Mooney che sbordava dal riquadro. */
   .currency-input {
-    font-size: 1.25rem;
+    width: 135px;
+    font-size: 1.15rem;
     height: 52px;
   }
 
   .btn-sign-toggle {
     height: 52px;
-    width: 44px;
-    font-size: 1.25rem;
+    width: 40px;
+    font-size: 1.2rem;
   }
 
   .totale-grand-block {
@@ -1116,7 +1131,7 @@ body {
   }
 
   .field-label {
-    font-size: 1.18rem;
+    font-size: 1rem;
     font-weight: 800;
   }
 }
@@ -1318,18 +1333,26 @@ body {
    FULL A4 PAGE PRINT RULES (@media print)
    ========================================================================== */
 
+/* Un margine di pagina esplicito: senza, il foglio è largo quanto la carta
+   e la parte che la stampante non può stampare basta a far nascere una
+   seconda pagina, vuota. Cinque millimetri stanno dentro l'area stampabile
+   di qualsiasi stampante. */
 @page {
   size: A4 portrait;
-  margin: 0;
+  margin: 5mm;
 }
 
 @media print {
+  /* Niente misure fisse in millimetri: la stampante decide quanta carta
+     è davvero stampabile, e un foglio largo esattamente quanto la pagina
+     sborda di un soffio facendo uscire una seconda pagina bianca. */
   html, body {
     background: #FFFFFF !important;
     color: #121316 !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
+    width: auto !important;
+    max-width: 100% !important;
     height: auto !important;
     overflow: hidden !important;
   }
@@ -1352,7 +1375,8 @@ body {
   #print-document-host.is-printing {
     display: block !important;
     position: relative !important;
-    width: 210mm !important;
+    width: auto !important;
+    max-width: 100% !important;
     height: auto !important;
     page-break-after: avoid !important;
     page-break-before: avoid !important;
@@ -1362,7 +1386,8 @@ body {
 
   #print-inventario-host.is-printing {
     display: block !important;
-    width: 210mm !important;
+    width: auto !important;
+    max-width: 100% !important;
   }
 
   /* L'inventario puo' occupare piu' pagine: non va ritagliato */
@@ -1378,7 +1403,7 @@ body {
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
-    padding: 10mm 14mm !important;
+    padding: 6mm 10mm !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -2944,5 +2969,52 @@ body {
 
   .entry-date {
     font-size: 0.95rem;
+  }
+}
+
+/* Sui telefoni più stretti l'importo si accorcia ancora: la colonna resta
+   allineata e l'etichetta va a capo invece di spingere il campo fuori. */
+@media (max-width: 400px) {
+  .currency-input {
+    width: 122px;
+  }
+}
+
+@media (max-width: 370px) {
+  .currency-input {
+    width: 108px;
+  }
+}
+
+/* ==========================================================================
+   RIGHE DEGLI IMPORTI SUL TELEFONO
+   Nome sopra, importo sotto a tutta larghezza. Sulla stessa riga non ci
+   stavano: con un nome lungo come Mooney, e ancora di più col pulsante ±
+   accanto, il campo veniva schiacciato o usciva dal riquadro.
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .field-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .field-label-group {
+    flex: none;
+  }
+
+  .input-with-sign {
+    width: 100%;
+  }
+
+  .input-currency-wrapper {
+    flex: 1 1 auto;
+  }
+
+  .currency-input {
+    width: 100%;
+    font-size: 1.2rem;
   }
 }
