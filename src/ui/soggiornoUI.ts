@@ -13,6 +13,14 @@ type Vista = 'presenti' | 'arretrate' | 'pagate';
 let soggiorni: Soggiorno[] = [];
 let vista: Vista = 'presenti';
 
+/**
+ * Conta le modifiche fatte dall'utente. Un caricamento partito prima di una
+ * spunta finirebbe per riassegnare l'elenco vecchio e far ricomparire una
+ * tassa appena riscossa: chi arriva in ritardo confronta questo numero e,
+ * se è cambiato, lascia stare.
+ */
+let versioneStato = 0;
+
 const lista = document.getElementById('soggiorno-lista') as HTMLDivElement;
 const totaleDaPagare = document.getElementById('soggiorno-da-pagare') as HTMLSpanElement;
 const statoImport = document.getElementById('soggiorno-stato') as HTMLParagraphElement;
@@ -60,24 +68,32 @@ function frasiSoggiorno(s: Soggiorno): string {
 }
 
 /**
- * Chi parte oggi: è ancora in casa per la colazione, quindi è l'ultima
- * occasione per riscuotere. Tenuto separato da chi resta ancora qualche notte.
+ * Fra i presenti restano solo le tasse ancora da riscuotere: appena una viene
+ * segnata come versata sparisce da qui e si ritrova fra le pagate.
+ */
+function daRiscuotere(s: Soggiorno): boolean {
+  return !s.pagata;
+}
+
+/**
+ * Chi parte oggi: è ancora qui per la colazione, quindi è l'ultima occasione
+ * per riscuotere.
  */
 function inPartenza(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataInizio <= oggi && s.dataFine === oggi);
+  return soggiorni.filter(s => s.dataInizio <= oggi && s.dataFine === oggi && daRiscuotere(s));
 }
 
 /** Chi è entrato oggi e resta almeno un'altra notte */
 function arrivatiOggi(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataInizio === oggi && s.dataFine > oggi);
+  return soggiorni.filter(s => s.dataInizio === oggi && s.dataFine > oggi && daRiscuotere(s));
 }
 
 /** Chi era già qui da prima e non parte oggi */
 function giaInCasa(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataInizio < oggi && s.dataFine > oggi);
+  return soggiorni.filter(s => s.dataInizio < oggi && s.dataFine > oggi && daRiscuotere(s));
 }
 
 function presenti(): Soggiorno[] {
@@ -110,17 +126,17 @@ function messaggioVuoto(): string {
     return 'Nessun soggiorno importato dai calendari.';
   }
 
-  return 'Nessun ospite presente oggi.';
+  return 'Nessuna tassa da riscuotere fra gli ospiti presenti.';
 }
 
 function render() {
   if (!lista) return;
 
   const inArretrato = arretrate();
-  const nonPagatePresenti = presenti().filter(s => !s.pagata);
 
-  // Da versare: chi è in casa e non ha ancora pagato, più chi è andato via senza pagare
-  const daVersare = [...nonPagatePresenti, ...inArretrato];
+  // Da versare: chi è ancora qui e non ha pagato, più chi è ripartito senza pagare.
+  // I presenti contengono già le sole tasse non riscosse.
+  const daVersare = [...presenti(), ...inArretrato];
 
   if (totaleDaPagare) {
     const totale = daVersare.reduce((somma, s) => somma + s.importo, 0);
@@ -170,9 +186,10 @@ function vuoto(messaggio: string): string {
  * diversi del lavoro, e per chi parte è l'ultima occasione per riscuotere.
  */
 function contenutoPresenti(): string {
+  const oggi = getTodayDateString();
   const partenze = inPartenza().sort((a, b) => a.nome.localeCompare(b.nome));
   const arrivi = arrivatiOggi().sort((a, b) => a.nome.localeCompare(b.nome));
-  const restanti = giaInCasa().sort((a, b) => a.dataFine.localeCompare(b.dataFine));
+  const restanti = giaInCasa();
 
   if (partenze.length + arrivi.length + restanti.length === 0) return vuoto(messaggioVuoto());
 
@@ -187,11 +204,30 @@ function contenutoPresenti(): string {
       </section>
     `;
 
-  return [
+  const blocchi = [
     blocco('In partenza oggi', `Ultimo giorno &middot; ${partenze.length}`, partenze, 'is-partenza'),
-    blocco('Arrivati oggi', String(arrivi.length), arrivi, 'is-arrivo'),
-    blocco('Già in casa', String(restanti.length), restanti)
-  ].join('');
+    blocco('Arrivati oggi', String(arrivi.length), arrivi, 'is-arrivo')
+  ];
+
+  // Chi era già qui si raggruppa per quanto manca alla partenza: è il dato
+  // che dice quanto tempo resta per riscuotere
+  const perGiorni = new Map<number, Soggiorno[]>();
+
+  restanti.forEach(s => {
+    const mancano = giorniTra(oggi, s.dataFine);
+    if (!perGiorni.has(mancano)) perGiorni.set(mancano, []);
+    perGiorni.get(mancano)!.push(s);
+  });
+
+  Array.from(perGiorni.keys())
+    .sort((a, b) => a - b)
+    .forEach(giorni => {
+      const voci = perGiorni.get(giorni)!.sort((a, b) => a.nome.localeCompare(b.nome));
+      const titolo = giorni === 1 ? 'Va via domani' : `Va via tra ${giorni} giorni`;
+      blocchi.push(blocco(titolo, String(voci.length), voci));
+    });
+
+  return blocchi.join('');
 }
 
 function contenutoSemplice(): string {
@@ -230,8 +266,14 @@ function rigaHtml(s: Soggiorno): string {
 
 /** Rilegge i calendari e allinea l'elenco */
 async function aggiorna() {
+  const versione = versioneStato;
+
   const esito = await importaDaCalendari();
-  soggiorni = await elencaSoggiorni();
+  const aggiornati = await elencaSoggiorni();
+
+  // Nel frattempo l'utente ha spuntato qualcosa: la sua azione vince
+  if (versione !== versioneStato) return;
+  soggiorni = aggiornati;
 
   if (esito.errori.length === 0) segnaImportato();
 
@@ -270,8 +312,13 @@ function segnaImportato(): void {
 }
 
 export async function caricaSoggiorni() {
-  soggiorni = await elencaSoggiorni();
-  render();
+  const versione = versioneStato;
+  const letti = await elencaSoggiorni();
+
+  if (versione === versioneStato) {
+    soggiorni = letti;
+    render();
+  }
 
   if (!importatoOggi()) {
     await aggiorna();
@@ -299,8 +346,10 @@ export function initSoggiorno() {
     const voce = soggiorni.find(s => s.uid === uid);
     if (voce) voce.pagata = campo.checked;
 
-    await segnaPagata(uid, campo.checked);
+    versioneStato++;
     render();
+
+    await segnaPagata(uid, campo.checked);
   });
 
   render();
