@@ -27,7 +27,7 @@ import {
 import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { segnala } from './ui/segnalazioni';
-import { chiediPermessoUnaVolta, inviaNotifica } from './utils/notifiche';
+import { avvisaGliAltri, chiediPermessoUnaVolta, inviaNotifica, ripristinaIscrizione } from './utils/notifiche';
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
@@ -578,6 +578,10 @@ async function addNewTodoItem() {
 
   const voce = await aggiungiAttivita(text);
   currentTodos.unshift(voce);
+
+  // Il pallino si vede solo riaprendo l'app: la notifica raggiunge anche chi
+  // non la sta guardando
+  avvisaGliAltri('Nuova attività', text);
   segnaTodoVisti(currentTodos.map(t => t.id));
 
   // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito
@@ -840,6 +844,7 @@ function fillPrintDocument() {
  */
 async function initApp() {
   setupEventListeners();
+  ripristinaIscrizione();
   initInventario();
   initSoggiorno();
   await loadDateIntoForm(selectedDate);

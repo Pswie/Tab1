@@ -2425,3 +2425,57 @@ body {
 .sog-gruppo.is-arrivo .sog-gruppo-meta {
   color: var(--accent-green-text);
 }
+
+/* Bambini non paganti: il calendario li conta fra gli ospiti, qui si tolgono */
+.sog-bambini {
+  display: grid;
+  gap: 0.15rem;
+  justify-items: center;
+}
+
+.sog-bambini-etichetta {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sog-bambini-campo {
+  width: 42px;
+  height: 30px;
+  padding: 0 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 6px;
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.sog-bambini-campo:focus {
+  border-color: var(--text-primary);
+}
+
+.sog-row {
+  grid-template-columns: auto 1fr auto auto;
+}
+
+.sog-row.is-pagata .sog-bambini {
+  opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  .sog-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .sog-bambini {
+    grid-column: 2 / 3;
+    justify-items: start;
+  }
+}

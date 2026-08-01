@@ -385,11 +385,20 @@ CREATE TABLE public.tassa_soggiorno (
     data_fine DATE NOT NULL,
 
     notti INTEGER NOT NULL DEFAULT 0,
+
+    -- Ospiti come li conta il calendario: comprende anche i bambini
     ospiti INTEGER NOT NULL DEFAULT 1,
+
+    -- I bambini non pagano l'imposta, ma il calendario non li distingue:
+    -- il numero si indica a mano e l'importazione non lo tocca più
+    bambini INTEGER NOT NULL DEFAULT 0 CHECK (bambini >= 0),
+
     tariffa NUMERIC(10,2) NOT NULL DEFAULT 3.00,
 
-    -- Notti x tariffa x ospiti
-    importo NUMERIC(12,2) GENERATED ALWAYS AS (notti * tariffa * ospiti) STORED,
+    -- Notti x tariffa x paganti, dove i paganti sono gli ospiti meno i bambini
+    importo NUMERIC(12,2) GENERATED ALWAYS AS (
+        notti * tariffa * GREATEST(ospiti - bambini, 0)
+    ) STORED,
 
     pagata BOOLEAN NOT NULL DEFAULT false,
     pagata_il TIMESTAMP WITH TIME ZONE,
@@ -410,4 +419,34 @@ CREATE POLICY "Scrittura calendari" ON public.calendari_ical
 CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno
     FOR SELECT USING (true);
 CREATE POLICY "Scrittura tassa soggiorno" ON public.tassa_soggiorno
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 11. NOTIFICHE PUSH
+--
+-- Ogni dispositivo che concede il permesso registra qui il proprio recapito.
+-- Serve a far arrivare l'avviso di una nuova attività anche quando l'app è
+-- chiusa: senza un elenco di destinatari il server non saprebbe a chi scrivere.
+-- =========================================================================
+DROP TABLE IF EXISTS public.push_iscrizioni;
+
+CREATE TABLE public.push_iscrizioni (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Recapito del browser: cambia se l'utente reinstalla l'app
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+
+    -- Identifica il dispositivo che ha scritto, per non notificare se stesso
+    dispositivo TEXT NOT NULL DEFAULT '',
+
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.push_iscrizioni ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lettura iscrizioni push" ON public.push_iscrizioni
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura iscrizioni push" ON public.push_iscrizioni
     FOR ALL USING (true) WITH CHECK (true);

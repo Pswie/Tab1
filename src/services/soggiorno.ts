@@ -13,6 +13,8 @@ export interface Soggiorno {
   dataFine: string;
   notti: number;
   ospiti: number;
+  /** Non pagano: si sottraggono agli ospiti per ottenere i paganti */
+  bambini: number;
   tariffa: number;
   importo: number;
   pagata: boolean;
@@ -34,8 +36,18 @@ export interface EsitoImportazione {
 const CHIAVE_SOGGIORNI = 'tabaccheria_soggiorni_v2';
 const CHIAVE_CALENDARI = 'tabaccheria_calendari_v1';
 
-export function calcolaImporto(notti: number, ospiti: number, tariffa = TARIFFA_A_PERSONA): number {
-  return Number((notti * tariffa * ospiti).toFixed(2));
+/** Paganti: gli ospiti contati dal calendario meno i bambini */
+export function paganti(ospiti: number, bambini: number): number {
+  return Math.max(0, ospiti - bambini);
+}
+
+export function calcolaImporto(
+  notti: number,
+  ospiti: number,
+  bambini = 0,
+  tariffa = TARIFFA_A_PERSONA
+): number {
+  return Number((notti * tariffa * paganti(ospiti, bambini)).toFixed(2));
 }
 
 function leggiLocale<T>(chiave: string): T[] {
@@ -58,6 +70,7 @@ function scriviLocale<T>(chiave: string, voci: T[]): void {
 function daRiga(r: Record<string, unknown>): Soggiorno {
   const notti = Number(r.notti) || 0;
   const ospiti = Number(r.ospiti) || 1;
+  const bambini = Number(r.bambini) || 0;
   const tariffa = Number(r.tariffa) || TARIFFA_A_PERSONA;
 
   return {
@@ -68,10 +81,11 @@ function daRiga(r: Record<string, unknown>): Soggiorno {
     dataFine: String(r.data_fine),
     notti,
     ospiti,
+    bambini,
     tariffa,
     importo: r.importo !== undefined && r.importo !== null
       ? Number(r.importo)
-      : calcolaImporto(notti, ospiti, tariffa),
+      : calcolaImporto(notti, ospiti, bambini, tariffa),
     pagata: Boolean(r.pagata)
   };
 }
@@ -214,13 +228,14 @@ export async function importaDaCalendari(): Promise<EsitoImportazione> {
 
       if (gia) {
         esito.aggiornati++;
+        // bambini e pagata restano quelli indicati a mano
         Object.assign(gia, {
           nome: p.nome,
           dataInizio: p.dataInizio,
           dataFine: p.dataFine,
           notti: p.notti,
           ospiti: p.ospiti,
-          importo: calcolaImporto(p.notti, p.ospiti)
+          importo: calcolaImporto(p.notti, p.ospiti, gia.bambini)
         });
       } else {
         esito.nuovi++;
@@ -232,6 +247,7 @@ export async function importaDaCalendari(): Promise<EsitoImportazione> {
           dataFine: p.dataFine,
           notti: p.notti,
           ospiti: p.ospiti,
+          bambini: 0,
           tariffa: TARIFFA_A_PERSONA,
           importo: calcolaImporto(p.notti, p.ospiti),
           pagata: false
@@ -330,5 +346,30 @@ export async function segnaPagata(uid: string, pagata: boolean): Promise<void> {
   scriviLocale(
     CHIAVE_SOGGIORNI,
     leggiLocale<Soggiorno>(CHIAVE_SOGGIORNI).map(v => (v.uid === uid ? { ...v, pagata } : v))
+  );
+}
+
+/** Indica quanti degli ospiti sono bambini, che non pagano l'imposta */
+export async function impostaBambini(uid: string, bambini: number): Promise<void> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { error } = await supabase
+        .from('tassa_soggiorno')
+        .update({ bambini })
+        .eq('uid', uid);
+
+      if (!error) return;
+    } catch (err) {
+      console.warn('Eccezione aggiornamento bambini:', err);
+    }
+  }
+
+  scriviLocale(
+    CHIAVE_SOGGIORNI,
+    leggiLocale<Soggiorno>(CHIAVE_SOGGIORNI).map(v =>
+      v.uid === uid
+        ? { ...v, bambini, importo: calcolaImporto(v.notti, v.ospiti, bambini, v.tariffa) }
+        : v
+    )
   );
 }

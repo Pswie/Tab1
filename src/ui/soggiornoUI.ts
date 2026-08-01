@@ -1,6 +1,9 @@
 import {
   elencaSoggiorni,
   importaDaCalendari,
+  calcolaImporto,
+  impostaBambini,
+  paganti,
   segnaPagata,
   Soggiorno,
   TARIFFA_A_PERSONA
@@ -65,6 +68,12 @@ function frasiSoggiorno(s: Soggiorno): string {
     `partito ${-aPartenza} giorni fa`;
 
   return `${arrivo} &middot; ${partenza}`;
+}
+
+/** "3 paganti", cioè gli ospiti meno i bambini */
+function testoPaganti(s: Soggiorno): string {
+  const quanti = paganti(s.ospiti, s.bambini);
+  return `${quanti} ${quanti === 1 ? 'pagante' : 'paganti'}`;
 }
 
 /**
@@ -137,14 +146,8 @@ function messaggioVuoto(): string {
   return 'Nessuna tassa da riscuotere fra gli ospiti presenti.';
 }
 
-function render() {
-  if (!lista) return;
-
-  const inArretrato = arretrate();
-
-  // Da versare: chi è ancora qui e non ha pagato, più chi è ripartito senza pagare.
-  // I presenti contengono già le sole tasse non riscosse.
-  const daVersare = [...presenti(), ...inArretrato];
+function aggiornaTotale() {
+  const daVersare = [...presenti(), ...arretrate()];
 
   if (totaleDaPagare) {
     const totale = daVersare.reduce((somma, s) => somma + s.importo, 0);
@@ -153,6 +156,13 @@ function render() {
   }
 
   segnala('soggiorno', daVersare.length);
+}
+
+function render() {
+  if (!lista) return;
+
+  const inArretrato = arretrate();
+  aggiornaTotale();
 
   // Il conteggio accanto a ogni vista dice dove guardare
   const conteggi: Record<Vista, number> = {
@@ -267,9 +277,16 @@ function rigaHtml(s: Soggiorno): string {
           ${dataBreve(s.dataInizio)} &rarr; ${dataBreve(s.dataFine)} &middot;
           ${s.notti} ${s.notti === 1 ? 'notte' : 'notti'} &middot;
           ${s.ospiti} ${s.ospiti === 1 ? 'ospite' : 'ospiti'} &middot;
-          ${formatCurrency(s.tariffa)} a testa
+          <span class="sog-paganti">${testoPaganti(s)}</span>
         </span>
       </div>
+
+      <label class="sog-bambini" title="Quanti degli ospiti sono bambini: non pagano l'imposta">
+        <span class="sog-bambini-etichetta">Bambini</span>
+        <input type="text" class="sog-bambini-campo" data-action="bambini"
+               inputmode="numeric" value="${s.bambini || ''}" placeholder="0"
+               aria-label="Bambini non paganti" />
+      </label>
 
       <span class="sog-importo">${formatCurrency(s.importo)}</span>
     </div>
@@ -345,6 +362,36 @@ export function initSoggiorno() {
       vista = (btn.getAttribute('data-vista') as Vista) || 'presenti';
       render();
     });
+  });
+
+  // I bambini si contano a mano: il calendario non li distingue dagli adulti
+  lista.addEventListener('input', e => {
+    const campo = e.target as HTMLInputElement;
+    if (campo.getAttribute('data-action') !== 'bambini') return;
+
+    const riga = campo.closest('.sog-row') as HTMLElement | null;
+    const uid = riga?.getAttribute('data-uid');
+    const voce = soggiorni.find(x => x.uid === uid);
+    if (!uid || !voce) return;
+
+    const scritti = parseInt(campo.value.trim(), 10);
+    const bambini = Math.min(Math.max(isNaN(scritti) ? 0 : scritti, 0), voce.ospiti);
+
+    voce.bambini = bambini;
+    voce.importo = calcolaImporto(voce.notti, voce.ospiti, bambini, voce.tariffa);
+
+    versioneStato++;
+
+    // Si aggiornano le sole parti che cambiano: ridisegnare l'elenco farebbe
+    // perdere il fuoco dal campo mentre si sta scrivendo
+    const mostraImporto = riga!.querySelector('.sog-importo');
+    if (mostraImporto) mostraImporto.textContent = formatCurrency(voce.importo);
+
+    const mostraPaganti = riga!.querySelector('.sog-paganti');
+    if (mostraPaganti) mostraPaganti.textContent = testoPaganti(voce);
+
+    aggiornaTotale();
+    impostaBambini(uid, bambini);
   });
 
   lista.addEventListener('change', async e => {
