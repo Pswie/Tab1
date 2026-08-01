@@ -1,3 +1,4 @@
+import { getTodayDateString } from '../utils/calculations';
 import { leggiPrenotazioni } from '../utils/ical';
 import { isSupabaseConfigured, supabase } from './supabase';
 
@@ -26,6 +27,7 @@ export interface Calendario {
 export interface EsitoImportazione {
   nuovi: number;
   aggiornati: number;
+  cancellati: number;
   errori: string[];
 }
 
@@ -160,7 +162,7 @@ async function scaricaCalendario(url: string): Promise<string> {
  */
 export async function importaDaCalendari(): Promise<EsitoImportazione> {
   const calendari = await elencaCalendari();
-  const esito: EsitoImportazione = { nuovi: 0, aggiornati: 0, errori: [] };
+  const esito: EsitoImportazione = { nuovi: 0, aggiornati: 0, cancellati: 0, errori: [] };
 
   if (calendari.length === 0) {
     esito.errori.push('Nessun calendario configurato');
@@ -169,6 +171,9 @@ export async function importaDaCalendari(): Promise<EsitoImportazione> {
 
   const esistenti = await elencaSoggiorni();
   const perUid = new Map(esistenti.map(s => [s.uid, s]));
+
+  // Serve a riconoscere le prenotazioni sparite dai calendari
+  const uidVisti = new Set<string>();
 
   for (const cal of calendari) {
     let prenotazioni;
@@ -181,6 +186,7 @@ export async function importaDaCalendari(): Promise<EsitoImportazione> {
     }
 
     for (const p of prenotazioni) {
+      uidVisti.add(p.uid);
       const gia = perUid.get(p.uid);
 
       const riga = {
@@ -234,8 +240,52 @@ export async function importaDaCalendari(): Promise<EsitoImportazione> {
     }
   }
 
+  await rimuoviCancellate(perUid, uidVisti, esito);
+
   scriviLocale(CHIAVE_SOGGIORNI, Array.from(perUid.values()));
   return esito;
+}
+
+/**
+ * Toglie le prenotazioni sparite dai calendari.
+ *
+ * Si guardano solo quelle che devono ancora cominciare: una prenotazione già
+ * iniziata che non compare più non è stata annullata, è semplicemente una
+ * vacanza conclusa che il portale non espone più, e la sua tassa resta dovuta.
+ *
+ * Se anche un solo calendario non si è letto non si cancella niente: le sue
+ * prenotazioni sembrerebbero sparite solo perché non le abbiamo viste.
+ */
+async function rimuoviCancellate(
+  perUid: Map<string, Soggiorno>,
+  uidVisti: Set<string>,
+  esito: EsitoImportazione
+): Promise<void> {
+  if (esito.errori.length > 0) return;
+
+  const oggi = getTodayDateString();
+
+  const daTogliere = Array.from(perUid.values()).filter(
+    s => s.dataInizio > oggi && !uidVisti.has(s.uid)
+  );
+
+  for (const s of daTogliere) {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error } = await supabase.from('tassa_soggiorno').delete().eq('uid', s.uid);
+        if (error) {
+          esito.errori.push(`${s.nome}: ${error.message}`);
+          continue;
+        }
+      } catch (err) {
+        esito.errori.push(`${s.nome}: ${(err as Error).message}`);
+        continue;
+      }
+    }
+
+    perUid.delete(s.uid);
+    esito.cancellati++;
+  }
 }
 
 // --------------------------------------------------------------- soggiorni
