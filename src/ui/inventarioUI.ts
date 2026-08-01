@@ -11,7 +11,8 @@ import {
   VoceCatalogoGratta,
   VoceCatalogoTabacco
 } from '../services/catalogo';
-import { fetchInventario, salvaInventario } from '../services/inventario';
+import { fetchInventario, salvaInventario, ultimaDataInventario } from '../services/inventario';
+import { segnala } from './segnalazioni';
 import { GrattaEVinciConta, SigaretteConta } from '../types';
 import { formatCurrency, formatDateItalian, parseInputValue } from '../utils/calculations';
 
@@ -506,6 +507,30 @@ function alternaModifica(tipo: 'gratta' | 'tabacchi') {
 }
 
 /**
+ * L'inventario va fatto una volta al mese: se nel mese in corso non ne risulta
+ * ancora nessuno, lo si segnala sul menu e con un avviso in cima alla scheda.
+ */
+async function controllaInventarioMensile(oggi: string) {
+  const avviso = document.getElementById('avviso-inventario');
+  const ultima = await ultimaDataInventario();
+
+  const meseCorrente = oggi.slice(0, 7);
+  const fattoQuestoMese = ultima !== null && ultima.slice(0, 7) === meseCorrente;
+
+  segnala('inventario', fattoQuestoMese ? 0 : 'pallino');
+
+  if (!avviso) return;
+
+  avviso.classList.toggle('is-hidden', fattoQuestoMese);
+
+  if (!fattoQuestoMese) {
+    avviso.textContent = ultima
+      ? `Inventario del mese non ancora registrato. L'ultimo risale al ${formatDateItalian(ultima)}.`
+      : 'Nessun inventario ancora registrato.';
+  }
+}
+
+/**
  * Carica l'inventario della giornata indicata
  */
 export async function caricaInventario(dateStr: string) {
@@ -525,6 +550,8 @@ export async function caricaInventario(dateStr: string) {
 
   renderGratta();
   renderTabacchi();
+
+  await controllaInventarioMensile(dateStr);
 }
 
 /**

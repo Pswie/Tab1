@@ -36,6 +36,7 @@
       <div class="header-actions">
         <!-- Menu di navigazione per schermi stretti -->
         <button type="button" id="btn-hamburger-menu" class="hamburger-btn" aria-label="Apri Menu Navigazione">
+          <span class="hamburger-dot" id="pallino-menu" hidden></span>
           <span class="hamburger-line"></span>
           <span class="hamburger-line"></span>
           <span class="hamburger-line"></span>
@@ -61,14 +62,21 @@
       <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span>
         <div class="hotdog-text">
-          <strong>Inventario</strong>
+          <strong>Inventario <span class="nav-badge" id="badge-menu-inventario" hidden></span></strong>
           <span>Giacenze e scorte del punto vendita</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-soggiorno">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Tassa di Soggiorno <span class="nav-badge" id="badge-menu-soggiorno" hidden></span></strong>
+          <span>Registro dei soggiorni e imposta dovuta</span>
         </div>
       </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-todos">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span>
         <div class="hotdog-text">
-          <strong>Task To-Do</strong>
+          <strong>Task To-Do <span class="nav-badge" id="badge-menu-todos" hidden></span></strong>
           <span>Checklist e controlli punto vendita</span>
         </div>
       </button>
@@ -83,10 +91,13 @@
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-inventario">
-        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario <span class="nav-badge" id="badge-nav-inventario" hidden></span>
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-soggiorno">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg></span> Tassa di Soggiorno <span class="nav-badge" id="badge-nav-soggiorno" hidden></span>
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-todos">
-        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span> Task To-Do
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 12 5 5L20 6"/></svg></span> Task To-Do <span class="nav-badge" id="badge-nav-todos" hidden></span>
       </button>
     </div>
   </nav>
@@ -293,6 +304,8 @@
         </button>
       </div>
 
+      <p class="inv-avviso is-hidden" id="avviso-inventario"></p>
+
       <!-- INVENTARIO GRATTA E VINCI -->
       <section class="card-section inv-pane is-active" id="inv-pane-gratta">
         <div class="section-header">
@@ -379,6 +392,34 @@
     </div>
 
     <!-- TAB 3: ATTIVITÀ & TASK TO-DO -->
+    <!-- TAB: TASSA DI SOGGIORNO -->
+    <div id="tab-soggiorno" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Tassa di Soggiorno</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Da versare</span>
+            <span id="soggiorno-da-pagare" class="inv-total-value">0,00 &euro;</span>
+          </div>
+        </div>
+
+        <!-- L'imposta e' notti x tariffa x numero di ospiti -->
+        <div class="sog-form">
+          <input type="text" id="soggiorno-cognome" class="todo-add-input" placeholder="Cognome" autocomplete="off" />
+          <input type="text" id="soggiorno-nome" class="todo-add-input" placeholder="Nome" autocomplete="off" />
+          <input type="text" id="soggiorno-giorni" class="inv-edit-num" placeholder="Notti" inputmode="numeric" />
+          <input type="text" id="soggiorno-persone" class="inv-edit-num" placeholder="Persone" inputmode="numeric" />
+          <button type="button" id="btn-add-soggiorno" class="todo-add-btn">Registra</button>
+        </div>
+
+        <p class="sog-anteprima" id="soggiorno-anteprima"></p>
+
+        <div id="soggiorno-lista" class="sog-lista"></div>
+      </section>
+    </div>
+
     <div id="tab-todos" class="tab-pane">
       <section class="card-section">
         <div class="section-header">

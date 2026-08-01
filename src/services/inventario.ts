@@ -62,6 +62,34 @@ export async function fetchInventario(dateStr: string): Promise<InventarioGiorna
 }
 
 /**
+ * Data dell'ultimo inventario registrato, o null se non ne esiste nessuno.
+ * Serve a ricordare la conta mensile.
+ */
+export async function ultimaDataInventario(): Promise<string | null> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const [gev, sig] = await Promise.all([
+        supabase.from('inventario_gratta_e_vinci').select('date').order('date', { ascending: false }).limit(1),
+        supabase.from('inventario_sigarette').select('date').order('date', { ascending: false }).limit(1)
+      ]);
+
+      const date = [gev.data?.[0]?.date, sig.data?.[0]?.date].filter(Boolean) as string[];
+      if (date.length > 0) return date.sort().reverse()[0];
+      if (!gev.error && !sig.error) return null;
+    } catch (err) {
+      console.warn('Data ultimo inventario non leggibile:', err);
+    }
+  }
+
+  const locali = Object.values(getLocale())
+    .filter(v => v.grattaEVinci.length > 0 || v.sigarette.length > 0)
+    .map(v => v.date)
+    .sort();
+
+  return locali.length > 0 ? locali[locali.length - 1] : null;
+}
+
+/**
  * Salva l'inventario della giornata.
  *
  * Le voci tornate a zero vengono cancellate invece che scritte: l'inventario

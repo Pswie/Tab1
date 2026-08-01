@@ -17,6 +17,9 @@ import {
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
 import { caricaInventario, initInventario } from './ui/inventarioUI';
+import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
+import { segnala } from './ui/segnalazioni';
+import { chiediPermessoUnaVolta, inviaNotifica } from './utils/notifiche';
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
@@ -39,6 +42,11 @@ let todoFilter: TodoFilter = 'tutte';
 // Il solo Date.now() non basta: due attività aggiunte nello stesso millisecondo
 // riceverebbero lo stesso id, e cancellandone una sparirebbero entrambe.
 let todoSeq = 0;
+
+// Attività già viste su questo dispositivo, per riconoscere quelle nuove
+// aggiunte da qualcun altro
+const CHIAVE_TODO_VISTI = 'tabaccheria_todo_visti';
+let controlloTodoTimer: number | null = null;
 
 const ICONA_ELENCO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
 const ICONA_TUTTO_FATTO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>`;
@@ -494,6 +502,72 @@ function setupTodoListDelegation() {
 /**
  * Aggiunge una nuova attività
  */
+/**
+ * Identificativi delle attività già viste su questo dispositivo, per giornata
+ */
+function todoVisti(dateStr: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(CHIAVE_TODO_VISTI);
+    const mappa = raw ? JSON.parse(raw) : {};
+    return new Set<string>(mappa[dateStr] || []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function segnaTodoVisti(dateStr: string, ids: string[]): void {
+  try {
+    const raw = localStorage.getItem(CHIAVE_TODO_VISTI);
+    const mappa = raw ? JSON.parse(raw) : {};
+    mappa[dateStr] = ids;
+    localStorage.setItem(CHIAVE_TODO_VISTI, JSON.stringify(mappa));
+  } catch (err) {
+    console.error('Errore salvataggio attività viste', err);
+  }
+}
+
+function schedaAttiva(id: string): boolean {
+  return document.getElementById(id)?.classList.contains('active') ?? false;
+}
+
+/**
+ * Conta le attività comparse dopo l'ultima apertura della scheda e le segnala
+ * sul menu. Senza un server che invii notifiche vere, questo è il modo per
+ * accorgersi di quello che aggiunge un collega da un altro dispositivo.
+ */
+async function controllaNovitaTodo(avvisa = true) {
+  try {
+    const record = await fetchLogByDate(selectedDate);
+    const todos = record?.todos || [];
+    const visti = todoVisti(selectedDate);
+    const nuovi = todos.filter(t => !visti.has(t.id));
+
+    segnala('todos', nuovi.length);
+
+    if (avvisa && nuovi.length > 0 && !schedaAttiva('tab-todos')) {
+      const ultimo = nuovi[nuovi.length - 1];
+      inviaNotifica(
+        nuovi.length === 1 ? 'Nuova attività' : `${nuovi.length} nuove attività`,
+        ultimo.text
+      );
+    }
+  } catch (err) {
+    console.warn('Controllo attività rimandato:', err);
+  }
+}
+
+/**
+ * Aprendo la scheda si riallinea l'elenco a quello salvato e si azzera il contatore
+ */
+async function apriSchedaTodo() {
+  const record = await fetchLogByDate(selectedDate);
+  if (record) currentTodos = record.todos || [];
+
+  segnaTodoVisti(selectedDate, currentTodos.map(t => t.id));
+  segnala('todos', 0);
+  renderTodoList();
+}
+
 function addNewTodoItem() {
   const text = todoInputText?.value?.trim();
   if (!text) return;
@@ -509,6 +583,10 @@ function addNewTodoItem() {
   });
 
   todoInputText.value = '';
+
+  // Il permesso per le notifiche si può chiedere solo durante un gesto dell'utente
+  chiediPermessoUnaVolta();
+  segnaTodoVisti(selectedDate, currentTodos.map(t => t.id));
 
   // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito
   if (todoFilter === 'fatte') todoFilter = 'tutte';
@@ -648,13 +726,16 @@ function setupEventListeners() {
         }
       });
 
+      if (targetTabId === 'tab-todos') apriSchedaTodo();
+      if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
+
       closeHotdogMenu();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
   const allInputs = [
-    inputTabacchi, inputSisal, inputLis, inputPrinter,
+    inputTabacchi, inputSisal, inputMooney, inputLis, inputPrinter,
     inputLottoEntrate, inputLottoUscite, inputFatture
   ];
 
@@ -768,8 +849,15 @@ function fillPrintDocument() {
 async function initApp() {
   setupEventListeners();
   initInventario();
+  initSoggiorno();
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
+  await caricaSoggiorni();
+  await controllaNovitaTodo(false);
+
+  // Un collega può aggiungere un'attività mentre l'app è già aperta
+  if (controlloTodoTimer !== null) window.clearInterval(controlloTodoTimer);
+  controlloTodoTimer = window.setInterval(() => controllaNovitaTodo(), 60000);
 }
 
 // Start application

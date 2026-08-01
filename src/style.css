@@ -2121,3 +2121,185 @@ body {
     display: block;
   }
 }
+
+/* ==========================================================================
+   SEGNALAZIONI SUL MENU
+   ========================================================================== */
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.35rem;
+  margin-left: 0.15rem;
+  border-radius: var(--radius-full);
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* Avviso senza numero: basta il pallino */
+.nav-badge.is-dot {
+  min-width: 9px;
+  width: 9px;
+  height: 9px;
+  padding: 0;
+}
+
+/* Pallino sul pulsante del menu, quando le voci non si vedono */
+.hamburger-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ferrari-red);
+  box-shadow: 0 0 0 2px #FFFFFF;
+}
+
+.hamburger-btn {
+  position: relative;
+}
+
+/* ==========================================================================
+   TASSA DI SOGGIORNO
+   ========================================================================== */
+
+.sog-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 110px 110px auto;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sog-anteprima {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.sog-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.sog-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sog-row:last-child {
+  border-bottom: none;
+}
+
+/* Una tassa versata non deve più attirare l'occhio */
+.sog-row.is-pagata .sog-nome,
+.sog-row.is-pagata .sog-importo {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.sog-check {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.sog-check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sog-check-box {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  transition: var(--transition-fast);
+}
+
+.sog-check input:checked + .sog-check-box {
+  background: var(--accent-green-line);
+  border-color: var(--accent-green-line);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 6'/%3E%3C/svg%3E");
+  background-size: 14px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.sog-check input:focus-visible + .sog-check-box {
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+.sog-dati {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sog-nome {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sog-calcolo {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.sog-importo {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* Avviso della conta mensile dell'inventario */
+.inv-avviso {
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: #FEF3C7;
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-inner);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #92400E;
+}
+
+.inv-avviso.is-hidden {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sog-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sog-form .todo-add-btn {
+    grid-column: 1 / -1;
+  }
+
+  .sog-row {
+    grid-template-columns: auto 1fr auto;
+    row-gap: 0.35rem;
+  }
+
+  .sog-importo {
+    grid-column: 2 / 3;
+  }
+}
