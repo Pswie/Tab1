@@ -14,7 +14,7 @@ import {
 import { fetchInventario, salvaInventario, ultimaDataInventario } from '../services/inventario';
 import { segnala } from './segnalazioni';
 import { GrattaEVinciConta, SigaretteConta } from '../types';
-import { formatCurrency, formatDateItalian, parseInputValue } from '../utils/calculations';
+import { formatCurrency, formatDateItalian, formatDateLocalISO, parseInputValue } from '../utils/calculations';
 
 // Cataloghi caricati dal database
 let catalogoGratta: VoceCatalogoGratta[] = [];
@@ -514,19 +514,24 @@ async function controllaInventarioMensile(oggi: string) {
   const avviso = document.getElementById('avviso-inventario');
   const ultima = await ultimaDataInventario();
 
-  const meseCorrente = oggi.slice(0, 7);
-  const fattoQuestoMese = ultima !== null && ultima.slice(0, 7) === meseCorrente;
+  // Si avvisa solo quando dall'ultimo inventario è passato un mese intero.
+  // Segnalare subito, il giorno dopo averlo fatto, sarebbe solo rumore.
+  let scaduto = false;
 
-  segnala('inventario', fattoQuestoMese ? 0 : 'pallino');
+  if (ultima) {
+    const scadenza = new Date(`${ultima}T00:00:00`);
+    scadenza.setMonth(scadenza.getMonth() + 1);
+    scaduto = oggi >= formatDateLocalISO(scadenza);
+  }
+
+  segnala('inventario', scaduto ? 'pallino' : 0);
 
   if (!avviso) return;
 
-  avviso.classList.toggle('is-hidden', fattoQuestoMese);
+  avviso.classList.toggle('is-hidden', !scaduto);
 
-  if (!fattoQuestoMese) {
-    avviso.textContent = ultima
-      ? `Inventario del mese non ancora registrato. L'ultimo risale al ${formatDateItalian(ultima)}.`
-      : 'Nessun inventario ancora registrato.';
+  if (scaduto && ultima) {
+    avviso.textContent = `È passato un mese dall'ultimo inventario, del ${formatDateItalian(ultima)}.`;
   }
 }
 

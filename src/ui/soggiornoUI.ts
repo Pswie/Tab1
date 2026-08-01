@@ -35,23 +35,26 @@ function dataBreve(iso: string): string {
 }
 
 /**
- * Si mostrano solo i soggiorni conclusi: la tassa si riscuote alla partenza,
- * quindi chi deve ancora andare via non è ancora dovuto.
+ * Conta la data di arrivo: la tassa è dovuta da chi è già entrato, quindi
+ * l'elenco comprende gli ospiti presenti e quelli già ripartiti, mentre le
+ * prenotazioni non ancora iniziate restano fuori.
  */
-function daMostrare(): Soggiorno[] {
+function giaArrivati(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni
-    .filter(s => s.dataFine <= oggi)
+  return soggiorni.filter(s => s.dataInizio <= oggi);
+}
+
+function daMostrare(): Soggiorno[] {
+  return giaArrivati()
     .filter(s => mostraPagate || !s.pagata)
-    .sort((a, b) => b.dataFine.localeCompare(a.dataFine));
+    .sort((a, b) => b.dataInizio.localeCompare(a.dataInizio));
 }
 
 function render() {
   if (!lista) return;
 
-  const oggi = getTodayDateString();
-  const conclusi = soggiorni.filter(s => s.dataFine <= oggi);
-  const daPagare = conclusi.filter(s => !s.pagata);
+  const arrivati = giaArrivati();
+  const daPagare = arrivati.filter(s => !s.pagata);
 
   if (totaleDaPagare) {
     const totale = daPagare.reduce((somma, s) => somma + s.importo, 0);
@@ -69,7 +72,7 @@ function render() {
   const voci = daMostrare();
 
   if (voci.length === 0) {
-    const inArrivo = soggiorni.length - conclusi.length;
+    const inArrivo = soggiorni.length - arrivati.length;
 
     lista.innerHTML = `
       <div class="empty-state">
@@ -78,11 +81,11 @@ function render() {
           <path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/>
         </svg>
         <p class="empty-state-text">
-          ${conclusi.length === 0
+          ${arrivati.length === 0
             ? (soggiorni.length === 0
                 ? 'Nessun soggiorno importato. Configura i calendari e premi Aggiorna.'
-                : `Nessun soggiorno ancora concluso. ${inArrivo} in corso o in arrivo.`)
-            : 'Tutte le tasse dei soggiorni conclusi risultano versate.'}
+                : `Nessun ospite ancora arrivato. ${inArrivo} prenotazioni in arrivo.`)
+            : 'Tutte le tasse degli ospiti arrivati risultano versate.'}
         </p>
       </div>
     `;

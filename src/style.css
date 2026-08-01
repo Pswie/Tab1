@@ -2260,62 +2260,47 @@ body {
 
 /* ==========================================================================
    SEGNALAZIONI SUL MENU
-   Il contatore deve leggersi a colpo d'occhio senza gridare: pastiglia piena,
-   cifre in monospaziato e un alone tenue che la stacca dallo sfondo.
+   Devono farsi notare quando c'è qualcosa e sparire del tutto quando non c'è.
    ========================================================================== */
+
+/* Senza questa riga il display dichiarato sotto vincerebbe sull'attributo
+   hidden, e le pastiglie resterebbero visibili mostrando "+0" su ogni voce. */
+.nav-badge[hidden] {
+  display: none;
+}
 
 .nav-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 0.4rem;
-  margin-left: 0.35rem;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 0.32rem;
+  margin-left: 0.4rem;
   border-radius: var(--radius-full);
   background: var(--ferrari-red);
   color: #FFFFFF;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
   line-height: 1;
   vertical-align: middle;
-  box-shadow: 0 1px 3px rgba(225, 6, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  animation: badge-entra 0.32s var(--ease-spring);
 }
 
-@keyframes badge-entra {
-  from { transform: scale(0.4); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
-}
-
-/* Avviso senza numero: un punto, con un anello che lo fa respirare */
+/* Avviso senza numero: un punto piccolo e fermo, nessuna animazione che
+   continui a muoversi mentre si lavora */
 .nav-badge.is-dot {
-  min-width: 10px;
-  width: 10px;
-  height: 10px;
+  min-width: 7px;
+  width: 7px;
+  height: 7px;
   padding: 0;
-  margin-left: 0.4rem;
-  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
-  animation: badge-entra 0.32s var(--ease-spring), pallino-respira 2.4s ease-in-out 0.4s infinite;
+  margin-left: 0.45rem;
 }
 
-@keyframes pallino-respira {
-  0%, 100% { box-shadow: 0 0 0 3px var(--ferrari-red-glow); }
-  50%      { box-shadow: 0 0 0 6px rgba(225, 6, 0, 0.05); }
-}
-
-/* Sulla voce attiva il rosso sparirebbe nel fondo: si inverte */
+/* Sulla voce attiva il rosso finirebbe sopra la sottolineatura rossa */
 .nav-tab-item.active .nav-badge {
   background: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
-}
-
-.nav-tab-item.active .nav-badge.is-dot {
-  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
-  animation: badge-entra 0.32s var(--ease-spring);
 }
 
 /* Punto sul pulsante del menu, quando le voci non si vedono */
@@ -2325,49 +2310,68 @@ body {
 
 .hamburger-dot {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 11px;
-  height: 11px;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--ferrari-red);
   border: 2px solid #FFFFFF;
-  box-shadow: 0 1px 3px rgba(225, 6, 0, 0.4);
-  animation: badge-entra 0.32s var(--ease-spring);
 }
 
-/* Nel menu a tendina il contatore sta accanto al titolo della voce */
 .hotdog-text strong {
   display: inline-flex;
   align-items: center;
 }
 
-/* Barra della tassa di soggiorno e pannello dei calendari */
-.sog-barra {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.85rem;
-}
+/* ==========================================================================
+   PULSANTE SECONDARIO
+   Lo stile base era andato perso in una ripulitura e restava il pulsante
+   grezzo del browser.
+   ========================================================================== */
 
-.sog-calendari {
-  display: grid;
-  gap: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.25rem;
-  background: var(--surface-subtle);
+.btn-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 42px;
+  padding: 0 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
   border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-inner);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.sog-calendari.is-hidden {
-  display: none;
+.btn-secondary-action:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
 }
 
-.sog-anteprima.is-errore {
-  color: #92400E;
+.btn-secondary-action:active {
+  transform: scale(0.98);
 }
 
-.sog-lista .sog-row {
-  grid-template-columns: auto 1fr auto;
+/* Acceso quando la modalità che comanda è attiva */
+.btn-secondary-action.is-active {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: #FFFFFF;
+}
+
+.btn-secondary-action.is-active:hover {
+  background: #1E293B;
+}
+
+/* Il pulsante principale e quello secondario devono stare alla stessa altezza */
+.btn-latex-export,
+.todo-add-btn {
+  height: 42px;
 }
