@@ -336,8 +336,13 @@
           </div>
         </div>
 
-        <div class="h24-aggiungi">
+        <div class="h24-aggiungi h24-aggiungi-prodotto">
           <input type="text" id="h24-nome-prodotto" class="todo-add-input" placeholder="Nome del prodotto" autocomplete="off" />
+          <select id="h24-distributore" class="todo-add-input" aria-label="In quale macchina">
+            <option value="drink">Drink</option>
+            <option value="snack">Snack</option>
+            <option value="vari">Vari</option>
+          </select>
           <input type="text" id="h24-mancanti-prodotto" class="todo-add-input h24-campo-quantita"
                  inputmode="numeric" placeholder="Mancanti" autocomplete="off" />
           <button type="button" id="btn-h24-aggiungi" class="todo-add-btn">Aggiungi</button>

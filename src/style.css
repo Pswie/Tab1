@@ -3769,3 +3769,313 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   DISTRIBUTORI H24
+   Tre macchine, tre blocchi: il giro di rifornimento si fa una macchina per
+   volta, non scorrendo un elenco in cui drink e snack sono mescolati.
+   ========================================================================== */
+
+#tab-h24.active {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Il promemoria della dichiarazione resta finché non è segnata fatta: una
+   notifica si vede una volta sola, e chi non l'ha vista non la ritrova */
+.h24-promemoria {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding: 1rem 1.35rem;
+  background: #FFF5F5;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-inner);
+}
+
+.h24-promemoria-testo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.h24-promemoria-testo strong {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ferrari-red);
+}
+
+.h24-promemoria-testo span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.h24-promemoria-btn {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.h24-promemoria-btn:hover {
+  background: var(--ferrari-red-hover);
+}
+
+.h24-aggiungi {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.h24-aggiungi-prodotto {
+  grid-template-columns: 1fr auto 6rem auto;
+}
+
+.h24-campo-quantita {
+  width: 100%;
+  text-align: center;
+}
+
+.h24-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.h24-macchina {
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+  padding: 0.35rem 1rem 0.5rem 1rem;
+}
+
+/* La macchina che ha qualcosa da portare si riconosce da chiusa */
+.h24-macchina.is-da-portare {
+  border-color: #FECACA;
+  background: #FFFBFB;
+}
+
+.h24-macchina-testa {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.h24-macchina-titolo {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.h24-macchina-meta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.h24-macchina.is-da-portare .h24-macchina-meta {
+  color: var(--ferrari-red);
+  font-weight: 700;
+}
+
+.h24-macchina-btn {
+  margin-left: auto;
+  height: 32px;
+  padding: 0 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.h24-macchina-btn:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.h24-macchina-vuota {
+  padding: 1rem 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.h24-riga {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.h24-riga:last-child {
+  border-bottom: none;
+}
+
+.h24-nome {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Finché non manca niente il nome resta in secondo piano: in evidenza va
+   solo quello che c'è da portare */
+.h24-riga:not(.is-da-portare) .h24-nome {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.h24-quantita {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Pulsanti larghi: si usano stando davanti alla macchina, col telefono in mano */
+.h24-passo {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.h24-passo:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.h24-campo-mancanti {
+  width: 52px;
+  height: 34px;
+  padding: 0 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.h24-campo-mancanti:focus {
+  border-color: var(--ferrari-red);
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+.h24-riga.is-da-portare .h24-campo-mancanti {
+  color: var(--ferrari-red);
+  border-color: #FECACA;
+}
+
+.h24-sposta {
+  height: 34px;
+  max-width: 6.5rem;
+  padding: 0 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* Incassi mensili */
+.h24-riga-incasso {
+  gap: 0.85rem;
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.h24-dati {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.h24-stato {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ferrari-red);
+}
+
+.h24-riga-incasso.is-dichiarato .h24-stato {
+  color: var(--accent-green-text);
+}
+
+.h24-importo {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .h24-aggiungi,
+  .h24-aggiungi-prodotto {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .h24-aggiungi-prodotto #h24-nome-prodotto,
+  .h24-aggiungi .todo-add-btn {
+    grid-column: 1 / -1;
+  }
+
+  .h24-riga {
+    flex-wrap: wrap;
+  }
+
+  .h24-nome {
+    flex: 1 1 100%;
+  }
+
+  .h24-sposta {
+    max-width: 5.5rem;
+  }
+}

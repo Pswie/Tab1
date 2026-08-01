@@ -29,6 +29,7 @@ import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { caricaDashboard, initDashboard } from './ui/dashboardUI';
 import { caricaRubrica, initRubrica } from './ui/rubricaUI';
+import { caricaH24, controllaDichiarazioneH24, initH24 } from './ui/h24UI';
 import { segnala } from './ui/segnalazioni';
 import { initAccesso } from './ui/accessoUI';
 import { amministratore, nomeUtente } from './services/auth';
@@ -855,6 +856,7 @@ function setupEventListeners() {
       if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
       if (targetTabId === 'tab-rubrica') caricaRubrica();
       if (targetTabId === 'tab-dashboard') caricaDashboard();
+      if (targetTabId === 'tab-h24') caricaH24();
 
       closeHotdogMenu();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1006,10 +1008,18 @@ async function initApp() {
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();
 
+  // I distributori sono roba di chi amministra: a un dipendente non deve
+  // nemmeno accendersi il pallino di una scheda che non può aprire
+  if (amministratore()) initH24();
+
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
   await caricaSoggiorni();
   await caricaRubrica();
+
+  // Il promemoria della dichiarazione si fa vivo qui: è il modo per
+  // accorgersene il primo del mese senza dover aprire la scheda
+  if (amministratore()) await controllaDichiarazioneH24();
   currentTodos = await elencaAttivita();
   segnaTodoVisti(currentTodos.map(t => t.id));
   renderTodoList();

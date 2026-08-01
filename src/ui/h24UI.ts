@@ -1,5 +1,8 @@
 import {
+  DISTRIBUTORI,
+  Distributore,
   IncassoH24,
+  NOMI_DISTRIBUTORI,
   ProdottoH24,
   aggiungiProdotto,
   azzeraMancanti,
@@ -9,7 +12,8 @@ import {
   eliminaProdotto,
   impostaDichiarato,
   impostaMancanti,
-  salvaIncasso
+  salvaIncasso,
+  spostaProdotto
 } from '../services/h24';
 import { formatCurrency, formatInputValue, getTodayDateString, parseInputValue } from '../utils/calculations';
 import { inviaNotifica } from '../utils/notifiche';
@@ -36,6 +40,7 @@ const listaProdotti = document.getElementById('h24-lista-prodotti') as HTMLDivEl
 const totaleMancanti = document.getElementById('h24-totale-mancanti') as HTMLSpanElement;
 const campoNome = document.getElementById('h24-nome-prodotto') as HTMLInputElement;
 const campoMancanti = document.getElementById('h24-mancanti-prodotto') as HTMLInputElement;
+const sceltaDistributore = document.getElementById('h24-distributore') as HTMLSelectElement;
 const pulsanteAggiungi = document.getElementById('btn-h24-aggiungi') as HTMLButtonElement;
 const pulsanteRifornito = document.getElementById('btn-h24-rifornito') as HTMLButtonElement;
 const avviso = document.getElementById('h24-avviso') as HTMLParagraphElement;
@@ -102,6 +107,35 @@ function vuoto(messaggio: string, icona: string): string {
 const ICONA_MACCHINA = '<rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/>';
 const ICONA_EURO = '<circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 0 0-5.5 2.5 3.5 3.5 0 0 0 5.5 2.5"/><path d="M8 11h4"/><path d="M8 13h4"/>';
 
+function rigaProdotto(p: ProdottoH24): string {
+  const altre = DISTRIBUTORI.filter(d => d !== p.distributore);
+
+  return `
+    <div class="h24-riga ${p.mancanti > 0 ? 'is-da-portare' : ''}" data-id="${escapeHtml(p.id)}">
+      <span class="h24-nome">${escapeHtml(p.nome)}</span>
+
+      <div class="h24-quantita">
+        <button type="button" class="h24-passo" data-action="meno" aria-label="Uno in meno di ${escapeHtml(p.nome)}">&minus;</button>
+        <input type="text" class="h24-campo-mancanti" data-action="mancanti" inputmode="numeric"
+               value="${p.mancanti || ''}" placeholder="0"
+               aria-label="Pezzi mancanti di ${escapeHtml(p.nome)}" />
+        <button type="button" class="h24-passo" data-action="piu" aria-label="Uno in più di ${escapeHtml(p.nome)}">+</button>
+      </div>
+
+      <div class="rub-azioni">
+        <!-- Un prodotto messo nella macchina sbagliata si sposta, non si riscrive -->
+        <select class="h24-sposta" data-action="sposta" aria-label="Sposta ${escapeHtml(p.nome)} in un'altra macchina">
+          <option value="${p.distributore}">${escapeHtml(NOMI_DISTRIBUTORI[p.distributore])}</option>
+          ${altre.map(d => `<option value="${d}">&rarr; ${escapeHtml(NOMI_DISTRIBUTORI[d])}</option>`).join('')}
+        </select>
+
+        <button type="button" class="todo-icon-btn is-danger" data-action="elimina"
+                aria-label="Togli ${escapeHtml(p.nome)} dall'elenco"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+    </div>
+  `;
+}
+
 function renderProdotti(): void {
   if (!listaProdotti) return;
 
@@ -121,22 +155,32 @@ function renderProdotti(): void {
     return;
   }
 
-  listaProdotti.innerHTML = prodotti.map(p => `
-    <div class="h24-riga ${p.mancanti > 0 ? 'is-da-portare' : ''}" data-id="${escapeHtml(p.id)}">
-      <span class="h24-nome">${escapeHtml(p.nome)}</span>
+  // Una macchina per volta: il giro di rifornimento si fa così, non
+  // scorrendo un elenco unico in cui drink e snack sono mescolati
+  listaProdotti.innerHTML = DISTRIBUTORI.map(macchina => {
+    const dentro = prodotti.filter(p => p.distributore === macchina);
+    const daPortare = dentro.reduce((s, p) => s + Math.max(p.mancanti, 0), 0);
 
-      <div class="h24-quantita">
-        <button type="button" class="h24-passo" data-action="meno" aria-label="Uno in meno">&minus;</button>
-        <input type="text" class="h24-campo-mancanti" data-action="mancanti" inputmode="numeric"
-               value="${p.mancanti || ''}" placeholder="0"
-               aria-label="Pezzi mancanti di ${escapeHtml(p.nome)}" />
-        <button type="button" class="h24-passo" data-action="piu" aria-label="Uno in più">+</button>
-      </div>
+    return `
+      <section class="h24-macchina ${daPortare > 0 ? 'is-da-portare' : ''}" data-macchina="${macchina}">
+        <header class="h24-macchina-testa">
+          <h3 class="h24-macchina-titolo">${escapeHtml(NOMI_DISTRIBUTORI[macchina])}</h3>
+          <span class="h24-macchina-meta">
+            ${daPortare > 0
+              ? `${daPortare} ${daPortare === 1 ? 'pezzo da portare' : 'pezzi da portare'}`
+              : dentro.length === 0 ? 'Nessun prodotto' : 'Piena'}
+          </span>
+          ${daPortare > 0
+            ? `<button type="button" class="h24-macchina-btn" data-action="rifornita">Rifornita</button>`
+            : ''}
+        </header>
 
-      <button type="button" class="todo-icon-btn is-danger" data-action="elimina"
-              aria-label="Togli ${escapeHtml(p.nome)} dall'elenco"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-    </div>
-  `).join('');
+        ${dentro.length === 0
+          ? `<p class="h24-macchina-vuota">Nessun prodotto in questa macchina.</p>`
+          : dentro.map(rigaProdotto).join('')}
+      </section>
+    `;
+  }).join('');
 }
 
 function renderIncassi(): void {
@@ -160,7 +204,7 @@ function renderIncassi(): void {
   listaIncassi.innerHTML = incassi.map(i => `
     <div class="h24-riga h24-riga-incasso ${i.dichiarato ? 'is-dichiarato' : ''}"
          data-mese="${escapeHtml(i.mese)}">
-      <label class="h24-dichiarato" title="Segna quando la dichiarazione è stata fatta">
+      <label class="sog-check h24-dichiarato" title="Segna quando la dichiarazione è stata fatta">
         <input type="checkbox" data-action="dichiarato" ${i.dichiarato ? 'checked' : ''}
                aria-label="Dichiarazione di ${escapeHtml(nomeMese(i.mese))} fatta" />
         <span class="sog-check-box" aria-hidden="true"></span>
@@ -238,16 +282,28 @@ function riempiElencoMesi(): void {
   sceltaMese.value = meseDaDichiarare();
 }
 
+function macchinaScelta(): Distributore {
+  const scelta = sceltaDistributore?.value as Distributore | undefined;
+  return scelta && DISTRIBUTORI.includes(scelta) ? scelta : 'vari';
+}
+
 async function aggiungi(): Promise<void> {
   const nome = campoNome?.value?.trim() || '';
+  const macchina = macchinaScelta();
 
   if (!nome) {
     mostraAvviso(avviso, 'Scrivi il nome del prodotto.');
     return;
   }
 
-  if (prodotti.some(p => p.nome.toLowerCase() === nome.toLowerCase())) {
-    mostraAvviso(avviso, 'Questo prodotto è già in elenco.');
+  // Lo stesso nome in due macchine diverse è legittimo: si controlla dentro
+  // alla macchina scelta
+  const gia = prodotti.some(
+    p => p.distributore === macchina && p.nome.toLowerCase() === nome.toLowerCase()
+  );
+
+  if (gia) {
+    mostraAvviso(avviso, `${nome} è già fra i prodotti ${NOMI_DISTRIBUTORI[macchina]}.`);
     return;
   }
 
@@ -257,7 +313,7 @@ async function aggiungi(): Promise<void> {
   campoNome.value = '';
   if (campoMancanti) campoMancanti.value = '';
 
-  const voce = await aggiungiProdotto(nome, mancanti);
+  const voce = await aggiungiProdotto(nome, macchina, mancanti);
 
   prodotti.push(voce);
   ordinaProdotti();
@@ -375,15 +431,26 @@ export function initH24(): void {
   });
 
   // Un solo gestore per elenco: le righe si ridisegnano di continuo
-  listaProdotti.addEventListener('click', e => {
+  listaProdotti.addEventListener('click', async e => {
     const pulsante = (e.target as HTMLElement).closest('button[data-action]') as HTMLElement | null;
     if (!pulsante) return;
+
+    const azione = pulsante.getAttribute('data-action');
+
+    // Rifornita una macchina sola: le altre due restano come stanno
+    if (azione === 'rifornita') {
+      const macchina = pulsante.closest('.h24-macchina')?.getAttribute('data-macchina') as Distributore | null;
+      if (!macchina) return;
+
+      prodotti = prodotti.map(p => (p.distributore === macchina ? { ...p, mancanti: 0 } : p));
+      renderProdotti();
+      await azzeraMancanti(macchina);
+      return;
+    }
 
     const riga = pulsante.closest('.h24-riga') as HTMLElement | null;
     const prodotto = prodotti.find(p => p.id === riga?.getAttribute('data-id'));
     if (!riga || !prodotto) return;
-
-    const azione = pulsante.getAttribute('data-action');
 
     if (azione === 'elimina') {
       prodotti = prodotti.filter(p => p.id !== prodotto.id);
@@ -409,6 +476,20 @@ export function initH24(): void {
 
     const scritti = parseInt(campo.value.trim(), 10);
     cambiaMancanti(prodotto, isNaN(scritti) ? 0 : scritti, riga);
+  });
+
+  listaProdotti.addEventListener('change', e => {
+    const scelta = e.target as HTMLSelectElement;
+    if (scelta.getAttribute('data-action') !== 'sposta') return;
+
+    const riga = scelta.closest('.h24-riga') as HTMLElement | null;
+    const prodotto = prodotti.find(p => p.id === riga?.getAttribute('data-id'));
+    const macchina = scelta.value as Distributore;
+    if (!prodotto || !DISTRIBUTORI.includes(macchina) || macchina === prodotto.distributore) return;
+
+    prodotto.distributore = macchina;
+    renderProdotti();
+    spostaProdotto(prodotto.id, macchina);
   });
 
   listaIncassi?.addEventListener('change', e => {

@@ -8,9 +8,14 @@
  * Non portano numeri: il conteggio preciso sta dentro la sezione, qui basta
  * sapere se c'è o non c'è qualcosa.
  */
-export type Sezione = 'todos' | 'inventario' | 'soggiorno';
+export type Sezione = 'todos' | 'inventario' | 'soggiorno' | 'h24';
 
-const attive: Record<Sezione, boolean> = { todos: false, inventario: false, soggiorno: false };
+const attive: Record<Sezione, boolean> = {
+  todos: false,
+  inventario: false,
+  soggiorno: false,
+  h24: false
+};
 
 /**
  * `quanti` a 0 spegne il pallino; qualsiasi valore positivo, o 'pallino',

@@ -178,6 +178,27 @@ export async function impostaMancanti(id: string, mancanti: number): Promise<voi
   );
 }
 
+/** Un prodotto finito nella macchina sbagliata si sposta, non si riscrive */
+export async function spostaProdotto(id: string, distributore: Distributore): Promise<void> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { error } = await supabase
+        .from('h24_prodotti')
+        .update({ distributore, aggiornato_il: new Date().toISOString() })
+        .eq('id', id);
+
+      if (!error) return;
+    } catch (err) {
+      console.warn('Eccezione spostamento prodotto H24:', err);
+    }
+  }
+
+  scriviLocale(
+    CHIAVE_PRODOTTI,
+    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI).map(v => (v.id === id ? { ...v, distributore } : v))
+  );
+}
+
 export async function eliminaProdotto(id: string): Promise<void> {
   if (isSupabaseConfigured() && supabase) {
     try {
@@ -194,14 +215,21 @@ export async function eliminaProdotto(id: string): Promise<void> {
   );
 }
 
-/** Dopo il giro di rifornimento le macchine sono piene: i conti ripartono da zero */
-export async function azzeraMancanti(): Promise<void> {
+/**
+ * Dopo il rifornimento la macchina è piena: i conti ripartono da zero.
+ * Senza indicare quale, si azzerano tutte e tre.
+ */
+export async function azzeraMancanti(distributore?: Distributore): Promise<void> {
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { error } = await supabase
+      const richiesta = supabase
         .from('h24_prodotti')
         .update({ mancanti: 0, aggiornato_il: new Date().toISOString() })
         .gt('mancanti', 0);
+
+      const { error } = await (distributore
+        ? richiesta.eq('distributore', distributore)
+        : richiesta);
 
       if (!error) return;
     } catch (err) {
@@ -211,7 +239,9 @@ export async function azzeraMancanti(): Promise<void> {
 
   scriviLocale(
     CHIAVE_PRODOTTI,
-    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI).map(v => ({ ...v, mancanti: 0 }))
+    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI).map(v =>
+      !distributore || v.distributore === distributore ? { ...v, mancanti: 0 } : v
+    )
   );
 }
 
