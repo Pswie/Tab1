@@ -281,14 +281,16 @@ function rigaHtml(s: Soggiorno): string {
         </span>
       </div>
 
-      <label class="sog-bambini" title="Quanti degli ospiti sono bambini: non pagano l'imposta">
-        <span class="sog-bambini-etichetta">Bambini</span>
-        <input type="text" class="sog-bambini-campo" data-action="bambini"
-               inputmode="numeric" value="${s.bambini || ''}" placeholder="0"
-               aria-label="Bambini non paganti" />
-      </label>
+      <div class="sog-coda">
+        <label class="sog-bambini" title="Quanti degli ospiti sono bambini: non pagano l'imposta">
+          <span class="sog-bambini-etichetta">Bambini</span>
+          <input type="text" class="sog-bambini-campo" data-action="bambini"
+                 inputmode="numeric" value="${s.bambini || ''}" placeholder="0"
+                 aria-label="Bambini non paganti" />
+        </label>
 
-      <span class="sog-importo">${formatCurrency(s.importo)}</span>
+        <span class="sog-importo">${formatCurrency(s.importo)}</span>
+      </div>
     </div>
   `;
 }

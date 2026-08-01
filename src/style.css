@@ -2416,21 +2416,25 @@ body {
   align-items: center;
 }
 
-/* Chi è arrivato oggi: il filetto verde lo distingue da chi parte */
-.sog-gruppo.is-arrivo .sog-gruppo-testa {
-  border-bottom-color: var(--accent-green-line);
+
+/* ==========================================================================
+   BAMBINI NON PAGANTI
+   Il calendario li conta fra gli ospiti: qui si tolgono per ottenere i paganti.
+   Campo e importo stanno sulla stessa riga, allineati fra loro.
+   ========================================================================== */
+
+.sog-coda {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
 }
 
-.sog-gruppo.is-arrivo .sog-gruppo-titolo,
-.sog-gruppo.is-arrivo .sog-gruppo-meta {
-  color: var(--accent-green-text);
-}
-
-/* Bambini non paganti: il calendario li conta fra gli ospiti, qui si tolgono */
 .sog-bambini {
   display: grid;
   gap: 0.15rem;
   justify-items: center;
+  cursor: pointer;
 }
 
 .sog-bambini-etichetta {
@@ -2442,17 +2446,17 @@ body {
 }
 
 .sog-bambini-campo {
-  width: 42px;
-  height: 30px;
-  padding: 0 0.3rem;
+  width: 52px;
+  height: 36px;
+  padding: 0 0.35rem;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 700;
   text-align: center;
   color: var(--text-primary);
   background: #FFFFFF;
   border: 1px solid var(--border-pearl);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   outline: none;
   transition: var(--transition-fast);
 }
@@ -2461,8 +2465,16 @@ body {
   border-color: var(--text-primary);
 }
 
+/* L'importo si allinea al campo, non all'etichetta sopra */
+.sog-coda .sog-importo {
+  align-self: center;
+  margin-top: 0.7rem;
+  min-width: 82px;
+  text-align: right;
+}
+
 .sog-row {
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
 }
 
 .sog-row.is-pagata .sog-bambini {
@@ -2470,12 +2482,69 @@ body {
 }
 
 @media (max-width: 768px) {
-  .sog-row {
-    grid-template-columns: auto 1fr auto;
+  .sog-coda {
+    gap: 0.6rem;
   }
 
-  .sog-bambini {
-    grid-column: 2 / 3;
-    justify-items: start;
+  .sog-coda .sog-importo {
+    min-width: 74px;
   }
+}
+
+/* ==========================================================================
+   RIQUADRI DEI SOGGIORNI
+   Chi parte oggi, chi è arrivato oggi, chi va via fra N giorni.
+   ========================================================================== */
+
+.sog-gruppo {
+  margin-bottom: 1.75rem;
+}
+
+.sog-gruppo:last-child {
+  margin-bottom: 0;
+}
+
+.sog-gruppo-testa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1.5px solid var(--text-primary);
+}
+
+.sog-gruppo-titolo {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sog-gruppo-meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Chi parte oggi è l'ultima occasione per riscuotere */
+.sog-gruppo.is-partenza .sog-gruppo-testa {
+  border-bottom-color: var(--ferrari-red);
+}
+
+.sog-gruppo.is-partenza .sog-gruppo-titolo,
+.sog-gruppo.is-partenza .sog-gruppo-meta {
+  color: var(--ferrari-red);
+}
+
+/* Chi è appena arrivato: si distingue da chi sta per andarsene */
+.sog-gruppo.is-arrivo .sog-gruppo-testa {
+  border-bottom-color: var(--accent-green-line);
+}
+
+.sog-gruppo.is-arrivo .sog-gruppo-titolo,
+.sog-gruppo.is-arrivo .sog-gruppo-meta {
+  color: var(--accent-green-text);
 }
