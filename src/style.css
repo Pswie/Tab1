@@ -2548,3 +2548,27 @@ body {
 .sog-gruppo.is-arrivo .sog-gruppo-meta {
   color: var(--accent-green-text);
 }
+
+/* Spiegazione che compare solo se le notifiche risultano bloccate */
+.notifiche-nota {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.1rem;
+  background: #FEF3C7;
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-inner);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #92400E;
+}
+
+.notifiche-nota.is-hidden {
+  display: none;
+}
+
+.btn-secondary-action[hidden] {
+  display: none;
+}
+
+.btn-secondary-action:disabled {
+  cursor: default;
+}

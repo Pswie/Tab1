@@ -27,7 +27,14 @@ import {
 import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { segnala } from './ui/segnalazioni';
-import { avvisaGliAltri, chiediPermessoUnaVolta, inviaNotifica, ripristinaIscrizione } from './utils/notifiche';
+import {
+  attivaNotifiche,
+  avvisaGliAltri,
+  chiediPermessoUnaVolta,
+  inviaNotifica,
+  ripristinaIscrizione,
+  statoNotifiche
+} from './utils/notifiche';
 
 // State Management
 // La giornata e il turno di partenza dipendono dall'ora italiana: prima delle
@@ -101,6 +108,10 @@ const todoFilterButtons = Array.from(document.querySelectorAll('.todo-filter')) 
 
 // Stampa Documento
 const btnPrintDocument = document.getElementById('btn-print-document') as HTMLButtonElement;
+
+// Notifiche
+const btnNotifiche = document.getElementById('btn-notifiche') as HTMLButtonElement;
+const notaNotifiche = document.getElementById('notifiche-nota') as HTMLParagraphElement;
 
 /**
  * Aggiorna il badge di stato dell'auto-salvataggio
@@ -567,6 +578,49 @@ async function apriSchedaTodo() {
   renderTodoList();
 }
 
+/**
+ * Mostra a che punto sono le notifiche e come attivarle.
+ *
+ * Serve un comando visibile: il permesso chiesto di nascosto alla prima
+ * attività passa inosservato, e chi lo nega non ha più modo di tornare indietro.
+ */
+function aggiornaPulsanteNotifiche() {
+  if (!btnNotifiche) return;
+
+  const stato = statoNotifiche();
+
+  btnNotifiche.hidden = stato === 'non-supportate';
+  if (notaNotifiche) notaNotifiche.classList.add('is-hidden');
+
+  if (stato === 'concesso') {
+    btnNotifiche.textContent = 'Notifiche attive';
+    btnNotifiche.classList.add('is-active');
+    btnNotifiche.disabled = true;
+    return;
+  }
+
+  btnNotifiche.classList.remove('is-active');
+  btnNotifiche.disabled = false;
+  btnNotifiche.textContent = 'Attiva notifiche';
+
+  if (stato === 'negato' && notaNotifiche) {
+    notaNotifiche.classList.remove('is-hidden');
+    notaNotifiche.textContent =
+      'Le notifiche risultano bloccate per questo sito. Vanno riattivate dalle ' +
+      'impostazioni del browser: tocca il lucchetto accanto all\'indirizzo, ' +
+      'poi Notifiche, e scegli Consenti.';
+  }
+}
+
+async function premiAttivaNotifiche() {
+  const stato = await attivaNotifiche();
+  aggiornaPulsanteNotifiche();
+
+  if (stato === 'concesso') {
+    inviaNotifica('Notifiche attive', 'Da ora arrivano gli avvisi delle nuove attività.');
+  }
+}
+
 async function addNewTodoItem() {
   const text = todoInputText?.value?.trim();
   if (!text) return;
@@ -787,7 +841,9 @@ function setupEventListeners() {
 
   // Stampa diretta del documento contabile, senza passare da un'anteprima
   if (btnPrintDocument) {
-    btnPrintDocument.addEventListener('click', () => {
+    btnNotifiche?.addEventListener('click', premiAttivaNotifiche);
+
+  btnPrintDocument.addEventListener('click', () => {
       fillPrintDocument();
       window.print();
     });
@@ -845,6 +901,7 @@ function fillPrintDocument() {
 async function initApp() {
   setupEventListeners();
   ripristinaIscrizione();
+  aggiornaPulsanteNotifiche();
   initInventario();
   initSoggiorno();
   await loadDateIntoForm(selectedDate);

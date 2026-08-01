@@ -115,6 +115,52 @@ export function ripristinaIscrizione(): void {
   if (permessoConcesso()) iscriviAllePush();
 }
 
+export type StatoNotifiche = 'concesso' | 'da-chiedere' | 'negato' | 'non-supportate';
+
+export function statoNotifiche(): StatoNotifiche {
+  if (!notificheDisponibili()) return 'non-supportate';
+  if (Notification.permission === 'granted') return 'concesso';
+  if (Notification.permission === 'denied') return 'negato';
+  return 'da-chiedere';
+}
+
+/**
+ * Richiesta esplicita, dal pulsante.
+ *
+ * Diversa da chiediPermessoUnaVolta: qui l'utente sta chiedendo apposta, quindi
+ * non si tiene conto del fatto che la richiesta sia già stata fatta in passato.
+ * Restituisce lo stato in cui si è finiti, per poterlo dire a schermo.
+ */
+export async function attivaNotifiche(): Promise<StatoNotifiche> {
+  if (!notificheDisponibili()) return 'non-supportate';
+
+  // L'iscrizione al servizio push non viene attesa: se il service worker
+  // tardasse a registrarsi, il pulsante resterebbe fermo su "Attiva" pur
+  // avendo il permesso. Fallisce da sola in silenzio, e si riprova all'avvio.
+  if (Notification.permission === 'granted') {
+    iscriviAllePush();
+    return 'concesso';
+  }
+
+  // Una volta negato, il browser non ripropone la richiesta: va tolto il blocco
+  // dalle impostazioni del sito
+  if (Notification.permission === 'denied') return 'negato';
+
+  try {
+    const esito = await Notification.requestPermission();
+    localStorage.setItem(CHIAVE_PERMESSO_CHIESTO, '1');
+
+    if (esito === 'granted') {
+      iscriviAllePush();
+      return 'concesso';
+    }
+
+    return esito === 'denied' ? 'negato' : 'da-chiedere';
+  } catch {
+    return 'negato';
+  }
+}
+
 /** Notifica locale: arriva solo se l'app è aperta */
 export function inviaNotifica(titolo: string, testo: string): void {
   if (!permessoConcesso()) return;
