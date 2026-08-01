@@ -28,6 +28,7 @@ import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { segnala } from './ui/segnalazioni';
 import { initAccesso } from './ui/accessoUI';
+import { nomeUtente } from './services/auth';
 import {
   attivaNotifiche,
   avvisaGliAltri,
@@ -379,6 +380,21 @@ function getTodosVisibili(): TodoItem[] {
 }
 
 /**
+ * Riga di firma di un'attività.
+ *
+ * Le attività scritte prima dell'accesso non hanno un autore vero ma la
+ * dicitura generica: in quel caso resta la sola data.
+ */
+function firmaTodo(todo: TodoItem): string {
+  const autore = (todo.createdBy || '').trim();
+  const anonima = !autore || autore === 'Dipendente';
+
+  return anonima
+    ? escapeHtml(todo.createdAt)
+    : `Scritta da ${escapeHtml(autore)} · ${escapeHtml(todo.createdAt)}`;
+}
+
+/**
  * Renderizza la lista delle attività, l'avanzamento e lo stato dei filtri
  */
 function renderTodoList() {
@@ -433,7 +449,7 @@ function renderTodoList() {
 
       <div class="todo-body">
         <span class="todo-text">${escapeHtml(todo.text)}</span>
-        <span class="todo-meta">${escapeHtml(todo.createdBy)} · ${escapeHtml(todo.createdAt)}</span>
+        <span class="todo-meta">${firmaTodo(todo)}</span>
       </div>
 
       <div class="todo-actions">
@@ -631,12 +647,16 @@ async function addNewTodoItem() {
   // Il permesso per le notifiche si può chiedere solo durante un gesto dell'utente
   chiediPermessoUnaVolta();
 
-  const voce = await aggiungiAttivita(text);
+  // Chi ha fatto l'accesso firma quello che scrive: i colleghi devono
+  // sapere da chi arriva l'attività
+  const autore = nomeUtente();
+
+  const voce = await aggiungiAttivita(text, autore || 'Dipendente');
   currentTodos.unshift(voce);
 
   // Il pallino si vede solo riaprendo l'app: la notifica raggiunge anche chi
   // non la sta guardando
-  avvisaGliAltri('Nuova attività', text);
+  avvisaGliAltri(autore ? `Nuova attività da ${autore}` : 'Nuova attività', text);
   segnaTodoVisti(currentTodos.map(t => t.id));
 
   // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito

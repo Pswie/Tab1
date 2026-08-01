@@ -27,23 +27,42 @@ const pulsanteInvio = document.getElementById('accesso-invio') as HTMLButtonElem
 const notaNegato = document.getElementById('accesso-negato-nota') as HTMLParagraphElement;
 
 const saluto = document.getElementById('header-saluto') as HTMLSpanElement;
+const bloccoUtente = document.getElementById('menu-utente') as HTMLDivElement;
+const inizialiUtente = document.getElementById('menu-utente-iniziali') as HTMLSpanElement;
+const salutoUtente = document.getElementById('menu-utente-saluto') as HTMLElement;
+const mailUtente = document.getElementById('menu-utente-mail') as HTMLElement;
 
-/** Primo nome di chi sta usando l'app, per il saluto in alto */
+/** Nome senza cognome, per il saluto: se manca si ripiega sull'email */
 function soloNome(completo: string): string {
   const pulito = completo.trim();
   if (!pulito) return '';
 
-  // Se è arrivata l'email al posto del nome, si saluta con la parte prima della @
   const base = pulito.includes('@') ? pulito.split('@')[0] : pulito;
   return base.split(/\s+/)[0];
 }
 
-function mostraSaluto(nome: string): void {
-  if (!saluto) return;
+/** Iniziali di nome e cognome per il tondino nel menu */
+function iniziali(completo: string): string {
+  const parole = completo.trim().split(/\s+/).filter(Boolean);
+  if (parole.length === 0) return '';
 
+  const prime = parole.slice(0, 2).map(p => p[0].toUpperCase());
+  return prime.join('');
+}
+
+function mostraSaluto(nome: string, email = ''): void {
   const primo = soloNome(nome);
-  saluto.textContent = primo ? `Ciao ${primo}` : '';
-  saluto.hidden = !primo;
+
+  if (saluto) {
+    saluto.textContent = primo ? `Ciao ${primo}` : '';
+    saluto.hidden = !primo;
+  }
+
+  // Su mobile la testata è stretta: chi sta usando l'app si legge nel menu
+  if (bloccoUtente) bloccoUtente.hidden = !primo;
+  if (inizialiUtente) inizialiUtente.textContent = iniziali(nome) || (primo[0] || '').toUpperCase();
+  if (salutoUtente) salutoUtente.textContent = primo ? `Ciao ${primo}` : '';
+  if (mailUtente) mailUtente.textContent = email;
 }
 
 function mostraBlocco(quale: 'caricamento' | 'modulo' | 'negato'): void {
@@ -93,7 +112,7 @@ export async function verificaAccesso(): Promise<boolean> {
 
   // Senza Supabase configurato l'app resta comunque utilizzabile in locale
   if (esito.stato === 'non-configurato' || esito.stato === 'dentro') {
-    if (esito.stato === 'dentro') mostraSaluto(esito.nome);
+    if (esito.stato === 'dentro') mostraSaluto(esito.nome, esito.email);
     schermo.classList.add('is-chiuso');
     return true;
   }

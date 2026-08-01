@@ -12,7 +12,7 @@ import { isSupabaseConfigured, supabase } from './supabase';
  */
 
 export type EsitoAccesso =
-  | { stato: 'dentro'; nome: string }
+  | { stato: 'dentro'; nome: string; email: string }
   | { stato: 'in-attesa'; email: string }
   | { stato: 'fuori' }
   | { stato: 'non-configurato' };
@@ -91,14 +91,25 @@ export async function statoAccesso(): Promise<EsitoAccesso> {
   if (!profilo) {
     const ricordato = profiloRicordato();
     if (ricordato && ricordato.id === utente.id && ricordato.accesso) {
-      return { stato: 'dentro', nome: ricordato.nome || ricordato.email };
+      return { stato: 'dentro', nome: ricordato.nome || ricordato.email, email: ricordato.email };
     }
     return { stato: 'in-attesa', email: utente.email || '' };
   }
 
   return profilo.accesso
-    ? { stato: 'dentro', nome: profilo.nome || profilo.email }
+    ? { stato: 'dentro', nome: profilo.nome || profilo.email, email: profilo.email }
     : { stato: 'in-attesa', email: profilo.email };
+}
+
+/**
+ * Nome di chi sta usando l'app, per firmare quello che scrive.
+ * Vuoto se non si è passati dall'accesso (installazione senza Supabase).
+ */
+export function nomeUtente(): string {
+  const p = profiloRicordato();
+  if (!p || !p.accesso) return '';
+
+  return p.nome || p.email || '';
 }
 
 export async function registrati(email: string, password: string, nome: string): Promise<string | null> {
