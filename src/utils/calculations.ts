@@ -283,6 +283,21 @@ export function getTodayDateString(): string {
  * Data minima consentita: solo il giorno prima, il tempo di chiudere il
  * pomeriggio precedente. Più indietro di così non si torna.
  */
+/**
+ * Lunedì della settimana in corso, in formato YYYY-MM-DD.
+ * Serve a ripulire ogni settimana gli elenchi che altrimenti si allungherebbero
+ * all'infinito, senza toccare i dati conservati nel database.
+ */
+export function getInizioSettimanaString(instant: Date = new Date()): string {
+  const d = getItalianCalendarDate(instant);
+
+  // getDay() dà 0 per domenica: in Italia la settimana comincia di lunedì
+  const giorno = d.getDay();
+  d.setDate(d.getDate() - (giorno === 0 ? 6 : giorno - 1));
+
+  return formatDateLocalISO(d);
+}
+
 export function getMinAllowedDateString(): string {
   return italianDateShifted(-1);
 }

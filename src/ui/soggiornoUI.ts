@@ -5,7 +5,7 @@ import {
   Soggiorno,
   TARIFFA_A_PERSONA
 } from '../services/soggiorno';
-import { formatCurrency, getTodayDateString } from '../utils/calculations';
+import { formatCurrency, getInizioSettimanaString, getTodayDateString } from '../utils/calculations';
 import { segnala } from './segnalazioni';
 
 type Vista = 'presenti' | 'arretrate' | 'pagate';
@@ -100,16 +100,24 @@ function presenti(): Soggiorno[] {
   return [...inPartenza(), ...arrivatiOggi(), ...giaInCasa()];
 }
 
+/**
+ * Gli elenchi di riscontro mostrano la sola settimana in corso: ogni lunedì
+ * ripartono puliti, mentre nel database resta tutto.
+ */
+function diQuestaSettimana(s: Soggiorno): boolean {
+  return s.dataFine >= getInizioSettimanaString();
+}
+
 /** Ospiti già ripartiti senza aver versato: la tassa resta da recuperare */
 function arretrate(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataFine < oggi && !s.pagata);
+  return soggiorni.filter(s => s.dataFine < oggi && !s.pagata && diQuestaSettimana(s));
 }
 
 /** Tasse già riscosse, tenute per riscontro */
 function pagate(): Soggiorno[] {
   const oggi = getTodayDateString();
-  return soggiorni.filter(s => s.dataInizio <= oggi && s.pagata);
+  return soggiorni.filter(s => s.dataInizio <= oggi && s.pagata && diQuestaSettimana(s));
 }
 
 /** Le viste diverse da "presenti" sono un elenco unico */
@@ -119,8 +127,8 @@ function elencoSemplice(): Soggiorno[] {
 }
 
 function messaggioVuoto(): string {
-  if (vista === 'arretrate') return 'Nessuna tassa arretrata: tutti gli ospiti ripartiti hanno versato.';
-  if (vista === 'pagate') return 'Nessuna tassa ancora registrata come versata.';
+  if (vista === 'arretrate') return 'Nessuna tassa arretrata questa settimana.';
+  if (vista === 'pagate') return 'Nessuna tassa riscossa questa settimana.';
 
   if (soggiorni.length === 0) {
     return 'Nessun soggiorno importato dai calendari.';
@@ -163,7 +171,11 @@ function render() {
 
     const etichetta = btn.getAttribute('data-etichetta') || btn.textContent!.split(' (')[0].trim();
     btn.setAttribute('data-etichetta', etichetta);
-    btn.textContent = conteggi[chiave] > 0 ? `${etichetta} (${conteggi[chiave]})` : etichetta;
+
+    // Su Pagate il numero non serve: è un elenco di riscontro, non un lavoro
+    // che resta da fare
+    const conConteggio = chiave !== 'pagate' && conteggi[chiave] > 0;
+    btn.textContent = conConteggio ? `${etichetta} (${conteggi[chiave]})` : etichetta;
   });
 
   lista.innerHTML = vista === 'presenti' ? contenutoPresenti() : contenutoSemplice();
