@@ -16,6 +16,14 @@ import {
   parseInputValue
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
+import {
+  aggiungiAttivita,
+  elencaAttivita,
+  eliminaAttivita,
+  impostaCompletata,
+  modificaTesto,
+  svuotaCompletate
+} from './services/attivita';
 import { caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { segnala } from './ui/segnalazioni';
@@ -35,17 +43,14 @@ let shiftData: Record<ShiftKey, ShiftValues> = {
   pomeriggio: emptyShiftValues()
 };
 
-// Task della giornata caricata
+// Attività in elenco: restano finché non vengono svolte, non ripartono ogni giorno
 let currentTodos: TodoItem[] = [];
 let todoFilter: TodoFilter = 'tutte';
 
-// Il solo Date.now() non basta: due attività aggiunte nello stesso millisecondo
-// riceverebbero lo stesso id, e cancellandone una sparirebbero entrambe.
-let todoSeq = 0;
 
 // Attività già viste su questo dispositivo, per riconoscere quelle nuove
 // aggiunte da qualcun altro
-const CHIAVE_TODO_VISTI = 'tabaccheria_todo_visti';
+const CHIAVE_TODO_VISTI = 'tabaccheria_attivita_viste';
 let controlloTodoTimer: number | null = null;
 
 const ICONA_ELENCO = `<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`;
@@ -199,7 +204,6 @@ function syncCurrentShiftFromInputs() {
  */
 function getDayExtras() {
   return {
-    todos: currentTodos
   };
 }
 
@@ -338,9 +342,7 @@ async function loadDateIntoForm(dateStr: string) {
   };
 
   if (log) {
-    currentTodos = log.todos || [];
   } else {
-    currentTodos = [];
   }
 
   applyShiftValuesToInputs(shiftData[currentShift]);
@@ -454,7 +456,7 @@ function avviaModificaTodo(riga: HTMLElement, todo: TodoItem) {
     if (salva && testo && testo !== todo.text) {
       todo.text = testo;
       renderTodoList();
-      triggerAutoSave();
+      modificaTesto(todo.id, testo);
     } else {
       renderTodoList();
     }
@@ -488,13 +490,13 @@ function setupTodoListDelegation() {
     if (azione === 'toggle') {
       todo.completed = !todo.completed;
       renderTodoList();
-      triggerAutoSave();
+      impostaCompletata(todo.id, todo.completed);
     } else if (azione === 'edit') {
       avviaModificaTodo(riga, todo);
     } else if (azione === 'delete') {
       currentTodos = currentTodos.filter(t => t.id !== id);
       renderTodoList();
-      triggerAutoSave();
+      eliminaAttivita(todo.id);
     }
   });
 }
@@ -505,22 +507,18 @@ function setupTodoListDelegation() {
 /**
  * Identificativi delle attività già viste su questo dispositivo, per giornata
  */
-function todoVisti(dateStr: string): Set<string> {
+function todoVisti(): Set<string> {
   try {
     const raw = localStorage.getItem(CHIAVE_TODO_VISTI);
-    const mappa = raw ? JSON.parse(raw) : {};
-    return new Set<string>(mappa[dateStr] || []);
+    return new Set<string>(raw ? JSON.parse(raw) : []);
   } catch {
     return new Set<string>();
   }
 }
 
-function segnaTodoVisti(dateStr: string, ids: string[]): void {
+function segnaTodoVisti(ids: string[]): void {
   try {
-    const raw = localStorage.getItem(CHIAVE_TODO_VISTI);
-    const mappa = raw ? JSON.parse(raw) : {};
-    mappa[dateStr] = ids;
-    localStorage.setItem(CHIAVE_TODO_VISTI, JSON.stringify(mappa));
+    localStorage.setItem(CHIAVE_TODO_VISTI, JSON.stringify(ids));
   } catch (err) {
     console.error('Errore salvataggio attività viste', err);
   }
@@ -537,9 +535,8 @@ function schedaAttiva(id: string): boolean {
  */
 async function controllaNovitaTodo(avvisa = true) {
   try {
-    const record = await fetchLogByDate(selectedDate);
-    const todos = record?.todos || [];
-    const visti = todoVisti(selectedDate);
+    const todos = await elencaAttivita();
+    const visti = todoVisti();
     const nuovi = todos.filter(t => !visti.has(t.id));
 
     segnala('todos', nuovi.length);
@@ -560,39 +557,30 @@ async function controllaNovitaTodo(avvisa = true) {
  * Aprendo la scheda si riallinea l'elenco a quello salvato e si azzera il contatore
  */
 async function apriSchedaTodo() {
-  const record = await fetchLogByDate(selectedDate);
-  if (record) currentTodos = record.todos || [];
+  currentTodos = await elencaAttivita();
 
-  segnaTodoVisti(selectedDate, currentTodos.map(t => t.id));
+  segnaTodoVisti(currentTodos.map(t => t.id));
   segnala('todos', 0);
   renderTodoList();
 }
 
-function addNewTodoItem() {
+async function addNewTodoItem() {
   const text = todoInputText?.value?.trim();
   if (!text) return;
-
-  const orario = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
-  currentTodos.push({
-    id: `todo-${Date.now()}-${++todoSeq}`,
-    text,
-    completed: false,
-    createdBy: 'Dipendente',
-    createdAt: orario
-  });
 
   todoInputText.value = '';
 
   // Il permesso per le notifiche si può chiedere solo durante un gesto dell'utente
   chiediPermessoUnaVolta();
-  segnaTodoVisti(selectedDate, currentTodos.map(t => t.id));
+
+  const voce = await aggiungiAttivita(text);
+  currentTodos.unshift(voce);
+  segnaTodoVisti(currentTodos.map(t => t.id));
 
   // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito
   if (todoFilter === 'fatte') todoFilter = 'tutte';
 
   renderTodoList();
-  triggerAutoSave();
 }
 
 /**
@@ -784,6 +772,7 @@ function setupEventListeners() {
   if (btnClearCompleted) {
     btnClearCompleted.addEventListener('click', () => {
       currentTodos = currentTodos.filter(t => !t.completed);
+      svuotaCompletate();
       renderTodoList();
       triggerAutoSave();
     });
@@ -853,6 +842,9 @@ async function initApp() {
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
   await caricaSoggiorni();
+  currentTodos = await elencaAttivita();
+  segnaTodoVisti(currentTodos.map(t => t.id));
+  renderTodoList();
   await controllaNovitaTodo(false);
 
   // Un collega può aggiungere un'attività mentre l'app è già aperta

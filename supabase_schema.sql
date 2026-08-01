@@ -353,3 +353,32 @@ CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno
     FOR SELECT USING (true);
 CREATE POLICY "Scrittura tassa soggiorno" ON public.tassa_soggiorno
     FOR ALL USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- 9. ATTIVITÀ
+--
+-- Le attività non appartengono a una giornata: restano in elenco finché non
+-- vengono svolte. Per questo vivono in una tabella propria e non dentro
+-- daily_notes, che è invece legata alla data.
+-- =========================================================================
+DROP TABLE IF EXISTS public.attivita;
+
+CREATE TABLE public.attivita (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    testo TEXT NOT NULL,
+    completata BOOLEAN NOT NULL DEFAULT false,
+
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    completata_il TIMESTAMP WITH TIME ZONE,
+    creata_da TEXT DEFAULT ''
+);
+
+CREATE INDEX idx_attivita_stato ON public.attivita(completata, creata_il DESC);
+
+ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Lettura attivita" ON public.attivita
+    FOR SELECT USING (true);
+CREATE POLICY "Scrittura attivita" ON public.attivita
+    FOR ALL USING (true) WITH CHECK (true);

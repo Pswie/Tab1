@@ -2123,52 +2123,6 @@ body {
 }
 
 /* ==========================================================================
-   SEGNALAZIONI SUL MENU
-   ========================================================================== */
-
-.nav-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 0.35rem;
-  margin-left: 0.15rem;
-  border-radius: var(--radius-full);
-  background: var(--ferrari-red);
-  color: #FFFFFF;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1;
-  vertical-align: middle;
-}
-
-/* Avviso senza numero: basta il pallino */
-.nav-badge.is-dot {
-  min-width: 9px;
-  width: 9px;
-  height: 9px;
-  padding: 0;
-}
-
-/* Pallino sul pulsante del menu, quando le voci non si vedono */
-.hamburger-dot {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--ferrari-red);
-  box-shadow: 0 0 0 2px #FFFFFF;
-}
-
-.hamburger-btn {
-  position: relative;
-}
-
-/* ==========================================================================
    TASSA DI SOGGIORNO
    ========================================================================== */
 
@@ -2302,4 +2256,88 @@ body {
   .sog-importo {
     grid-column: 2 / 3;
   }
+}
+
+/* ==========================================================================
+   SEGNALAZIONI SUL MENU
+   Il contatore deve leggersi a colpo d'occhio senza gridare: pastiglia piena,
+   cifre in monospaziato e un alone tenue che la stacca dallo sfondo.
+   ========================================================================== */
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.4rem;
+  margin-left: 0.35rem;
+  border-radius: var(--radius-full);
+  background: var(--ferrari-red);
+  color: #FFFFFF;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: 0 1px 3px rgba(225, 6, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: badge-entra 0.32s var(--ease-spring);
+}
+
+@keyframes badge-entra {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Avviso senza numero: un punto, con un anello che lo fa respirare */
+.nav-badge.is-dot {
+  min-width: 10px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  margin-left: 0.4rem;
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+  animation: badge-entra 0.32s var(--ease-spring), pallino-respira 2.4s ease-in-out 0.4s infinite;
+}
+
+@keyframes pallino-respira {
+  0%, 100% { box-shadow: 0 0 0 3px var(--ferrari-red-glow); }
+  50%      { box-shadow: 0 0 0 6px rgba(225, 6, 0, 0.05); }
+}
+
+/* Sulla voce attiva il rosso sparirebbe nel fondo: si inverte */
+.nav-tab-item.active .nav-badge {
+  background: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+}
+
+.nav-tab-item.active .nav-badge.is-dot {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+  animation: badge-entra 0.32s var(--ease-spring);
+}
+
+/* Punto sul pulsante del menu, quando le voci non si vedono */
+.hamburger-btn {
+  position: relative;
+}
+
+.hamburger-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ferrari-red);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(225, 6, 0, 0.4);
+  animation: badge-entra 0.32s var(--ease-spring);
+}
+
+/* Nel menu a tendina il contatore sta accanto al titolo della voce */
+.hotdog-text strong {
+  display: inline-flex;
+  align-items: center;
 }
