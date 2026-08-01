@@ -93,6 +93,8 @@ function daRiga(r: Record<string, unknown>): Soggiorno {
 // ---------------------------------------------------------------- calendari
 
 export async function elencaCalendari(): Promise<Calendario[]> {
+  const locali = leggiLocale<Calendario>(CHIAVE_CALENDARI);
+
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
@@ -102,12 +104,23 @@ export async function elencaCalendari(): Promise<Calendario[]> {
         .order('creato_il');
 
       if (!error && data) {
+        // Tabella vuota ma copia locale presente: è il caso di uno schema
+        // rieseguito, che ha ricreato la tabella da zero. Si rimettono al loro
+        // posto invece di perderli, e senza cancellare la copia locale.
+        if (data.length === 0 && locali.length > 0) {
+          await supabase.from('calendari_ical').insert(
+            locali.map(v => ({ etichetta: v.etichetta, url: v.url }))
+          );
+          return locali;
+        }
+
         const voci = data.map(r => ({
           id: String(r.id),
           etichetta: String(r.etichetta || ''),
           url: String(r.url)
         }));
-        scriviLocale(CHIAVE_CALENDARI, voci);
+
+        if (voci.length > 0) scriviLocale(CHIAVE_CALENDARI, voci);
         return voci;
       }
 
@@ -117,7 +130,7 @@ export async function elencaCalendari(): Promise<Calendario[]> {
     }
   }
 
-  return leggiLocale<Calendario>(CHIAVE_CALENDARI);
+  return locali;
 }
 
 /** Sostituisce l'elenco dei calendari con quello indicato */

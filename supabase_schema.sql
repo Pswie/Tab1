@@ -1,40 +1,31 @@
 -- =========================================================================
--- SCHEMA SUPABASE: TABACCHERIA iNES - REGISTRO INCASSI GIORNALIERI
--- Eseguilo per intero nell'SQL Editor del tuo progetto Supabase.
+-- SCHEMA SUPABASE: TABACCHERIA iNES
+--
+-- QUESTO FILE SI PUÒ RIESEGUIRE QUANDE VOLTE SERVE SENZA PERDERE NIENTE.
+--
+-- Non contiene nessun DROP TABLE: le tabelle si creano solo se mancano e le
+-- colonne nuove si aggiungono a quelle esistenti. Le uniche cose ricreate ogni
+-- volta sono viste, funzioni, trigger, policy e colonne calcolate, che non
+-- contengono dati propri ma si ricavano dagli altri.
 --
 -- Ogni giornata ha DUE righe in daily_logs, una per turno:
 --   turno = 'mattina'      chiusura di metà giornata (tra le 10:00 e le 16:00)
 --   turno = 'pomeriggio'   chiusura di fine giornata (dalle 16:00 alle 10:00)
 --
 -- I valori del pomeriggio sono LETTURE CUMULATIVE dell'intera giornata: con
--- mattina 1000 e pomeriggio 2000, il secondo turno vale 1000 e il totale della
--- giornata vale 2000. La vista riepilogo_giornaliero fa questo conto.
+-- mattina 1000 e pomeriggio 2000 il secondo turno vale 1000 e il totale della
+-- giornata vale 2000.
 -- =========================================================================
 
--- -------------------------------------------------------------------------
--- IMPORTANTE
--- Le righe qui sotto ricreano tutto da zero. Servono perché
--- "CREATE TABLE IF NOT EXISTS" non modifica una tabella che esiste già: se
--- resta una versione precedente, le nuove colonne non verrebbero mai aggiunte
--- e l'app continuerebbe a fallire ogni scrittura.
---
--- ATTENZIONE: cancellano i dati eventualmente presenti.
--- -------------------------------------------------------------------------
+-- La vista va tolta per prima: dipende da colonne calcolate che vengono
+-- rigenerate più avanti, e finché esiste ne impedisce la sostituzione.
 DROP VIEW IF EXISTS public.riepilogo_giornaliero;
-DROP TRIGGER IF EXISTS trg_archivia_versione ON public.daily_logs;
-DROP FUNCTION IF EXISTS public.archivia_versione_precedente();
-DROP TABLE IF EXISTS public.daily_logs_storico;
-DROP TABLE IF EXISTS public.daily_logs;
-DROP TABLE IF EXISTS public.daily_notes;
-DROP TABLE IF EXISTS public.inventario_gratta_e_vinci;
-DROP TABLE IF EXISTS public.inventario_sigarette;
-DROP TABLE IF EXISTS public.catalogo_gratta_e_vinci;
-DROP TABLE IF EXISTS public.catalogo_tabacchi;
+
 
 -- =========================================================================
--- 1. TABELLA PRINCIPALE: una riga per turno
+-- 1. REGISTRO INCASSI: una riga per giornata e turno
 -- =========================================================================
-CREATE TABLE public.daily_logs (
+CREATE TABLE IF NOT EXISTS public.daily_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE NOT NULL,
     turno TEXT NOT NULL CHECK (turno IN ('mattina', 'pomeriggio')),
@@ -44,52 +35,68 @@ CREATE TABLE public.daily_logs (
     user_id UUID,
 
     tabacchi NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-
-    -- Incasso del bar: si registra soltanto, non entra in nessun totale
-    bar NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-
     sisal NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-    mooney NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lis NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     printer NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lotto_entrate NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     lotto_uscite NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     fatture NUMERIC(10,2) NOT NULL DEFAULT 0.00,
 
-    -- Totale della lettura di questo turno
-    totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
-        (tabacchi + sisal + mooney + lis + printer
-            + (lotto_entrate - lotto_uscite)) - fatture
-    ) STORED,
-
-    lotto_netto NUMERIC(12,2) GENERATED ALWAYS AS (
-        lotto_entrate - lotto_uscite
-    ) STORED,
-
-    lotto_aggio NUMERIC(12,2) GENERATED ALWAYS AS (
-        lotto_entrate * 0.08
-    ) STORED,
-
-    -- Distingue "turno a zero perché non ancora inserito" da "turno davvero a zero"
-    compilato BOOLEAN GENERATED ALWAYS AS (
-        tabacchi <> 0 OR sisal <> 0 OR mooney <> 0 OR lis <> 0 OR printer <> 0
-        OR lotto_entrate <> 0 OR lotto_uscite <> 0 OR fatture <> 0
-    ) STORED,
-
     UNIQUE (date, turno)
 );
 
-CREATE INDEX idx_daily_logs_date ON public.daily_logs(date DESC, turno);
+-- Voci aggiunte dopo la prima versione
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS mooney NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+
+-- Incasso del bar: si registra soltanto, non entra in nessun totale
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS bar NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+
+-- Le colonne calcolate si rifanno ogni volta: non contengono dati propri,
+-- quindi rigenerarle è l'unico modo per aggiornarne la formula senza rischi.
+ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS totale_turno;
+ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_netto;
+ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_aggio;
+ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS compilato;
+
+ALTER TABLE public.daily_logs
+    ADD COLUMN totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
+        (tabacchi + sisal + mooney + lis + printer
+            + (lotto_entrate - lotto_uscite)) - fatture
+    ) STORED;
+
+ALTER TABLE public.daily_logs
+    ADD COLUMN lotto_netto NUMERIC(12,2) GENERATED ALWAYS AS (
+        lotto_entrate - lotto_uscite
+    ) STORED;
+
+ALTER TABLE public.daily_logs
+    ADD COLUMN lotto_aggio NUMERIC(12,2) GENERATED ALWAYS AS (
+        lotto_entrate * 0.08
+    ) STORED;
+
+-- Distingue "turno a zero perché non ancora inserito" da "turno davvero a zero".
+-- Il bar resta fuori: da solo non fa considerare chiuso un turno.
+ALTER TABLE public.daily_logs
+    ADD COLUMN compilato BOOLEAN GENERATED ALWAYS AS (
+        tabacchi <> 0 OR sisal <> 0 OR mooney <> 0 OR lis <> 0 OR printer <> 0
+        OR lotto_entrate <> 0 OR lotto_uscite <> 0 OR fatture <> 0
+    ) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_daily_logs_date ON public.daily_logs(date DESC, turno);
+
 
 -- =========================================================================
--- 2. NOTE E TASK: sono della giornata, non del singolo turno
+-- 2. NOTE DELLA GIORNATA
 -- =========================================================================
-CREATE TABLE public.daily_notes (
+CREATE TABLE IF NOT EXISTS public.daily_notes (
     date DATE PRIMARY KEY,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     notes TEXT DEFAULT '',
     todos JSONB DEFAULT '[]'::jsonb
 );
+
 
 -- =========================================================================
 -- 3. STORICO: copie di sicurezza delle chiusure sovrascritte
@@ -97,7 +104,7 @@ CREATE TABLE public.daily_notes (
 -- La riga viva in daily_logs è sempre la più recente; ogni copia archiviata
 -- prende il numero successivo per quel giorno e quel turno, partendo da 2.
 -- =========================================================================
-CREATE TABLE public.daily_logs_storico (
+CREATE TABLE IF NOT EXISTS public.daily_logs_storico (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE NOT NULL,
     turno TEXT NOT NULL,
@@ -108,9 +115,7 @@ CREATE TABLE public.daily_logs_storico (
     ferma_dal TIMESTAMP WITH TIME ZONE,
 
     tabacchi NUMERIC(10,2),
-    bar NUMERIC(10,2),
     sisal NUMERIC(10,2),
-    mooney NUMERIC(10,2),
     lis NUMERIC(10,2),
     printer NUMERIC(10,2),
     lotto_entrate NUMERIC(10,2),
@@ -121,7 +126,14 @@ CREATE TABLE public.daily_logs_storico (
     UNIQUE (date, turno, versione)
 );
 
-CREATE INDEX idx_storico_date ON public.daily_logs_storico(date DESC, turno, versione DESC);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS mooney NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS bar NUMERIC(10,2);
+
+CREATE INDEX IF NOT EXISTS idx_storico_date
+    ON public.daily_logs_storico(date DESC, turno, versione DESC);
+
 
 -- =========================================================================
 -- 4. TRIGGER DI ARCHIVIAZIONE
@@ -171,20 +183,193 @@ BEGIN
 END;
 $$;
 
+-- Un trigger non si sostituisce: va tolto e rimesso, ma non contiene dati
+DROP TRIGGER IF EXISTS trg_archivia_versione ON public.daily_logs;
 CREATE TRIGGER trg_archivia_versione
     BEFORE UPDATE ON public.daily_logs
     FOR EACH ROW
     EXECUTE FUNCTION public.archivia_versione_precedente();
 
+
 -- =========================================================================
--- 5. VISTA DI RIEPILOGO
+-- 5. INVENTARIO
 --
--- Rimette insieme le due righe della giornata e fa il conto del secondo turno.
--- Serve per guardare i dati dal database senza doverli sottrarre a mano.
+-- Si registrano le DIFFERENZE rilevate contando il magazzino, non le giacenze
+-- totali: un valore negativo indica merce mancante, uno positivo merce trovata
+-- in più. Zero significa che il conto torna.
 -- =========================================================================
+CREATE TABLE IF NOT EXISTS public.inventario_gratta_e_vinci (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL,
+    gioco TEXT NOT NULL,
+    prezzo NUMERIC(10,2) NOT NULL,
+
+    pacchi INTEGER NOT NULL DEFAULT 0,
+    pezzi INTEGER NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    UNIQUE (date, gioco)
+);
+
+CREATE INDEX IF NOT EXISTS idx_inv_gev_date
+    ON public.inventario_gratta_e_vinci(date DESC);
+
+CREATE TABLE IF NOT EXISTS public.inventario_sigarette (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL,
+    marca TEXT NOT NULL,
+
+    stecche INTEGER NOT NULL DEFAULT 0,
+    pacchetti INTEGER NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    UNIQUE (date, marca)
+);
+
+CREATE INDEX IF NOT EXISTS idx_inv_sig_date
+    ON public.inventario_sigarette(date DESC);
+
+
+-- =========================================================================
+-- 6. CATALOGHI
+--
+-- L'elenco degli articoli è modificabile dall'app, quindi vive nel database e
+-- non nel codice. Al primo avvio, se le tabelle sono vuote, l'app le riempie
+-- con gli articoli ricavati dagli ordini e dalle fatture.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.catalogo_gratta_e_vinci (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    gioco TEXT NOT NULL UNIQUE,
+    prezzo NUMERIC(10,2) NOT NULL,
+    pezzi_per_pacco INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.catalogo_tabacchi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prodotto TEXT NOT NULL UNIQUE,
+    marca TEXT NOT NULL,
+    categoria TEXT NOT NULL
+        CHECK (categoria IN ('sigarette', 'elettronico', 'sigari', 'busta_scatola')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cat_tab_categoria
+    ON public.catalogo_tabacchi(categoria, marca);
+
+
+-- =========================================================================
+-- 7. ATTIVITÀ
+--
+-- Non appartengono a una giornata: restano in elenco finché non vengono
+-- svolte. Per questo stanno in una tabella propria e non dentro daily_notes.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.attivita (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    testo TEXT NOT NULL,
+    completata BOOLEAN NOT NULL DEFAULT false,
+
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    completata_il TIMESTAMP WITH TIME ZONE,
+    creata_da TEXT DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_attivita_stato
+    ON public.attivita(completata, creata_il DESC);
+
+
+-- =========================================================================
+-- 8. TASSA DI SOGGIORNO
+--
+-- I soggiorni non si inseriscono a mano: arrivano dai calendari iCal delle
+-- camere, da cui si ricavano nome, date, notti e numero di ospiti.
+-- =========================================================================
+
+-- Indirizzi dei calendari, uno per camera. Contengono un token personale,
+-- quindi si inseriscono dall'app e non stanno nel codice del progetto.
+CREATE TABLE IF NOT EXISTS public.calendari_ical (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    etichetta TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL UNIQUE,
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    aggiornato_il TIMESTAMP WITH TIME ZONE,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.tassa_soggiorno (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identificativo dell'evento nel calendario: evita che un nuovo scarico
+    -- duplichi soggiorni già registrati e già incassati
+    uid TEXT NOT NULL UNIQUE,
+
+    nome TEXT NOT NULL DEFAULT 'Ospite',
+    data_inizio DATE NOT NULL,
+    data_fine DATE NOT NULL,
+
+    notti INTEGER NOT NULL DEFAULT 0,
+
+    -- Ospiti come li conta il calendario: comprende anche i bambini
+    ospiti INTEGER NOT NULL DEFAULT 1,
+
+    tariffa NUMERIC(10,2) NOT NULL DEFAULT 3.00,
+
+    pagata BOOLEAN NOT NULL DEFAULT false,
+    pagata_il TIMESTAMP WITH TIME ZONE,
+
+    importato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- I bambini non pagano l'imposta, ma il calendario non li distingue:
+-- il numero si indica a mano e l'importazione non lo tocca più
+ALTER TABLE public.tassa_soggiorno
+    ADD COLUMN IF NOT EXISTS bambini INTEGER NOT NULL DEFAULT 0;
+
+-- Notti x tariffa x paganti, dove i paganti sono gli ospiti meno i bambini
+ALTER TABLE public.tassa_soggiorno DROP COLUMN IF EXISTS importo;
+ALTER TABLE public.tassa_soggiorno
+    ADD COLUMN importo NUMERIC(12,2) GENERATED ALWAYS AS (
+        notti * tariffa * GREATEST(ospiti - bambini, 0)
+    ) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_soggiorno_fine
+    ON public.tassa_soggiorno(data_fine DESC, pagata);
+
+
+-- =========================================================================
+-- 9. NOTIFICHE PUSH
+--
+-- Ogni dispositivo che concede il permesso registra qui il proprio recapito.
+-- Serve a far arrivare l'avviso di una nuova attività anche ad app chiusa:
+-- senza un elenco di destinatari il server non saprebbe a chi scrivere.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.push_iscrizioni (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Recapito del browser: cambia se l'utente reinstalla l'app
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+
+    -- Identifica il dispositivo che ha scritto, per non notificare se stesso
+    dispositivo TEXT NOT NULL DEFAULT '',
+
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+
+-- =========================================================================
+-- 10. VISTA DI RIEPILOGO
+--
+-- Rimette insieme le due righe della giornata e fa il conto del secondo turno,
+-- così i dati si leggono dal database senza doverli sottrarre a mano.
+--
 -- security_invoker = on: senza questa opzione la vista girerebbe con i permessi
 -- del proprietario e scavalcherebbe le policy RLS delle tabelle sottostanti.
--- Con l'opzione attiva la vista applica i permessi di chi la interroga.
+-- =========================================================================
 CREATE VIEW public.riepilogo_giornaliero
 WITH (security_invoker = on) AS
 SELECT
@@ -209,244 +394,86 @@ SELECT
 FROM public.daily_logs
 GROUP BY date;
 
+
 -- =========================================================================
--- 6. ROW LEVEL SECURITY
+-- 11. ROW LEVEL SECURITY
+--
+-- Le policy si rifanno ogni volta: sono regole, non dati.
 -- =========================================================================
 ALTER TABLE public.daily_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_logs_storico ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lettura registri" ON public.daily_logs
-    FOR SELECT USING (true);
-CREATE POLICY "Scrittura registri" ON public.daily_logs
-    FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Lettura note" ON public.daily_notes
-    FOR SELECT USING (true);
-CREATE POLICY "Scrittura note" ON public.daily_notes
-    FOR ALL USING (true) WITH CHECK (true);
-
--- Lo storico è di sola lettura per l'app: lo scrive unicamente il trigger,
--- che gira come proprietario della tabella e non passa da queste policy.
--- Così una copia di sicurezza non può essere sovrascritta o cancellata.
-CREATE POLICY "Lettura storico" ON public.daily_logs_storico
-    FOR SELECT USING (true);
-
--- =========================================================================
--- 6. INVENTARIO
---
--- Si registrano le DIFFERENZE rilevate contando il magazzino, non le giacenze
--- totali: un valore negativo indica merce mancante, uno positivo merce trovata
--- in più. Zero significa che il conto torna.
--- =========================================================================
-CREATE TABLE public.inventario_gratta_e_vinci (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date DATE NOT NULL,
-    gioco TEXT NOT NULL,
-    prezzo NUMERIC(10,2) NOT NULL,
-
-    pacchi INTEGER NOT NULL DEFAULT 0,
-    pezzi INTEGER NOT NULL DEFAULT 0,
-
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-
-    UNIQUE (date, gioco)
-);
-
-CREATE INDEX idx_inv_gev_date ON public.inventario_gratta_e_vinci(date DESC);
-
-CREATE TABLE public.inventario_sigarette (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    date DATE NOT NULL,
-    marca TEXT NOT NULL,
-
-    stecche INTEGER NOT NULL DEFAULT 0,
-    pacchetti INTEGER NOT NULL DEFAULT 0,
-
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-
-    UNIQUE (date, marca)
-);
-
-CREATE INDEX idx_inv_sig_date ON public.inventario_sigarette(date DESC);
-
 ALTER TABLE public.inventario_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventario_sigarette ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.catalogo_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.catalogo_tabacchi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendari_ical ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tassa_soggiorno ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_iscrizioni ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Lettura registri" ON public.daily_logs;
+CREATE POLICY "Lettura registri" ON public.daily_logs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura registri" ON public.daily_logs;
+CREATE POLICY "Scrittura registri" ON public.daily_logs FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Lettura note" ON public.daily_notes;
+CREATE POLICY "Lettura note" ON public.daily_notes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura note" ON public.daily_notes;
+CREATE POLICY "Scrittura note" ON public.daily_notes FOR ALL USING (true) WITH CHECK (true);
+
+-- Lo storico è di sola lettura per l'app: lo scrive unicamente il trigger,
+-- che gira come proprietario e non passa da queste policy. Così una copia di
+-- sicurezza non può essere sovrascritta o cancellata.
+DROP POLICY IF EXISTS "Lettura storico" ON public.daily_logs_storico;
+CREATE POLICY "Lettura storico" ON public.daily_logs_storico FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Lettura inventario gratta e vinci" ON public.inventario_gratta_e_vinci;
 CREATE POLICY "Lettura inventario gratta e vinci" ON public.inventario_gratta_e_vinci
     FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura inventario gratta e vinci" ON public.inventario_gratta_e_vinci;
 CREATE POLICY "Scrittura inventario gratta e vinci" ON public.inventario_gratta_e_vinci
     FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Lettura inventario sigarette" ON public.inventario_sigarette;
 CREATE POLICY "Lettura inventario sigarette" ON public.inventario_sigarette
     FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura inventario sigarette" ON public.inventario_sigarette;
 CREATE POLICY "Scrittura inventario sigarette" ON public.inventario_sigarette
     FOR ALL USING (true) WITH CHECK (true);
 
--- =========================================================================
--- 7. CATALOGHI
---
--- L'elenco degli articoli è modificabile dall'app, quindi vive nel database e
--- non nel codice. Al primo avvio, se le tabelle sono vuote, l'app le riempie
--- con gli articoli ricavati dagli ordini e dalle fatture.
--- =========================================================================
-CREATE TABLE public.catalogo_gratta_e_vinci (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    gioco TEXT NOT NULL UNIQUE,
-    prezzo NUMERIC(10,2) NOT NULL,
-    pezzi_per_pacco INTEGER NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE public.catalogo_tabacchi (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prodotto TEXT NOT NULL UNIQUE,
-    marca TEXT NOT NULL,
-    categoria TEXT NOT NULL
-        CHECK (categoria IN ('sigarette', 'elettronico', 'sigari', 'busta_scatola')),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_cat_tab_categoria ON public.catalogo_tabacchi(categoria, marca);
-
-ALTER TABLE public.catalogo_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.catalogo_tabacchi ENABLE ROW LEVEL SECURITY;
-
+DROP POLICY IF EXISTS "Lettura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci;
 CREATE POLICY "Lettura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci
     FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci;
 CREATE POLICY "Scrittura catalogo gratta e vinci" ON public.catalogo_gratta_e_vinci
     FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Lettura catalogo tabacchi" ON public.catalogo_tabacchi;
 CREATE POLICY "Lettura catalogo tabacchi" ON public.catalogo_tabacchi
     FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura catalogo tabacchi" ON public.catalogo_tabacchi;
 CREATE POLICY "Scrittura catalogo tabacchi" ON public.catalogo_tabacchi
     FOR ALL USING (true) WITH CHECK (true);
 
--- =========================================================================
--- 9. ATTIVITÀ
---
--- Le attività non appartengono a una giornata: restano in elenco finché non
--- vengono svolte. Per questo vivono in una tabella propria e non dentro
--- daily_notes, che è invece legata alla data.
--- =========================================================================
-DROP TABLE IF EXISTS public.attivita;
+DROP POLICY IF EXISTS "Lettura attivita" ON public.attivita;
+CREATE POLICY "Lettura attivita" ON public.attivita FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura attivita" ON public.attivita;
+CREATE POLICY "Scrittura attivita" ON public.attivita FOR ALL USING (true) WITH CHECK (true);
 
-CREATE TABLE public.attivita (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+DROP POLICY IF EXISTS "Lettura calendari" ON public.calendari_ical;
+CREATE POLICY "Lettura calendari" ON public.calendari_ical FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura calendari" ON public.calendari_ical;
+CREATE POLICY "Scrittura calendari" ON public.calendari_ical FOR ALL USING (true) WITH CHECK (true);
 
-    testo TEXT NOT NULL,
-    completata BOOLEAN NOT NULL DEFAULT false,
-
-    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    completata_il TIMESTAMP WITH TIME ZONE,
-    creata_da TEXT DEFAULT ''
-);
-
-CREATE INDEX idx_attivita_stato ON public.attivita(completata, creata_il DESC);
-
-ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lettura attivita" ON public.attivita
-    FOR SELECT USING (true);
-CREATE POLICY "Scrittura attivita" ON public.attivita
-    FOR ALL USING (true) WITH CHECK (true);
-
--- =========================================================================
--- 10. TASSA DI SOGGIORNO
---
--- I soggiorni non si inseriscono a mano: arrivano dai calendari iCal delle
--- camere. Dal calendario si ricavano nome, date, notti e numero di ospiti,
--- e l'imposta è notti x tariffa x ospiti.
--- =========================================================================
-DROP TABLE IF EXISTS public.tassa_soggiorno;
-DROP TABLE IF EXISTS public.calendari_ical;
-
--- Indirizzi dei calendari, uno per camera.
--- Contengono un token personale, quindi si inseriscono dall'app e non stanno
--- nel codice del progetto.
-CREATE TABLE public.calendari_ical (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    etichetta TEXT NOT NULL DEFAULT '',
-    url TEXT NOT NULL UNIQUE,
-    attivo BOOLEAN NOT NULL DEFAULT true,
-    aggiornato_il TIMESTAMP WITH TIME ZONE,
-    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE public.tassa_soggiorno (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Identificativo dell'evento nel calendario: evita che un nuovo scarico
-    -- duplichi soggiorni già registrati e già incassati
-    uid TEXT NOT NULL UNIQUE,
-
-    nome TEXT NOT NULL DEFAULT 'Ospite',
-    data_inizio DATE NOT NULL,
-    data_fine DATE NOT NULL,
-
-    notti INTEGER NOT NULL DEFAULT 0,
-
-    -- Ospiti come li conta il calendario: comprende anche i bambini
-    ospiti INTEGER NOT NULL DEFAULT 1,
-
-    -- I bambini non pagano l'imposta, ma il calendario non li distingue:
-    -- il numero si indica a mano e l'importazione non lo tocca più
-    bambini INTEGER NOT NULL DEFAULT 0 CHECK (bambini >= 0),
-
-    tariffa NUMERIC(10,2) NOT NULL DEFAULT 3.00,
-
-    -- Notti x tariffa x paganti, dove i paganti sono gli ospiti meno i bambini
-    importo NUMERIC(12,2) GENERATED ALWAYS AS (
-        notti * tariffa * GREATEST(ospiti - bambini, 0)
-    ) STORED,
-
-    pagata BOOLEAN NOT NULL DEFAULT false,
-    pagata_il TIMESTAMP WITH TIME ZONE,
-
-    importato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_soggiorno_fine ON public.tassa_soggiorno(data_fine DESC, pagata);
-
-ALTER TABLE public.calendari_ical ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tassa_soggiorno ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lettura calendari" ON public.calendari_ical
-    FOR SELECT USING (true);
-CREATE POLICY "Scrittura calendari" ON public.calendari_ical
-    FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno
-    FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Lettura tassa soggiorno" ON public.tassa_soggiorno;
+CREATE POLICY "Lettura tassa soggiorno" ON public.tassa_soggiorno FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura tassa soggiorno" ON public.tassa_soggiorno;
 CREATE POLICY "Scrittura tassa soggiorno" ON public.tassa_soggiorno
     FOR ALL USING (true) WITH CHECK (true);
 
--- =========================================================================
--- 11. NOTIFICHE PUSH
---
--- Ogni dispositivo che concede il permesso registra qui il proprio recapito.
--- Serve a far arrivare l'avviso di una nuova attività anche quando l'app è
--- chiusa: senza un elenco di destinatari il server non saprebbe a chi scrivere.
--- =========================================================================
-DROP TABLE IF EXISTS public.push_iscrizioni;
-
-CREATE TABLE public.push_iscrizioni (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Recapito del browser: cambia se l'utente reinstalla l'app
-    endpoint TEXT NOT NULL UNIQUE,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-
-    -- Identifica il dispositivo che ha scritto, per non notificare se stesso
-    dispositivo TEXT NOT NULL DEFAULT '',
-
-    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.push_iscrizioni ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lettura iscrizioni push" ON public.push_iscrizioni
-    FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Lettura iscrizioni push" ON public.push_iscrizioni;
+CREATE POLICY "Lettura iscrizioni push" ON public.push_iscrizioni FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura iscrizioni push" ON public.push_iscrizioni;
 CREATE POLICY "Scrittura iscrizioni push" ON public.push_iscrizioni
     FOR ALL USING (true) WITH CHECK (true);

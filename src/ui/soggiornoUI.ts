@@ -1,9 +1,12 @@
 import {
+  Calendario,
+  elencaCalendari,
   elencaSoggiorni,
   importaDaCalendari,
   calcolaImporto,
   impostaBambini,
   paganti,
+  salvaCalendari,
   segnaPagata,
   Soggiorno,
   TARIFFA_A_PERSONA
@@ -15,6 +18,7 @@ type Vista = 'presenti' | 'arretrate' | 'pagate';
 
 let soggiorni: Soggiorno[] = [];
 let vista: Vista = 'presenti';
+let calendari: Calendario[] = [];
 
 /**
  * Conta le modifiche fatte dall'utente. Un caricamento partito prima di una
@@ -28,6 +32,8 @@ const lista = document.getElementById('soggiorno-lista') as HTMLDivElement;
 const totaleDaPagare = document.getElementById('soggiorno-da-pagare') as HTMLSpanElement;
 const statoImport = document.getElementById('soggiorno-stato') as HTMLParagraphElement;
 const pulsantiVista = Array.from(document.querySelectorAll('.sog-vista')) as HTMLButtonElement[];
+const pannelloCal = document.getElementById('pannello-calendari') as HTMLDivElement;
+const btnSalvaCal = document.getElementById('btn-salva-calendari') as HTMLButtonElement;
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -342,8 +348,15 @@ function segnaImportato(): void {
   }
 }
 
+/** Il pannello serve solo a rimettere i calendari se vanno persi */
+function aggiornaPannelloCalendari() {
+  pannelloCal?.classList.toggle('is-hidden', calendari.length > 0);
+}
+
 export async function caricaSoggiorni() {
   const versione = versioneStato;
+  calendari = await elencaCalendari();
+  aggiornaPannelloCalendari();
   const letti = await elencaSoggiorni();
 
   if (versione === versioneStato) {
@@ -358,6 +371,20 @@ export async function caricaSoggiorni() {
 
 export function initSoggiorno() {
   if (!lista) return;
+
+  btnSalvaCal?.addEventListener('click', async () => {
+    const campi = Array.from(pannelloCal.querySelectorAll<HTMLInputElement>('.cal-url'));
+
+    await salvaCalendari(
+      campi.map((c, i) => ({ etichetta: `Camera ${i + 1}`, url: c.value.trim() }))
+    );
+
+    calendari = await elencaCalendari();
+    aggiornaPannelloCalendari();
+
+    localStorage.removeItem('tabaccheria_soggiorni_ultimo_import');
+    await aggiorna();
+  });
 
   pulsantiVista.forEach(btn => {
     btn.addEventListener('click', () => {
