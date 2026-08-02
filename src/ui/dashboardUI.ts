@@ -22,6 +22,7 @@ import {
   euro,
   euroTondo,
   graficoColonne,
+  meseIndietro,
   nomeMese,
   numero,
   percentuale,
