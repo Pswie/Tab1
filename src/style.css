@@ -4026,11 +4026,41 @@ body {
   border-bottom: 1px solid var(--border-pearl);
 }
 
+/* Ogni macchina ha il suo colore, lo stesso che porta nella dashboard: un
+   filetto in testa basta a distinguerle senza colorare tutto */
 .h24-macchina-titolo {
+  position: relative;
+  padding-left: 0.75rem;
   font-size: 0.95rem;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--text-primary);
+}
+
+.h24-macchina-titolo::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 1em;
+  border-radius: 2px;
+  background: var(--serie-1);
+}
+
+.h24-macchina.is-snack .h24-macchina-titolo::before { background: var(--serie-2); }
+.h24-macchina.is-vari .h24-macchina-titolo::before { background: var(--serie-3); }
+
+/* La riga del prodotto porta anche la sua scheda: quanti pezzi per pacco */
+.h24-scheda {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.h24-riga.is-da-portare .h24-scheda b {
+  color: var(--ferrari-red);
 }
 
 .h24-macchina-meta {
