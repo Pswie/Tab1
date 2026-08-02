@@ -3651,6 +3651,21 @@ body {
   border-radius: var(--radius-full);
 }
 
+.dash-tag.is-fatto {
+  color: var(--accent-green-text);
+  background: var(--accent-green-bg);
+}
+
+/* Il riquadro che porta il numero principale della sezione */
+.dash-riquadro.is-forte {
+  background: #FFFFFF;
+  border-color: var(--text-primary);
+}
+
+.dash-riquadro.is-forte .dash-riquadro-valore {
+  color: var(--ferrari-red);
+}
+
 /* Il filtro comanda tutte le sezioni che stanno sotto, quindi sta sopra
    a tutte e non dentro a una scheda */
 .dash-filtro {
@@ -3970,7 +3985,14 @@ body {
 }
 
 .h24-aggiungi-prodotto {
-  grid-template-columns: 1fr auto 6rem auto;
+  grid-template-columns: 1fr auto 6rem 6rem auto;
+}
+
+.h24-modifica {
+  display: grid;
+  grid-template-columns: 1fr 6rem auto;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .h24-campo-quantita {
