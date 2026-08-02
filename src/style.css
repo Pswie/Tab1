@@ -26,6 +26,18 @@
   --border-pearl: #E6E5E0;
   --border-strong: #CBD5E1;
 
+  /* I colori dei grafici: uno per servizio, uno per macchina. Sono sei tinte
+     in ordine fisso, scelte perché restino distinguibili fra loro anche a chi
+     non vede bene i colori. Il colore segue sempre COSA rappresenta la barra,
+     mai la sua posizione in classifica; e il numero scritto in fondo a ogni
+     barra resta comunque la lettura sicura. */
+  --serie-1: #2A78D6;
+  --serie-2: #EB6834;
+  --serie-3: #1BAF7A;
+  --serie-4: #EDA100;
+  --serie-5: #E87BA4;
+  --serie-6: #008300;
+
   /* Typography System */
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -3198,19 +3210,8 @@ body {
 #tab-h24-dashboard {
   /* Quando la barra misura una quantità e basta, il colore è uno solo: il
      dato è la lunghezza, non la tinta. */
-  --dash-marca: #2A78D6;
+  --dash-marca: var(--serie-1);
   --dash-marca-parziale: var(--ferrari-red);
-
-  /* I colori che distinguono: uno per servizio, uno per macchina. Sono i sei
-     dell'ordine documentato, verificati per restare distinguibili anche a chi
-     non vede bene i colori; l'importo scritto in fondo a ogni barra resta
-     comunque la lettura sicura. */
-  --serie-1: #2A78D6;
-  --serie-2: #EB6834;
-  --serie-3: #1BAF7A;
-  --serie-4: #EDA100;
-  --serie-5: #E87BA4;
-  --serie-6: #008300;
 
   --dash-pista: 190px;
   --dash-aria: 1.5rem;
