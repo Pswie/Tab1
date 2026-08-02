@@ -199,6 +199,16 @@ export interface Barra {
   nota?: string;
   /** Come scrivere il valore in fondo alla barra: se manca, è un importo */
   testoValore?: string;
+  /**
+   * Quale colore, da 1 a 6.
+   *
+   * Va legato a COSA rappresenta la barra, mai alla posizione in classifica:
+   * se cambiando periodo il Lotto scavalca il Printer, i due devono scambiarsi
+   * di posto tenendosi il proprio colore. Senza questo numero le barre restano
+   * tutte della stessa tinta, che è quello che serve quando la barra misura
+   * una quantità e non distingue nessuno.
+   */
+  serie?: number;
 }
 
 /**
@@ -217,6 +227,10 @@ export function barreOrizzontali(barre: Barra[], messaggioVuoto: string): string
     const negativa = b.valore < 0;
     const testo = b.testoValore ?? euroTondo(b.valore);
 
+    // Il colore identifica la voce, non la sua posizione: le barre in perdita
+    // fanno eccezione perché lì il rosso dice da che parte sta il numero
+    const serie = !negativa && b.serie ? `is-serie-${b.serie}` : '';
+
     return `
       <div class="dash-barra" title="${escapeHtml(`${b.etichetta}: ${testo}`)}">
         <span class="dash-barra-nome">
@@ -224,7 +238,7 @@ export function barreOrizzontali(barre: Barra[], messaggioVuoto: string): string
           ${b.nota ? `<small>${escapeHtml(b.nota)}</small>` : ''}
         </span>
         <span class="dash-barra-pista">
-          <span class="dash-barra-riempimento ${negativa ? 'is-negativa' : ''}"
+          <span class="dash-barra-riempimento ${negativa ? 'is-negativa' : ''} ${serie}"
                 style="width: ${b.valore === 0 ? 0 : Math.max(quota, 1)}%"></span>
         </span>
         <span class="dash-barra-valore ${negativa ? 'is-negativa' : ''}">${escapeHtml(testo)}</span>

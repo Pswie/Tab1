@@ -221,7 +221,9 @@ function renderVendite(elenco: Rifornimento[]): void {
         etichetta: p.nome,
         valore: p.pezzi,
         nota: NOMI_DISTRIBUTORI[p.distributore],
-        testoValore: `${numero(p.pezzi)} pz`
+        testoValore: `${numero(p.pezzi)} pz`,
+        // Il colore dice da quale macchina arriva, non a che posto è arrivato
+        serie: SERIE_MACCHINE[p.distributore]
       })),
       'Nessun rifornimento ancora segnato.'
     );

@@ -71,6 +71,23 @@ const pulsantiPeriodo = Array.from(
   document.querySelectorAll('#tab-dashboard .dash-periodo')
 ) as HTMLButtonElement[];
 
+/**
+ * Il colore di ogni servizio, fissato una volta per tutte.
+ *
+ * Le barre si riordinano per importo a ogni cambio di periodo: legando il
+ * colore al nome, il Lotto resta del suo colore anche quando scavalca il
+ * Printer. Legarlo alla posizione vorrebbe dire ridipingere tutto a ogni
+ * filtro, e chi aveva imparato "Tabacchi è blu" leggerebbe il grafico storto.
+ */
+const SERIE_DELLE_VOCI: Record<string, number> = {
+  Tabacchi: 1,
+  Sisal: 2,
+  Mooney: 3,
+  Lis: 4,
+  Printer: 5,
+  'Lotto netto': 6
+};
+
 /** "2026-08-02" -> "2 agosto" */
 function dataBreve(iso: string): string {
   const [a, m, g] = iso.split('-').map(Number);
@@ -317,7 +334,8 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
       ripartizionePerVoce(elencoGiornate).map(v => ({
         etichetta: v.etichetta,
         valore: v.valore,
-        nota: percentuale(v.quota)
+        nota: percentuale(v.quota),
+        serie: SERIE_DELLE_VOCI[v.etichetta]
       })),
       'Nessun incasso nel periodo scelto.'
     );
