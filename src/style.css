@@ -3194,15 +3194,31 @@ body {
    non la tinta; il rosso resta per il mese ancora aperto.
    ========================================================================== */
 
-#tab-dashboard {
-  --dash-marca: #64748B;
+#tab-dashboard,
+#tab-h24-dashboard {
+  /* Quando la barra misura una quantità e basta, il colore è uno solo: il
+     dato è la lunghezza, non la tinta. */
+  --dash-marca: #2A78D6;
   --dash-marca-parziale: var(--ferrari-red);
+
+  /* I colori che distinguono: uno per servizio, uno per macchina. Sono i sei
+     dell'ordine documentato, verificati per restare distinguibili anche a chi
+     non vede bene i colori; l'importo scritto in fondo a ogni barra resta
+     comunque la lettura sicura. */
+  --serie-1: #2A78D6;
+  --serie-2: #EB6834;
+  --serie-3: #1BAF7A;
+  --serie-4: #EDA100;
+  --serie-5: #E87BA4;
+  --serie-6: #008300;
+
   --dash-pista: 190px;
   --dash-aria: 1.5rem;
   --dash-gutter: 3.6rem;
 }
 
-#tab-dashboard.active {
+#tab-dashboard.active,
+#tab-h24-dashboard.active {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -3210,10 +3226,25 @@ body {
 
 /* Mentre si rileggono i registri resta in vista quello di prima, smorzato:
    svuotare tutto farebbe ballare la pagina a ogni apertura */
-#tab-dashboard.is-caricamento {
+#tab-dashboard.is-caricamento,
+#tab-h24-dashboard.is-caricamento {
   opacity: 0.55;
   pointer-events: none;
   transition: opacity var(--transition-normal);
+}
+
+/* Si gira fra i mesi dalla testata della scheda */
+.dash-mese-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dash-nota-forte {
+  margin-top: -0.5rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .dash-periodo-nome {
@@ -3515,6 +3546,14 @@ body {
   background: var(--dash-marca);
   border-radius: 0 4px 4px 0;
 }
+
+/* Il colore segue la voce, non la sua posizione in classifica */
+.dash-barra-riempimento.is-serie-1 { background: var(--serie-1); }
+.dash-barra-riempimento.is-serie-2 { background: var(--serie-2); }
+.dash-barra-riempimento.is-serie-3 { background: var(--serie-3); }
+.dash-barra-riempimento.is-serie-4 { background: var(--serie-4); }
+.dash-barra-riempimento.is-serie-5 { background: var(--serie-5); }
+.dash-barra-riempimento.is-serie-6 { background: var(--serie-6); }
 
 /* Una voce chiusa in perdita: la barra ne mostra la grandezza, il segno e il
    colore dell'importo dicono da che parte sta */
