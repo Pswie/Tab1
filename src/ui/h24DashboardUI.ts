@@ -41,6 +41,12 @@ let periodo: Periodo = '12';
 
 let versioneCaricamento = 0;
 
+/**
+ * Il colore di ogni macchina, fissato una volta per tutte: è lo stesso che
+ * porta il filetto accanto al suo nome nella scheda dei prodotti.
+ */
+const SERIE_MACCHINE: Record<Distributore, number> = { drink: 1, snack: 2, vari: 3 };
+
 const pannello = document.getElementById('tab-h24-dashboard') as HTMLDivElement;
 
 const totaleAnno = document.getElementById('h24d-totale-anno') as HTMLSpanElement;
