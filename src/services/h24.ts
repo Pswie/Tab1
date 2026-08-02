@@ -6,6 +6,10 @@ import { isSupabaseConfigured, supabase } from './supabase';
  * Le macchine lavorano anche a negozio chiuso, quindi hanno due registri
  * propri: cosa manca dentro, per sapere cosa portare al prossimo giro, e
  * quanto hanno incassato mese per mese, che è poi il totale da dichiarare.
+ *
+ * Si conta a PACCHI, perché è così che si compra. I pezzi si ricavano dalla
+ * scheda del prodotto — quanti pezzi stanno in un pacco — ed è quello che
+ * dice per certo quanta roba è uscita dalle macchine.
  */
 
 /** Le tre macchine */
@@ -24,8 +28,10 @@ export interface ProdottoH24 {
   nome: string;
   /** In quale delle tre macchine sta */
   distributore: Distributore;
-  /** Pezzi che mancano per riempire la macchina: zero vuol dire piena */
-  mancanti: number;
+  /** La scheda del prodotto: quanti pezzi contiene un pacco */
+  pezziPerPacco: number;
+  /** Pacchi che mancano per riempire la macchina: zero vuol dire piena */
+  pacchiMancanti: number;
 }
 
 export interface IncassoH24 {
@@ -37,8 +43,25 @@ export interface IncassoH24 {
   nota: string;
 }
 
-const CHIAVE_PRODOTTI = 'tabaccheria_h24_prodotti_v1';
+/**
+ * Un giro di rifornimento: quello che è stato rimesso dentro alle macchine.
+ *
+ * È l'unico modo per sapere cosa vende: nella macchina non c'è un registratore
+ * di cassa per prodotto, ma quello che si rimette dentro è esattamente quello
+ * che è uscito.
+ */
+export interface Rifornimento {
+  nome: string;
+  distributore: Distributore;
+  pacchi: number;
+  pezzi: number;
+  /** YYYY-MM-DD */
+  giorno: string;
+}
+
+const CHIAVE_PRODOTTI = 'tabaccheria_h24_prodotti_v2';
 const CHIAVE_INCASSI = 'tabaccheria_h24_incassi_v1';
+const CHIAVE_RIFORNIMENTI = 'tabaccheria_h24_rifornimenti_v2';
 
 /** Nel database il mese è il suo primo giorno: qui basta "YYYY-MM" */
 function meseDaData(iso: string): string {
@@ -66,17 +89,21 @@ function scriviLocale<T>(chiave: string, voci: T[]): void {
   }
 }
 
-function prodottoDaRiga(r: Record<string, unknown>): ProdottoH24 {
-  const macchina = String(r.distributore ?? '');
+function macchinaValida(valore: unknown): Distributore {
+  const macchina = String(valore ?? '');
+  // Un prodotto scritto prima che le macchine fossero tre finisce fra i vari
+  return DISTRIBUTORI.includes(macchina as Distributore) ? (macchina as Distributore) : 'vari';
+}
 
+function prodottoDaRiga(r: Record<string, unknown>): ProdottoH24 {
   return {
     id: String(r.id),
     nome: String(r.nome ?? ''),
-    // Un prodotto scritto prima che le macchine fossero tre finisce fra i vari
-    distributore: DISTRIBUTORI.includes(macchina as Distributore)
-      ? (macchina as Distributore)
-      : 'vari',
-    mancanti: Number(r.mancanti) || 0
+    distributore: macchinaValida(r.distributore),
+    // Una scheda senza il numero di pezzi vale come pacco da uno: meglio un
+    // conto prudente che una moltiplicazione per zero
+    pezziPerPacco: Math.max(Number(r.pezzi_per_pacco) || 1, 1),
+    pacchiMancanti: Number(r.pacchi_mancanti) || 0
   };
 }
 
@@ -90,6 +117,11 @@ function incassoDaRiga(r: Record<string, unknown>): IncassoH24 {
   };
 }
 
+/** I pezzi che un prodotto porta con sé quando lo si rifornisce */
+export function pezziDiUnProdotto(p: ProdottoH24): number {
+  return Math.max(p.pacchiMancanti, 0) * Math.max(p.pezziPerPacco, 1);
+}
+
 /**
  * Prima quello che manca, poi il resto in ordine alfabetico.
  * Le macchine restano separate all'atto di mostrarle: qui conta solo che,
@@ -97,7 +129,7 @@ function incassoDaRiga(r: Record<string, unknown>): IncassoH24 {
  */
 function inOrdine(voci: ProdottoH24[]): ProdottoH24[] {
   return [...voci].sort((a, b) => {
-    if ((a.mancanti > 0) !== (b.mancanti > 0)) return a.mancanti > 0 ? -1 : 1;
+    if ((a.pacchiMancanti > 0) !== (b.pacchiMancanti > 0)) return a.pacchiMancanti > 0 ? -1 : 1;
     return a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' });
   });
 }
@@ -128,13 +160,21 @@ export async function elencaProdotti(): Promise<ProdottoH24[]> {
 export async function aggiungiProdotto(
   nome: string,
   distributore: Distributore,
-  mancanti = 0
+  pezziPerPacco: number,
+  pacchiMancanti = 0
 ): Promise<ProdottoH24> {
+  const perPacco = Math.max(Math.round(pezziPerPacco) || 1, 1);
+
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
         .from('h24_prodotti')
-        .insert({ nome, distributore, mancanti })
+        .insert({
+          nome,
+          distributore,
+          pezzi_per_pacco: perPacco,
+          pacchi_mancanti: pacchiMancanti
+        })
         .select()
         .single();
 
@@ -149,7 +189,8 @@ export async function aggiungiProdotto(
     id: `h24p-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     nome,
     distributore,
-    mancanti
+    pezziPerPacco: perPacco,
+    pacchiMancanti
   };
 
   const voci = leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI);
@@ -158,12 +199,12 @@ export async function aggiungiProdotto(
   return voce;
 }
 
-export async function impostaMancanti(id: string, mancanti: number): Promise<void> {
+export async function impostaPacchiMancanti(id: string, pacchi: number): Promise<void> {
   if (isSupabaseConfigured() && supabase) {
     try {
       const { error } = await supabase
         .from('h24_prodotti')
-        .update({ mancanti, aggiornato_il: new Date().toISOString() })
+        .update({ pacchi_mancanti: pacchi, aggiornato_il: new Date().toISOString() })
         .eq('id', id);
 
       if (!error) return;
@@ -174,7 +215,32 @@ export async function impostaMancanti(id: string, mancanti: number): Promise<voi
 
   scriviLocale(
     CHIAVE_PRODOTTI,
-    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI).map(v => (v.id === id ? { ...v, mancanti } : v))
+    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI)
+      .map(v => (v.id === id ? { ...v, pacchiMancanti: pacchi } : v))
+  );
+}
+
+/** Correzione della scheda: nome e pezzi per pacco */
+export async function modificaScheda(id: string, nome: string, pezziPerPacco: number): Promise<void> {
+  const perPacco = Math.max(Math.round(pezziPerPacco) || 1, 1);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { error } = await supabase
+        .from('h24_prodotti')
+        .update({ nome, pezzi_per_pacco: perPacco, aggiornato_il: new Date().toISOString() })
+        .eq('id', id);
+
+      if (!error) return;
+    } catch (err) {
+      console.warn('Eccezione modifica scheda H24:', err);
+    }
+  }
+
+  scriviLocale(
+    CHIAVE_PRODOTTI,
+    leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI)
+      .map(v => (v.id === id ? { ...v, nome, pezziPerPacco: perPacco } : v))
   );
 }
 
@@ -224,8 +290,8 @@ export async function azzeraMancanti(distributore?: Distributore): Promise<void>
     try {
       const richiesta = supabase
         .from('h24_prodotti')
-        .update({ mancanti: 0, aggiornato_il: new Date().toISOString() })
-        .gt('mancanti', 0);
+        .update({ pacchi_mancanti: 0, aggiornato_il: new Date().toISOString() })
+        .gt('pacchi_mancanti', 0);
 
       const { error } = await (distributore
         ? richiesta.eq('distributore', distributore)
@@ -240,9 +306,89 @@ export async function azzeraMancanti(distributore?: Distributore): Promise<void>
   scriviLocale(
     CHIAVE_PRODOTTI,
     leggiLocale<ProdottoH24>(CHIAVE_PRODOTTI).map(v =>
-      !distributore || v.distributore === distributore ? { ...v, mancanti: 0 } : v
+      !distributore || v.distributore === distributore ? { ...v, pacchiMancanti: 0 } : v
     )
   );
+}
+
+/**
+ * Registra quello che è stato rimesso nelle macchine.
+ *
+ * Si scrive solo quando si dichiara di aver rifornito, non quando si corregge
+ * a mano un conteggio sbagliato: un numero ritoccato è una correzione, non
+ * merce uscita, e finirebbe per gonfiare le vendite.
+ */
+export async function registraRifornimento(voci: ProdottoH24[]): Promise<void> {
+  const daScrivere = voci.filter(v => v.pacchiMancanti > 0);
+  if (daScrivere.length === 0) return;
+
+  const adesso = new Date();
+  const giorno = `${adesso.getFullYear()}-${String(adesso.getMonth() + 1).padStart(2, '0')}-${String(adesso.getDate()).padStart(2, '0')}`;
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { error } = await supabase.from('h24_rifornimenti').insert(
+        daScrivere.map(v => ({
+          prodotto_id: v.id,
+          nome: v.nome,
+          distributore: v.distributore,
+          pacchi: v.pacchiMancanti,
+          pezzi_per_pacco: v.pezziPerPacco,
+          pezzi: pezziDiUnProdotto(v),
+          il: adesso.toISOString()
+        }))
+      );
+
+      if (!error) return;
+      console.warn('Rifornimento salvato solo in locale:', error.message);
+    } catch (err) {
+      console.warn('Eccezione salvataggio rifornimento:', err);
+    }
+  }
+
+  const storia = leggiLocale<Rifornimento>(CHIAVE_RIFORNIMENTI);
+
+  daScrivere.forEach(v => {
+    storia.push({
+      nome: v.nome,
+      distributore: v.distributore,
+      pacchi: v.pacchiMancanti,
+      pezzi: pezziDiUnProdotto(v),
+      giorno
+    });
+  });
+
+  scriviLocale(CHIAVE_RIFORNIMENTI, storia);
+}
+
+export async function elencaRifornimenti(): Promise<Rifornimento[]> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('h24_rifornimenti')
+        .select('nome, distributore, pacchi, pezzi, il')
+        .order('il', { ascending: false });
+
+      if (!error && data) {
+        const voci = data.map((r: Record<string, unknown>) => ({
+          nome: String(r.nome ?? ''),
+          distributore: macchinaValida(r.distributore),
+          pacchi: Number(r.pacchi) || 0,
+          pezzi: Number(r.pezzi) || 0,
+          giorno: String(r.il ?? '').slice(0, 10)
+        }));
+
+        scriviLocale(CHIAVE_RIFORNIMENTI, voci);
+        return voci;
+      }
+
+      console.warn('Errore lettura rifornimenti:', error?.message);
+    } catch (err) {
+      console.warn('Eccezione lettura rifornimenti:', err);
+    }
+  }
+
+  return leggiLocale<Rifornimento>(CHIAVE_RIFORNIMENTI);
 }
 
 export async function elencaIncassi(): Promise<IncassoH24[]> {

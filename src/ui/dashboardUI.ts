@@ -15,11 +15,24 @@ import {
   totaleFinoAlGiorno,
   vociFuoriTotale
 } from '../services/statistiche';
-import { formatCurrency, formatDateItalian, getTodayDateString } from '../utils/calculations';
+import { IncassoH24, elencaIncassi } from '../services/h24';
+import {
+  barreOrizzontali,
+  escapeHtml,
+  euro,
+  euroTondo,
+  graficoColonne,
+  nomeMese,
+  numero,
+  percentuale,
+  riquadriHtml,
+  variazione
+} from './grafici';
+import { formatDateItalian, getTodayDateString } from '../utils/calculations';
 import { amministratore } from '../services/auth';
 
 /**
- * Dashboard del titolare.
+ * Dashboard della tabaccheria.
  *
  * Non si scrive niente da qui: si legge soltanto quello che le chiusure hanno
  * già registrato. La scheda compare solo a chi ha admin a true nel profilo.
@@ -29,6 +42,7 @@ type Periodo = '12' | 'anno' | 'tutto';
 
 let giornate: GiornataIncasso[] = [];
 let mesi: MeseIncasso[] = [];
+let incassiH24: IncassoH24[] = [];
 let periodo: Periodo = '12';
 
 /** Un caricamento più lento di un altro non deve riscrivere sopra il più recente */
@@ -37,7 +51,7 @@ let versioneCaricamento = 0;
 const pannello = document.getElementById('tab-dashboard') as HTMLDivElement;
 const stato = document.getElementById('dash-stato') as HTMLParagraphElement;
 
-const nomeMese = document.getElementById('dash-mese-nome') as HTMLSpanElement;
+const nomeMeseCorrente = document.getElementById('dash-mese-nome') as HTMLSpanElement;
 const totaleMese = document.getElementById('dash-mese-totale') as HTMLSpanElement;
 const notaMese = document.getElementById('dash-mese-nota') as HTMLSpanElement;
 const riquadriMese = document.getElementById('dash-riquadri-mese') as HTMLDivElement;
@@ -51,202 +65,16 @@ const riquadriStatistiche = document.getElementById('dash-riquadri-statistiche')
 const ripartizione = document.getElementById('dash-ripartizione') as HTMLDivElement;
 const settimana = document.getElementById('dash-settimana') as HTMLDivElement;
 const riquadriExtra = document.getElementById('dash-riquadri-extra') as HTMLDivElement;
+const riquadriInsieme = document.getElementById('dash-riquadri-insieme') as HTMLDivElement;
 
-const pulsantiPeriodo = Array.from(document.querySelectorAll('.dash-periodo')) as HTMLButtonElement[];
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/** Importo per esteso, con i centesimi: nelle tabelle i conti si controllano */
-function euro(valore: number): string {
-  return formatCurrency(valore);
-}
-
-/**
- * Importo arrotondato all'euro, per i numeri grandi in vista.
- * A quelle dimensioni i centesimi allungano soltanto la cifra.
- */
-function euroTondo(valore: number): string {
-  return new Intl.NumberFormat('it-IT', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0
-  }).format(isNaN(valore) ? 0 : valore);
-}
-
-function numero(valore: number): string {
-  return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(valore);
-}
-
-function percentuale(valore: number): string {
-  return `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(valore)}%`;
-}
+const pulsantiPeriodo = Array.from(
+  document.querySelectorAll('#tab-dashboard .dash-periodo')
+) as HTMLButtonElement[];
 
 /** "2026-08-02" -> "2 agosto" */
 function dataBreve(iso: string): string {
   const [a, m, g] = iso.split('-').map(Number);
   return new Date(a, m - 1, g).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
-}
-
-/**
- * Variazione fra due importi.
- *
- * Il verso è scritto anche con la freccia e col segno: il colore da solo non
- * basta a chi non lo distingue.
- */
-function variazione(adesso: number, prima: number, rispettoA: string): string {
-  if (prima === 0) return '';
-
-  const scarto = ((adesso - prima) / Math.abs(prima)) * 100;
-  const su = scarto >= 0;
-  const freccia = su ? '&#9650;' : '&#9660;';
-  const segno = su ? '+' : '&minus;';
-
-  return `
-    <span class="dash-delta ${su ? 'is-su' : 'is-giu'}">
-      ${freccia} ${segno}${percentuale(Math.abs(scarto))}
-      <span class="dash-delta-nota">${escapeHtml(rispettoA)}</span>
-    </span>
-  `;
-}
-
-interface Riquadro {
-  etichetta: string;
-  valore: string;
-  nota?: string;
-  delta?: string;
-}
-
-function riquadriHtml(voci: Riquadro[]): string {
-  return voci.map(v => `
-    <div class="dash-riquadro">
-      <span class="dash-riquadro-etichetta">${escapeHtml(v.etichetta)}</span>
-      <span class="dash-riquadro-valore">${escapeHtml(v.valore)}</span>
-      ${v.nota ? `<span class="dash-riquadro-nota">${escapeHtml(v.nota)}</span>` : ''}
-      ${v.delta || ''}
-    </div>
-  `).join('');
-}
-
-function vuoto(messaggio: string): string {
-  return `
-    <div class="empty-state">
-      <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>
-      </svg>
-      <p class="empty-state-text">${escapeHtml(messaggio)}</p>
-    </div>
-  `;
-}
-
-/**
- * Estremo tondo per l'asse: 18.400 diventa 20.000.
- * Le tacche vanno lette a colpo d'occhio, non interpretate.
- */
-function tettoTondo(valore: number): number {
-  if (valore <= 0) return 0;
-
-  const ordine = Math.pow(10, Math.floor(Math.log10(valore)));
-  const passi = [1, 1.5, 2, 2.5, 5, 10];
-
-  for (const passo of passi) {
-    if (valore <= ordine * passo) return ordine * passo;
-  }
-
-  return ordine * 10;
-}
-
-interface Colonna {
-  etichetta: string;
-  valore: number;
-  /** Il mese ancora in corso: il suo totale non è confrontabile con gli altri */
-  evidenzia?: boolean;
-  titolo: string;
-  /** Scritta sopra la barra: solo dove serve davvero, non su ogni colonna */
-  valoreInVista?: boolean;
-}
-
-/**
- * Grafico a colonne con tre tacche di riferimento.
- *
- * Le colonne non portano il numero una per una: lo dicono le tacche, la tabella
- * qui sotto e il tocco prolungato. Scriverlo dodici volte non si leggerebbe.
- */
-function graficoColonne(colonne: Colonna[]): string {
-  if (colonne.length === 0) return vuoto('Nessun dato nel periodo scelto.');
-
-  const massimo = Math.max(...colonne.map(c => c.valore), 0);
-  const tetto = tettoTondo(massimo);
-
-  const tacche = [1, 0.5, 0].map(quota => `
-    <span class="dash-livello" style="bottom: ${quota * 100}%">
-      <i class="dash-livello-valore">${numero(tetto * quota)}</i>
-    </span>
-  `).join('');
-
-  const barre = colonne.map(c => {
-    // Un mese con qualcosa dentro deve vedersi anche quando è molto sotto agli altri
-    const quota = tetto === 0 ? 0 : Math.max(c.valore, 0) / tetto;
-    const altezza = c.valore > 0 ? Math.max(quota * 100, 1.5) : 0;
-
-    return `
-      <div class="dash-colonna" title="${escapeHtml(c.titolo)}">
-        <span class="dash-colonna-pista">
-          <span class="dash-colonna-barra ${c.evidenzia ? 'is-parziale' : ''}"
-                style="height: ${altezza}%">
-            ${c.valoreInVista ? `<i class="dash-colonna-valore">${euroTondo(c.valore)}</i>` : ''}
-          </span>
-        </span>
-        <span class="dash-colonna-etichetta">${escapeHtml(c.etichetta)}</span>
-      </div>
-    `;
-  }).join('');
-
-  return `
-    <div class="dash-plot">
-      <div class="dash-livelli" aria-hidden="true">${tacche}</div>
-      <div class="dash-colonne">${barre}</div>
-    </div>
-  `;
-}
-
-interface Barra {
-  etichetta: string;
-  valore: number;
-  nota?: string;
-}
-
-/**
- * Barre orizzontali con l'importo in fondo.
- *
- * La lunghezza segue il valore assoluto: una voce chiusa in perdita si riconosce
- * dal colore e dal segno davanti all'importo, non dal verso della barra.
- */
-function barreOrizzontali(barre: Barra[], messaggioVuoto: string): string {
-  if (barre.length === 0) return vuoto(messaggioVuoto);
-
-  const massimo = Math.max(...barre.map(b => Math.abs(b.valore)), 0);
-
-  return barre.map(b => {
-    const quota = massimo === 0 ? 0 : (Math.abs(b.valore) / massimo) * 100;
-    const negativa = b.valore < 0;
-
-    return `
-      <div class="dash-barra" title="${escapeHtml(`${b.etichetta}: ${euro(b.valore)}`)}">
-        <span class="dash-barra-nome">
-          ${escapeHtml(b.etichetta)}
-          ${b.nota ? `<small>${escapeHtml(b.nota)}</small>` : ''}
-        </span>
-        <span class="dash-barra-pista">
-          <span class="dash-barra-riempimento ${negativa ? 'is-negativa' : ''}"
-                style="width: ${b.valore === 0 ? 0 : Math.max(quota, 1)}%"></span>
-        </span>
-        <span class="dash-barra-valore ${negativa ? 'is-negativa' : ''}">${euroTondo(b.valore)}</span>
-      </div>
-    `;
-  }).join('');
 }
 
 /** I mesi che rientrano nel periodo scelto in alto */
@@ -275,12 +103,7 @@ function renderMeseInCorso(): void {
   const corrente = meseCorrente();
   const mese = mesi.find(m => m.mese === corrente);
 
-  if (nomeMese) {
-    const [anno, numeroMese] = corrente.split('-').map(Number);
-    const testo = new Date(anno, numeroMese - 1, 1)
-      .toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-    nomeMese.textContent = testo.charAt(0).toUpperCase() + testo.slice(1);
-  }
+  if (nomeMeseCorrente) nomeMeseCorrente.textContent = nomeMese(corrente);
 
   if (!mese) {
     if (totaleMese) totaleMese.textContent = euroTondo(0);
@@ -391,32 +214,72 @@ function renderIncassiMensili(elenco: MeseIncasso[]): void {
     })));
   }
 
-  if (tabellaMesi) {
-    if (elenco.length === 0) {
-      tabellaMesi.innerHTML = `
-        <tr><td colspan="5" class="dash-tabella-vuota">Nessun mese nel periodo scelto.</td></tr>
-      `;
-      return;
-    }
+  if (!tabellaMesi) return;
 
-    // Dal più recente: è quello che si guarda per primo
-    tabellaMesi.innerHTML = [...elenco].reverse().map(m => {
-      const prima = mesi.find(x => x.mese === mesePrecedente(m.mese));
-
-      return `
-        <tr class="${m.inCorso ? 'is-parziale' : ''}">
-          <th scope="row">
-            ${escapeHtml(m.etichetta)}
-            ${m.inCorso ? '<span class="dash-tag">parziale</span>' : ''}
-          </th>
-          <td class="dash-num">${numero(m.giornate)}</td>
-          <td class="dash-num">${euro(m.totale)}</td>
-          <td class="dash-num">${euro(m.mediaGiornaliera)}</td>
-          <td class="dash-num">${prima && !m.inCorso ? variazione(m.totale, prima.totale, '') : '—'}</td>
-        </tr>
-      `;
-    }).join('');
+  if (elenco.length === 0) {
+    tabellaMesi.innerHTML = `
+      <tr><td colspan="5" class="dash-tabella-vuota">Nessun mese nel periodo scelto.</td></tr>
+    `;
+    return;
   }
+
+  // Dal più recente: è quello che si guarda per primo
+  tabellaMesi.innerHTML = [...elenco].reverse().map(m => {
+    const prima = mesi.find(x => x.mese === mesePrecedente(m.mese));
+
+    return `
+      <tr class="${m.inCorso ? 'is-parziale' : ''}">
+        <th scope="row">
+          ${escapeHtml(m.etichetta)}
+          ${m.inCorso ? '<span class="dash-tag">parziale</span>' : ''}
+        </th>
+        <td class="dash-num">${numero(m.giornate)}</td>
+        <td class="dash-num">${euro(m.totale)}</td>
+        <td class="dash-num">${euro(m.mediaGiornaliera)}</td>
+        <td class="dash-num">${prima && !m.inCorso ? variazione(m.totale, prima.totale, '') : '—'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+/**
+ * Negozio e distributori messi uno accanto all'altro.
+ *
+ * I due totali restano distinti: le chiusure si registrano giorno per giorno,
+ * i distributori un mese alla volta, e sommarli dentro allo stesso conto
+ * confonderebbe due cose che si dichiarano separatamente.
+ */
+function renderInsieme(elenco: MeseIncasso[]): void {
+  if (!riquadriInsieme) return;
+
+  const dentro = new Set(elenco.map(m => m.mese));
+  const negozio = elenco.reduce((s, m) => s + m.totale, 0);
+  const distributori = incassiH24
+    .filter(i => dentro.has(i.mese))
+    .reduce((s, i) => s + i.importo, 0);
+
+  const insieme = negozio + distributori;
+
+  riquadriInsieme.innerHTML = riquadriHtml([
+    {
+      etichetta: 'Negozio',
+      valore: euroTondo(negozio),
+      nota: `${percentuale(insieme === 0 ? 0 : (negozio / insieme) * 100)} del totale`
+    },
+    {
+      etichetta: 'Distributori H24',
+      valore: euroTondo(distributori),
+      nota: distributori === 0
+        ? 'Nessun incasso registrato per questi mesi'
+        : `${percentuale(insieme === 0 ? 0 : (distributori / insieme) * 100)} del totale`
+    },
+    {
+      etichetta: 'Tutto insieme',
+      valore: euroTondo(insieme),
+      nota: 'Negozio e distributori sommati',
+      forte: true
+    }
+  ]);
 }
 
 /** Da dove arriva l'incasso, quando rende di più e cosa resta fuori dal totale */
@@ -519,6 +382,7 @@ function render(): void {
 
   const elencoMesi = mesiDelPeriodo();
   renderIncassiMensili(elencoMesi);
+  renderInsieme(elencoMesi);
   renderStatistiche(giornateDelPeriodo(elencoMesi));
 }
 
@@ -543,12 +407,15 @@ export async function caricaDashboard(): Promise<void> {
   pannello.classList.add('is-caricamento');
 
   try {
-    const lette = await caricaGiornate();
+    // I distributori si leggono insieme al resto: nella dashboard entrano
+    // come dato, accanto a quello che fa il negozio
+    const [lette, h24] = await Promise.all([caricaGiornate(), elencaIncassi()]);
 
     if (versione !== versioneCaricamento) return;
 
     giornate = lette;
     mesi = raggruppaPerMese(lette);
+    incassiH24 = h24;
 
     mostraStato(giornate.length === 0
       ? 'Nessuna chiusura registrata: la dashboard si riempie da sola man mano che si compilano i turni.'
@@ -566,8 +433,8 @@ export async function caricaDashboard(): Promise<void> {
 }
 
 /**
- * Mostra la scheda a chi amministra e aggancia il filtro del periodo.
- * Per tutti gli altri non c'è niente da agganciare: la voce resta nascosta.
+ * Mostra le schede riservate e aggancia il filtro del periodo.
+ * Per tutti gli altri non c'è niente da agganciare: le voci restano nascoste.
  */
 export function initDashboard(): void {
   if (!pannello || !amministratore()) return;

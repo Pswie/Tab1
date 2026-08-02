@@ -581,16 +581,44 @@ CREATE TABLE IF NOT EXISTS public.h24_prodotti (
     distributore TEXT NOT NULL DEFAULT 'vari'
         CHECK (distributore IN ('drink', 'snack', 'vari')),
 
-    -- Quanti pezzi mancano per riempire la macchina: zero vuol dire piena
-    mancanti INTEGER NOT NULL DEFAULT 0,
+    -- La scheda del prodotto: quanti pezzi ci sono dentro a un pacco. È quello
+    -- che permette di sapere per certo quanti pezzi sono usciti, visto che si
+    -- compra a pacchi e non a pezzi.
+    pezzi_per_pacco INTEGER NOT NULL DEFAULT 1 CHECK (pezzi_per_pacco > 0),
+
+    -- Quanti pacchi mancano per riempire la macchina: zero vuol dire piena
+    pacchi_mancanti INTEGER NOT NULL DEFAULT 0,
 
     creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Su una tabella creata da una versione precedente la colonna va aggiunta
+-- Su una tabella creata da una versione precedente le colonne vanno aggiunte
 ALTER TABLE public.h24_prodotti
     ADD COLUMN IF NOT EXISTS distributore TEXT NOT NULL DEFAULT 'vari';
+
+ALTER TABLE public.h24_prodotti
+    ADD COLUMN IF NOT EXISTS pezzi_per_pacco INTEGER NOT NULL DEFAULT 1;
+
+-- Il conteggio è passato dai pezzi ai pacchi: si rinomina la colonna invece di
+-- affiancarne una nuova, così quello che era già stato segnato non si perde.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'h24_prodotti'
+           AND column_name = 'mancanti'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'h24_prodotti'
+           AND column_name = 'pacchi_mancanti'
+    ) THEN
+        ALTER TABLE public.h24_prodotti RENAME COLUMN mancanti TO pacchi_mancanti;
+    END IF;
+END $$;
+
+ALTER TABLE public.h24_prodotti
+    ADD COLUMN IF NOT EXISTS pacchi_mancanti INTEGER NOT NULL DEFAULT 0;
 
 ALTER TABLE public.h24_prodotti DROP CONSTRAINT IF EXISTS h24_prodotti_distributore_check;
 ALTER TABLE public.h24_prodotti
@@ -619,8 +647,48 @@ CREATE TABLE IF NOT EXISTS public.h24_incassi (
 
 CREATE INDEX IF NOT EXISTS idx_h24_incassi_mese ON public.h24_incassi(mese DESC);
 
+-- Ogni giro di rifornimento lascia qui quello che è stato rimesso dentro.
+--
+-- È l'unico modo per sapere cosa vende: nella macchina non c'è un registratore
+-- di cassa per prodotto, ma quello che si rimette dentro è esattamente quello
+-- che è uscito. Il nome si copia nella riga e non si lascia solo il
+-- collegamento: un prodotto tolto dall'elenco non deve cancellare la storia
+-- di quanto ha venduto.
+CREATE TABLE IF NOT EXISTS public.h24_rifornimenti (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    prodotto_id UUID REFERENCES public.h24_prodotti(id) ON DELETE SET NULL,
+    nome TEXT NOT NULL,
+    distributore TEXT NOT NULL DEFAULT 'vari',
+
+    -- Si compra a pacchi; i pezzi sono quelli davvero usciti dalla macchina,
+    -- cioè i pacchi moltiplicati per quanti ne conteneva ciascuno. Il numero
+    -- si copia qui e non si ricava ogni volta dalla scheda: se domani cambia
+    -- la confezione, i conti di ieri devono restare quelli di ieri.
+    pacchi INTEGER NOT NULL DEFAULT 0,
+    pezzi_per_pacco INTEGER NOT NULL DEFAULT 1,
+    pezzi INTEGER NOT NULL DEFAULT 0,
+
+    il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.h24_rifornimenti
+    ADD COLUMN IF NOT EXISTS pacchi INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.h24_rifornimenti
+    ADD COLUMN IF NOT EXISTS pezzi_per_pacco INTEGER NOT NULL DEFAULT 1;
+
+CREATE INDEX IF NOT EXISTS idx_h24_rifornimenti_quando
+    ON public.h24_rifornimenti(il DESC);
+
 ALTER TABLE public.h24_prodotti ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.h24_incassi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.h24_rifornimenti ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Lettura rifornimenti h24" ON public.h24_rifornimenti;
+CREATE POLICY "Lettura rifornimenti h24" ON public.h24_rifornimenti FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Scrittura rifornimenti h24" ON public.h24_rifornimenti;
+CREATE POLICY "Scrittura rifornimenti h24" ON public.h24_rifornimenti
+    FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Lettura prodotti h24" ON public.h24_prodotti;
 CREATE POLICY "Lettura prodotti h24" ON public.h24_prodotti FOR SELECT USING (true);

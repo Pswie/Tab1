@@ -11,20 +11,27 @@ import {
   eliminaIncasso,
   eliminaProdotto,
   impostaDichiarato,
-  impostaMancanti,
+  impostaPacchiMancanti,
+  modificaScheda,
+  pezziDiUnProdotto,
+  registraRifornimento,
   salvaIncasso,
   spostaProdotto
 } from '../services/h24';
-import { formatCurrency, formatInputValue, getTodayDateString, parseInputValue } from '../utils/calculations';
+import { escapeHtml, euro, meseIndietro, nomeMese, numero, variazione } from './grafici';
+import { formatInputValue, getTodayDateString, parseInputValue } from '../utils/calculations';
 import { inviaNotifica } from '../utils/notifiche';
 import { segnala } from './segnalazioni';
 
 /**
- * Distributori H24.
+ * Distributori H24: cosa manca e quanto hanno incassato.
  *
- * Due registri distinti perché sono due lavori distinti: cosa manca dentro
- * alle macchine, che serve al giro di rifornimento, e quanto hanno incassato
- * ogni mese, che serve alla dichiarazione.
+ * Sono due lavori diversi e stanno in due schede diverse: il giro di
+ * rifornimento si fa in piedi davanti alle macchine, la dichiarazione si fa
+ * seduti a fine mese.
+ *
+ * Si conta a PACCHI, perché è così che si compra. I pezzi si ricavano dalla
+ * scheda del prodotto e dicono quanta roba è davvero uscita.
  */
 
 let prodotti: ProdottoH24[] = [];
@@ -39,7 +46,8 @@ const CHIAVE_AVVISATO = 'tabaccheria_h24_dichiarazione_avvisata';
 const listaProdotti = document.getElementById('h24-lista-prodotti') as HTMLDivElement;
 const totaleMancanti = document.getElementById('h24-totale-mancanti') as HTMLSpanElement;
 const campoNome = document.getElementById('h24-nome-prodotto') as HTMLInputElement;
-const campoMancanti = document.getElementById('h24-mancanti-prodotto') as HTMLInputElement;
+const campoPerPacco = document.getElementById('h24-pezzi-per-pacco') as HTMLInputElement;
+const campoPacchi = document.getElementById('h24-pacchi-mancanti') as HTMLInputElement;
 const sceltaDistributore = document.getElementById('h24-distributore') as HTMLSelectElement;
 const pulsanteAggiungi = document.getElementById('btn-h24-aggiungi') as HTMLButtonElement;
 const pulsanteRifornito = document.getElementById('btn-h24-rifornito') as HTMLButtonElement;
@@ -52,37 +60,13 @@ const campoImporto = document.getElementById('h24-importo') as HTMLInputElement;
 const pulsanteSalvaIncasso = document.getElementById('btn-h24-salva-incasso') as HTMLButtonElement;
 const avvisoIncasso = document.getElementById('h24-avviso-incasso') as HTMLParagraphElement;
 
-const promemoria = document.getElementById('h24-promemoria') as HTMLDivElement;
-const notaPromemoria = document.getElementById('h24-promemoria-nota') as HTMLSpanElement;
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/** "2026-08" -> "Agosto 2026" */
-function nomeMese(mese: string): string {
-  const [anno, numero] = mese.split('-').map(Number);
-  const testo = new Date(anno, numero - 1, 1)
-    .toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-
-  return testo.charAt(0).toUpperCase() + testo.slice(1);
-}
-
-/** Mese spostato indietro di N, in formato YYYY-MM */
-function meseIndietro(mese: string, quanti: number): string {
-  const [anno, numero] = mese.split('-').map(Number);
-  const d = new Date(anno, numero - 1 - quanti, 1);
-
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 function meseCorrente(): string {
   return getTodayDateString().slice(0, 7);
 }
 
 /** Il mese da dichiarare è quello appena concluso */
 function meseDaDichiarare(): string {
-  return meseIndietro(meseCorrente(), 1);
+  return meseIndietro(meseCorrente());
 }
 
 function mostraAvviso(dove: HTMLParagraphElement, testo: string): void {
@@ -109,26 +93,35 @@ const ICONA_EURO = '<circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 0 
 
 function rigaProdotto(p: ProdottoH24): string {
   const altre = DISTRIBUTORI.filter(d => d !== p.distributore);
+  const pezzi = pezziDiUnProdotto(p);
 
   return `
-    <div class="h24-riga ${p.mancanti > 0 ? 'is-da-portare' : ''}" data-id="${escapeHtml(p.id)}">
-      <span class="h24-nome">${escapeHtml(p.nome)}</span>
+    <div class="h24-riga ${p.pacchiMancanti > 0 ? 'is-da-portare' : ''}" data-id="${escapeHtml(p.id)}">
+      <span class="h24-dati">
+        <span class="h24-nome">${escapeHtml(p.nome)}</span>
+        <span class="h24-scheda">
+          ${numero(p.pezziPerPacco)} ${p.pezziPerPacco === 1 ? 'pezzo' : 'pezzi'} per pacco${
+            pezzi > 0 ? ` &middot; <b>${numero(pezzi)} pezzi da rimettere</b>` : ''
+          }
+        </span>
+      </span>
 
-      <div class="h24-quantita">
-        <button type="button" class="h24-passo" data-action="meno" aria-label="Uno in meno di ${escapeHtml(p.nome)}">&minus;</button>
-        <input type="text" class="h24-campo-mancanti" data-action="mancanti" inputmode="numeric"
-               value="${p.mancanti || ''}" placeholder="0"
-               aria-label="Pezzi mancanti di ${escapeHtml(p.nome)}" />
-        <button type="button" class="h24-passo" data-action="piu" aria-label="Uno in più di ${escapeHtml(p.nome)}">+</button>
+      <div class="h24-quantita" title="Pacchi da portare">
+        <button type="button" class="h24-passo" data-action="meno" aria-label="Un pacco in meno di ${escapeHtml(p.nome)}">&minus;</button>
+        <input type="text" class="h24-campo-mancanti" data-action="pacchi" inputmode="numeric"
+               value="${p.pacchiMancanti || ''}" placeholder="0"
+               aria-label="Pacchi mancanti di ${escapeHtml(p.nome)}" />
+        <button type="button" class="h24-passo" data-action="piu" aria-label="Un pacco in più di ${escapeHtml(p.nome)}">+</button>
       </div>
 
       <div class="rub-azioni">
-        <!-- Un prodotto messo nella macchina sbagliata si sposta, non si riscrive -->
         <select class="h24-sposta" data-action="sposta" aria-label="Sposta ${escapeHtml(p.nome)} in un'altra macchina">
           <option value="${p.distributore}">${escapeHtml(NOMI_DISTRIBUTORI[p.distributore])}</option>
           ${altre.map(d => `<option value="${d}">&rarr; ${escapeHtml(NOMI_DISTRIBUTORI[d])}</option>`).join('')}
         </select>
 
+        <button type="button" class="todo-icon-btn" data-action="modifica"
+                aria-label="Correggi la scheda di ${escapeHtml(p.nome)}"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
         <button type="button" class="todo-icon-btn is-danger" data-action="elimina"
                 aria-label="Togli ${escapeHtml(p.nome)} dall'elenco"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
@@ -139,17 +132,22 @@ function rigaProdotto(p: ProdottoH24): string {
 function renderProdotti(): void {
   if (!listaProdotti) return;
 
-  const mancanti = prodotti.reduce((s, p) => s + Math.max(p.mancanti, 0), 0);
+  const pacchi = prodotti.reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
+  const pezzi = prodotti.reduce((s, p) => s + pezziDiUnProdotto(p), 0);
 
-  if (totaleMancanti) totaleMancanti.textContent = String(mancanti);
-  if (pulsanteRifornito) pulsanteRifornito.classList.toggle('is-hidden', mancanti === 0);
+  if (totaleMancanti) {
+    totaleMancanti.textContent = pacchi === 0 ? '0' : `${numero(pacchi)}`;
+    totaleMancanti.title = `${numero(pezzi)} pezzi in tutto`;
+  }
+
+  if (pulsanteRifornito) pulsanteRifornito.classList.toggle('is-hidden', pacchi === 0);
 
   // Il pallino sul menu dice che c'è merce da portare, anche a scheda chiusa
-  segnala('h24', mancanti);
+  segnala('h24', pacchi);
 
   if (prodotti.length === 0) {
     listaProdotti.innerHTML = vuoto(
-      'Nessun prodotto in elenco. Aggiungi quelli che stanno nelle macchine.',
+      'Nessun prodotto in elenco. Carica le schede di quello che sta nelle macchine.',
       ICONA_MACCHINA
     );
     return;
@@ -159,15 +157,17 @@ function renderProdotti(): void {
   // scorrendo un elenco unico in cui drink e snack sono mescolati
   listaProdotti.innerHTML = DISTRIBUTORI.map(macchina => {
     const dentro = prodotti.filter(p => p.distributore === macchina);
-    const daPortare = dentro.reduce((s, p) => s + Math.max(p.mancanti, 0), 0);
+    const daPortare = dentro.reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
+    const pezziMacchina = dentro.reduce((s, p) => s + pezziDiUnProdotto(p), 0);
 
     return `
-      <section class="h24-macchina ${daPortare > 0 ? 'is-da-portare' : ''}" data-macchina="${macchina}">
+      <section class="h24-macchina is-${macchina} ${daPortare > 0 ? 'is-da-portare' : ''}"
+               data-macchina="${macchina}">
         <header class="h24-macchina-testa">
           <h3 class="h24-macchina-titolo">${escapeHtml(NOMI_DISTRIBUTORI[macchina])}</h3>
           <span class="h24-macchina-meta">
             ${daPortare > 0
-              ? `${daPortare} ${daPortare === 1 ? 'pezzo da portare' : 'pezzi da portare'}`
+              ? `${numero(daPortare)} ${daPortare === 1 ? 'pacco' : 'pacchi'} &middot; ${numero(pezziMacchina)} pezzi`
               : dentro.length === 0 ? 'Nessun prodotto' : 'Piena'}
           </span>
           ${daPortare > 0
@@ -191,7 +191,7 @@ function renderIncassi(): void {
     .filter(i => i.mese.startsWith(anno))
     .reduce((s, i) => s + i.importo, 0);
 
-  if (totaleAnno) totaleAnno.textContent = formatCurrency(totale);
+  if (totaleAnno) totaleAnno.textContent = euro(totale);
 
   if (incassi.length === 0) {
     listaIncassi.innerHTML = vuoto(
@@ -201,30 +201,37 @@ function renderIncassi(): void {
     return;
   }
 
-  listaIncassi.innerHTML = incassi.map(i => `
-    <div class="h24-riga h24-riga-incasso ${i.dichiarato ? 'is-dichiarato' : ''}"
-         data-mese="${escapeHtml(i.mese)}">
-      <label class="sog-check h24-dichiarato" title="Segna quando la dichiarazione è stata fatta">
-        <input type="checkbox" data-action="dichiarato" ${i.dichiarato ? 'checked' : ''}
-               aria-label="Dichiarazione di ${escapeHtml(nomeMese(i.mese))} fatta" />
-        <span class="sog-check-box" aria-hidden="true"></span>
-      </label>
+  listaIncassi.innerHTML = incassi.map(i => {
+    const prima = incassi.find(x => x.mese === meseIndietro(i.mese));
 
-      <div class="h24-dati">
-        <span class="h24-nome">${escapeHtml(nomeMese(i.mese))}</span>
-        <span class="h24-stato">${i.dichiarato ? 'Dichiarato' : 'Da dichiarare'}</span>
+    return `
+      <div class="h24-riga h24-riga-incasso ${i.dichiarato ? 'is-dichiarato' : ''}"
+           data-mese="${escapeHtml(i.mese)}">
+        <label class="sog-check h24-dichiarato" title="Segna quando la dichiarazione è stata fatta">
+          <input type="checkbox" data-action="dichiarato" ${i.dichiarato ? 'checked' : ''}
+                 aria-label="Dichiarazione di ${escapeHtml(nomeMese(i.mese))} fatta" />
+          <span class="sog-check-box" aria-hidden="true"></span>
+        </label>
+
+        <div class="h24-dati">
+          <span class="h24-nome">${escapeHtml(nomeMese(i.mese))}</span>
+          <span class="h24-stato">
+            ${i.dichiarato ? 'Dichiarato' : 'Da dichiarare'}
+            ${prima ? variazione(i.importo, prima.importo, 'sul mese prima') : ''}
+          </span>
+        </div>
+
+        <span class="h24-importo">${euro(i.importo)}</span>
+
+        <div class="rub-azioni">
+          <button type="button" class="todo-icon-btn" data-action="modifica"
+                  aria-label="Correggi ${escapeHtml(nomeMese(i.mese))}"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+          <button type="button" class="todo-icon-btn is-danger" data-action="elimina"
+                  aria-label="Elimina ${escapeHtml(nomeMese(i.mese))}"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
       </div>
-
-      <span class="h24-importo">${formatCurrency(i.importo)}</span>
-
-      <div class="rub-azioni">
-        <button type="button" class="todo-icon-btn" data-action="modifica"
-                aria-label="Correggi ${escapeHtml(nomeMese(i.mese))}"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-        <button type="button" class="todo-icon-btn is-danger" data-action="elimina"
-                aria-label="Elimina ${escapeHtml(nomeMese(i.mese))}"><svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 /**
@@ -235,19 +242,22 @@ function renderIncassi(): void {
  * passare una notifica.
  */
 function renderPromemoria(): void {
-  if (!promemoria) return;
+  const riquadri = Array.from(document.querySelectorAll('.h24-promemoria')) as HTMLElement[];
+  if (riquadri.length === 0) return;
 
   const mese = meseDaDichiarare();
   const registrato = incassi.find(i => i.mese === mese);
   const serve = !registrato || !registrato.dichiarato;
 
-  promemoria.classList.toggle('is-hidden', !serve);
-
-  if (!serve || !notaPromemoria) return;
-
-  notaPromemoria.textContent = registrato
-    ? `${nomeMese(mese)} è chiuso con ${formatCurrency(registrato.importo)}: resta da dichiarare.`
+  const nota = registrato
+    ? `${nomeMese(mese)} è chiuso con ${euro(registrato.importo)}: resta da dichiarare.`
     : `${nomeMese(mese)} è concluso e non ha ancora un incasso registrato.`;
+
+  riquadri.forEach(r => {
+    r.classList.toggle('is-hidden', !serve);
+    const dove = r.querySelector('.h24-promemoria-nota');
+    if (dove && serve) dove.textContent = nota;
+  });
 }
 
 /** Notifica una volta sola per mese: riaprire l'app non la fa ripartire */
@@ -287,6 +297,14 @@ function macchinaScelta(): Distributore {
   return scelta && DISTRIBUTORI.includes(scelta) ? scelta : 'vari';
 }
 
+/** Prima quello che manca: è la lista della spesa per il prossimo giro */
+function ordinaProdotti(): void {
+  prodotti.sort((a, b) => {
+    if ((a.pacchiMancanti > 0) !== (b.pacchiMancanti > 0)) return a.pacchiMancanti > 0 ? -1 : 1;
+    return a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' });
+  });
+}
+
 async function aggiungi(): Promise<void> {
   const nome = campoNome?.value?.trim() || '';
   const macchina = macchinaScelta();
@@ -307,13 +325,21 @@ async function aggiungi(): Promise<void> {
     return;
   }
 
-  const mancanti = Math.max(parseInt(campoMancanti?.value?.trim() || '0', 10) || 0, 0);
+  const perPacco = parseInt(campoPerPacco?.value?.trim() || '', 10);
+
+  if (!perPacco || perPacco < 1) {
+    mostraAvviso(avviso, 'Scrivi quanti pezzi ci sono in un pacco: serve a sapere quanto esce.');
+    return;
+  }
+
+  const pacchi = Math.max(parseInt(campoPacchi?.value?.trim() || '0', 10) || 0, 0);
 
   mostraAvviso(avviso, '');
   campoNome.value = '';
-  if (campoMancanti) campoMancanti.value = '';
+  if (campoPerPacco) campoPerPacco.value = '';
+  if (campoPacchi) campoPacchi.value = '';
 
-  const voce = await aggiungiProdotto(nome, macchina, mancanti);
+  const voce = await aggiungiProdotto(nome, macchina, perPacco, pacchi);
 
   prodotti.push(voce);
   ordinaProdotti();
@@ -321,30 +347,90 @@ async function aggiungi(): Promise<void> {
   campoNome.focus();
 }
 
-/** Prima quello che manca: è la lista della spesa per il prossimo giro */
-function ordinaProdotti(): void {
-  prodotti.sort((a, b) => {
-    if ((a.mancanti > 0) !== (b.mancanti > 0)) return a.mancanti > 0 ? -1 : 1;
-    return a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' });
-  });
-}
-
 /**
- * Cambia i pezzi mancanti di un prodotto.
+ * Cambia i pacchi mancanti di un prodotto.
  * L'elenco non si riordina qui: mentre si scrive, la riga schizzerebbe via.
  */
-function cambiaMancanti(prodotto: ProdottoH24, valore: number, riga: HTMLElement): void {
-  const mancanti = Math.max(valore, 0);
+function cambiaPacchi(prodotto: ProdottoH24, valore: number, riga: HTMLElement): void {
+  const pacchi = Math.max(valore, 0);
 
-  prodotto.mancanti = mancanti;
-  riga.classList.toggle('is-da-portare', mancanti > 0);
+  prodotto.pacchiMancanti = pacchi;
+  riga.classList.toggle('is-da-portare', pacchi > 0);
 
-  const totale = prodotti.reduce((s, p) => s + Math.max(p.mancanti, 0), 0);
-  if (totaleMancanti) totaleMancanti.textContent = String(totale);
-  if (pulsanteRifornito) pulsanteRifornito.classList.toggle('is-hidden', totale === 0);
-  segnala('h24', totale);
+  const pezzi = pezziDiUnProdotto(prodotto);
+  const scheda = riga.querySelector('.h24-scheda');
+  if (scheda) {
+    scheda.innerHTML = `${numero(prodotto.pezziPerPacco)} ${prodotto.pezziPerPacco === 1 ? 'pezzo' : 'pezzi'} per pacco` +
+      (pezzi > 0 ? ` &middot; <b>${numero(pezzi)} pezzi da rimettere</b>` : '');
+  }
 
-  impostaMancanti(prodotto.id, mancanti);
+  const totalePacchi = prodotti.reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
+  const totalePezzi = prodotti.reduce((s, p) => s + pezziDiUnProdotto(p), 0);
+
+  if (totaleMancanti) {
+    totaleMancanti.textContent = numero(totalePacchi);
+    totaleMancanti.title = `${numero(totalePezzi)} pezzi in tutto`;
+  }
+  if (pulsanteRifornito) pulsanteRifornito.classList.toggle('is-hidden', totalePacchi === 0);
+  segnala('h24', totalePacchi);
+
+  impostaPacchiMancanti(prodotto.id, pacchi);
+}
+
+/** Correzione della scheda: nome e pezzi per pacco, al posto della riga */
+function avviaModificaScheda(riga: HTMLElement, prodotto: ProdottoH24): void {
+  riga.innerHTML = `
+    <div class="h24-modifica">
+      <input type="text" class="todo-add-input" data-campo="nome" value="${escapeHtml(prodotto.nome)}" aria-label="Nome del prodotto" />
+      <input type="text" class="todo-add-input h24-campo-quantita" data-campo="perpacco" inputmode="numeric"
+             value="${prodotto.pezziPerPacco}" aria-label="Pezzi per pacco" />
+      <button type="button" class="rub-btn-testo" data-action="salva-scheda">Salva</button>
+    </div>
+  `;
+
+  const inputNome = riga.querySelector('[data-campo="nome"]') as HTMLInputElement;
+  const inputPerPacco = riga.querySelector('[data-campo="perpacco"]') as HTMLInputElement;
+
+  inputNome.focus();
+  inputNome.setSelectionRange(inputNome.value.length, inputNome.value.length);
+
+  let concluso = false;
+
+  const conferma = (salva: boolean) => {
+    if (concluso) return;
+    concluso = true;
+
+    const nome = inputNome.value.trim();
+    const perPacco = parseInt(inputPerPacco.value.trim(), 10);
+
+    if (salva && nome && perPacco > 0 && (nome !== prodotto.nome || perPacco !== prodotto.pezziPerPacco)) {
+      prodotto.nome = nome;
+      prodotto.pezziPerPacco = perPacco;
+      ordinaProdotti();
+      modificaScheda(prodotto.id, nome, perPacco);
+    }
+
+    renderProdotti();
+  };
+
+  riga.querySelector('[data-action="salva-scheda"]')?.addEventListener('mousedown', e => {
+    // Il click arriverebbe dopo il blur, che ha già chiuso la modifica
+    e.preventDefault();
+    conferma(true);
+  });
+
+  [inputNome, inputPerPacco].forEach(campo => {
+    campo.addEventListener('keydown', e => {
+      if (e.key === 'Enter') conferma(true);
+      if (e.key === 'Escape') conferma(false);
+    });
+  });
+
+  riga.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (!riga.contains(document.activeElement)) conferma(true);
+    }, 0);
+  });
 }
 
 async function salvaIncassoDelMese(): Promise<void> {
@@ -373,12 +459,17 @@ async function salvaIncassoDelMese(): Promise<void> {
   renderPromemoria();
 }
 
-export async function caricaH24(): Promise<void> {
+export async function caricaProdottiH24(): Promise<void> {
   if (!listaProdotti) return;
 
-  [prodotti, incassi] = await Promise.all([elencaProdotti(), elencaIncassi()]);
-
+  prodotti = await elencaProdotti();
   renderProdotti();
+}
+
+export async function caricaIncassiH24(): Promise<void> {
+  if (!listaIncassi) return;
+
+  incassi = await elencaIncassi();
   renderIncassi();
   renderPromemoria();
 }
@@ -388,7 +479,7 @@ export async function caricaH24(): Promise<void> {
  * Va chiamata all'avvio: è il modo per accorgersene il primo del mese.
  */
 export async function controllaDichiarazioneH24(): Promise<void> {
-  if (!listaProdotti) return;
+  if (!listaIncassi) return;
 
   try {
     incassi = await elencaIncassi();
@@ -400,6 +491,18 @@ export async function controllaDichiarazioneH24(): Promise<void> {
   }
 }
 
+/** Il pallino sul menu si accende anche senza aprire la scheda dei prodotti */
+export async function controllaScorteH24(): Promise<void> {
+  if (!listaProdotti) return;
+
+  try {
+    prodotti = await elencaProdotti();
+    renderProdotti();
+  } catch (err) {
+    console.warn('Controllo scorte rimandato:', err);
+  }
+}
+
 export function initH24(): void {
   if (!listaProdotti) return;
 
@@ -407,7 +510,7 @@ export function initH24(): void {
 
   pulsanteAggiungi?.addEventListener('click', aggiungi);
 
-  [campoNome, campoMancanti].forEach(campo => {
+  [campoNome, campoPerPacco, campoPacchi].forEach(campo => {
     campo?.addEventListener('keydown', e => {
       if (e.key === 'Enter') aggiungi();
     });
@@ -420,14 +523,22 @@ export function initH24(): void {
   });
 
   pulsanteRifornito?.addEventListener('click', async () => {
-    prodotti = prodotti.map(p => ({ ...p, mancanti: 0 }));
+    // Quello che si rimette dentro è quello che è uscito: si scrive prima di
+    // azzerare, altrimenti il conto delle vendite andrebbe perso
+    const rimessi = prodotti.filter(p => p.pacchiMancanti > 0);
+
+    prodotti = prodotti.map(p => ({ ...p, pacchiMancanti: 0 }));
     renderProdotti();
+
+    await registraRifornimento(rimessi);
     await azzeraMancanti();
   });
 
-  document.getElementById('btn-h24-vai-incassi')?.addEventListener('click', () => {
-    listaIncassi?.closest('.card-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    campoImporto?.focus();
+  document.querySelectorAll('.btn-h24-vai-incassi').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const voce = document.querySelector('[data-tab="tab-h24-incassi"]') as HTMLButtonElement | null;
+      voce?.click();
+    });
   });
 
   // Un solo gestore per elenco: le righe si ridisegnano di continuo
@@ -442,8 +553,12 @@ export function initH24(): void {
       const macchina = pulsante.closest('.h24-macchina')?.getAttribute('data-macchina') as Distributore | null;
       if (!macchina) return;
 
-      prodotti = prodotti.map(p => (p.distributore === macchina ? { ...p, mancanti: 0 } : p));
+      const rimessi = prodotti.filter(p => p.distributore === macchina && p.pacchiMancanti > 0);
+
+      prodotti = prodotti.map(p => (p.distributore === macchina ? { ...p, pacchiMancanti: 0 } : p));
       renderProdotti();
+
+      await registraRifornimento(rimessi);
       await azzeraMancanti(macchina);
       return;
     }
@@ -459,23 +574,28 @@ export function initH24(): void {
       return;
     }
 
+    if (azione === 'modifica') {
+      avviaModificaScheda(riga, prodotto);
+      return;
+    }
+
     const passo = azione === 'piu' ? 1 : -1;
-    cambiaMancanti(prodotto, prodotto.mancanti + passo, riga);
+    cambiaPacchi(prodotto, prodotto.pacchiMancanti + passo, riga);
 
     const campo = riga.querySelector('.h24-campo-mancanti') as HTMLInputElement | null;
-    if (campo) campo.value = prodotto.mancanti > 0 ? String(prodotto.mancanti) : '';
+    if (campo) campo.value = prodotto.pacchiMancanti > 0 ? String(prodotto.pacchiMancanti) : '';
   });
 
   listaProdotti.addEventListener('input', e => {
     const campo = e.target as HTMLInputElement;
-    if (campo.getAttribute('data-action') !== 'mancanti') return;
+    if (campo.getAttribute('data-action') !== 'pacchi') return;
 
     const riga = campo.closest('.h24-riga') as HTMLElement | null;
     const prodotto = prodotti.find(p => p.id === riga?.getAttribute('data-id'));
     if (!riga || !prodotto) return;
 
     const scritti = parseInt(campo.value.trim(), 10);
-    cambiaMancanti(prodotto, isNaN(scritti) ? 0 : scritti, riga);
+    cambiaPacchi(prodotto, isNaN(scritti) ? 0 : scritti, riga);
   });
 
   listaProdotti.addEventListener('change', e => {

@@ -125,6 +125,11 @@
       </span>
     </div>
 
+    <!-- Il menu è diviso in due: sopra la tabaccheria, sotto i distributori.
+         Sono due attività distinte e mescolarle allungava un elenco unico in
+         cui non si trovava più niente. -->
+    <p class="hotdog-gruppo">Tabaccheria</p>
+
     <div class="hotdog-menu-items">
       <!-- Voce riservata a chi amministra: resta nascosta finché il profilo
            non ha admin a true -->
@@ -133,13 +138,6 @@
         <div class="hotdog-text">
           <strong>Dashboard</strong>
           <span>Incassi medi mensili e statistiche</span>
-        </div>
-      </button>
-      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-h24" hidden>
-        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/></svg></span>
-        <div class="hotdog-text">
-          <strong>Distributori H24 <span class="nav-badge" id="badge-menu-h24" hidden></span></strong>
-          <span>Cosa manca e incassi da dichiarare</span>
         </div>
       </button>
       <button type="button" class="hotdog-menu-item active" data-tab="tab-incassi">
@@ -178,6 +176,32 @@
         </div>
       </button>
     </div>
+
+    <p class="hotdog-gruppo solo-admin" hidden>H24</p>
+
+    <div class="hotdog-menu-items">
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-h24-dashboard" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Dashboard H24</strong>
+          <span>Incassi mese per mese e cosa vende</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-h24-prodotti" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Cosa manca <span class="nav-badge" id="badge-menu-h24" hidden></span></strong>
+          <span>Prodotti e pacchi da portare</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-h24-incassi" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 0 0-5.5 2.5 3.5 3.5 0 0 0 5.5 2.5"/><path d="M8 11h4"/><path d="M8 13h4"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Incassi mensili</strong>
+          <span>Totali del mese e dichiarazione</span>
+        </div>
+      </button>
+    </div>
   </div>
   <div id="hotdog-backdrop" class="hotdog-backdrop"></div>
 
@@ -186,9 +210,6 @@
     <div class="nav-tabs-container">
       <button type="button" class="nav-tab-item solo-admin" data-tab="tab-dashboard" hidden>
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span> Dashboard
-      </button>
-      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-h24" hidden>
-        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/></svg></span> Distributori H24 <span class="nav-badge" id="badge-nav-h24" hidden></span>
       </button>
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
