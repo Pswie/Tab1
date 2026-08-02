@@ -45,6 +45,9 @@ let mesi: MeseIncasso[] = [];
 let incassiH24: IncassoH24[] = [];
 let periodo: Periodo = '12';
 
+/** Il mese aperto nella scheda in alto: si parte da quello in corso */
+let meseAperto = meseCorrente();
+
 /** Un caricamento più lento di un altro non deve riscrivere sopra il più recente */
 let versioneCaricamento = 0;
 
@@ -52,9 +55,13 @@ const pannello = document.getElementById('tab-dashboard') as HTMLDivElement;
 const stato = document.getElementById('dash-stato') as HTMLParagraphElement;
 
 const nomeMeseCorrente = document.getElementById('dash-mese-nome') as HTMLSpanElement;
+const titoloMese = document.getElementById('dash-mese-titolo') as HTMLSpanElement;
+const etichettaHero = document.getElementById('dash-hero-etichetta') as HTMLSpanElement;
 const totaleMese = document.getElementById('dash-mese-totale') as HTMLSpanElement;
 const notaMese = document.getElementById('dash-mese-nota') as HTMLSpanElement;
 const riquadriMese = document.getElementById('dash-riquadri-mese') as HTMLDivElement;
+const btnMeseIndietro = document.getElementById('btn-mese-indietro') as HTMLButtonElement;
+const btnMeseAvanti = document.getElementById('btn-mese-avanti') as HTMLButtonElement;
 
 const totalePeriodo = document.getElementById('dash-periodo-totale') as HTMLSpanElement;
 const riquadriMedie = document.getElementById('dash-riquadri-medie') as HTMLDivElement;
@@ -112,38 +119,61 @@ function giornateDelPeriodo(elenco: MeseIncasso[]): GiornataIncasso[] {
 }
 
 /**
- * Il mese che si sta facendo: quanto è entrato finora, come sta andando e
- * dove arriverebbe di questo passo.
+ * La scheda del mese aperto.
+ *
+ * Di solito è quello in corso, ma con le frecce si torna indietro: per un mese
+ * già chiuso la proiezione non ha senso e lascia il posto al confronto con il
+ * mese prima, che invece si può fare per intero.
  */
-function renderMeseInCorso(): void {
+function renderMeseAperto(): void {
   const oggi = getTodayDateString();
   const corrente = meseCorrente();
-  const mese = mesi.find(m => m.mese === corrente);
+  const inCorso = meseAperto === corrente;
+  const mese = mesi.find(m => m.mese === meseAperto);
 
-  if (nomeMeseCorrente) nomeMeseCorrente.textContent = nomeMese(corrente);
+  if (nomeMeseCorrente) nomeMeseCorrente.textContent = nomeMese(meseAperto);
+  if (titoloMese) titoloMese.textContent = inCorso ? 'Mese in corso' : 'Mese concluso';
+  if (etichettaHero) {
+    etichettaHero.textContent = inCorso ? 'Incasso del mese finora' : 'Incasso del mese';
+  }
+
+  // Indietro fino al primo mese registrato, avanti non oltre quello in corso
+  const primo = mesi.length > 0 ? mesi[0].mese : corrente;
+  if (btnMeseIndietro) btnMeseIndietro.disabled = meseAperto <= primo;
+  if (btnMeseAvanti) btnMeseAvanti.disabled = inCorso;
 
   if (!mese) {
     if (totaleMese) totaleMese.textContent = euroTondo(0);
-    if (notaMese) notaMese.textContent = 'Nessuna chiusura registrata questo mese.';
+    if (notaMese) {
+      notaMese.textContent = inCorso
+        ? 'Nessuna chiusura registrata questo mese.'
+        : `Nessuna chiusura registrata in ${nomeMese(meseAperto)}.`;
+    }
     if (riquadriMese) riquadriMese.innerHTML = '';
     return;
   }
 
   if (totaleMese) totaleMese.textContent = euroTondo(mese.totale);
 
-  const ultima = giornate.filter(g => g.data.slice(0, 7) === corrente).slice(-1)[0];
+  const delMese = giornate.filter(g => g.data.slice(0, 7) === meseAperto);
+  const ultima = delMese[delMese.length - 1];
+
   if (notaMese) {
-    notaMese.textContent = ultima
+    notaMese.textContent = inCorso && ultima
       ? `Aggiornato all'ultima chiusura registrata: ${dataBreve(ultima.data)}`
-      : '';
+      : `${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`;
   }
 
-  const giorno = Number(oggi.slice(8, 10));
-  const scorso = mesePrecedente(corrente);
-  const scorsoStessoPeriodo = totaleFinoAlGiorno(giornate, scorso, giorno);
-  const proiezione = proiezioneMese(mese, oggi);
+  const scorso = mesePrecedente(meseAperto);
+  const meseScorso = mesi.find(m => m.mese === scorso);
 
-  if (riquadriMese) {
+  if (!riquadriMese) return;
+
+  if (inCorso) {
+    const giorno = Number(oggi.slice(8, 10));
+    const scorsoStessoPeriodo = totaleFinoAlGiorno(giornate, scorso, giorno);
+    const proiezione = proiezioneMese(mese, oggi);
+
     riquadriMese.innerHTML = riquadriHtml([
       {
         etichetta: 'Media al giorno',
@@ -167,7 +197,37 @@ function renderMeseInCorso(): void {
         nota: `Su ${numero(giorno)} ${giorno === 1 ? 'giorno trascorso' : 'giorni trascorsi'}`
       }
     ]);
+    return;
   }
+
+  // Mese chiuso: si può confrontare per intero, e la giornata migliore è certa
+  const { migliore } = estremi(delMese);
+
+  riquadriMese.innerHTML = riquadriHtml([
+    {
+      etichetta: 'Media al giorno',
+      valore: euroTondo(mese.mediaGiornaliera),
+      nota: `Su ${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`
+    },
+    {
+      etichetta: 'Mese prima',
+      valore: meseScorso ? euroTondo(meseScorso.totale) : '—',
+      nota: meseScorso ? meseScorso.etichetta : 'Nessun dato sul mese prima',
+      delta: meseScorso ? variazione(mese.totale, meseScorso.totale, 'sul mese prima') : ''
+    },
+    {
+      etichetta: 'Giornata migliore',
+      valore: migliore ? euroTondo(migliore.totale) : '—',
+      nota: migliore ? formatDateItalian(migliore.data) : 'Nessuna giornata registrata'
+    },
+    {
+      etichetta: 'Distributori H24',
+      valore: euroTondo(incassiH24.find(i => i.mese === meseAperto)?.importo ?? 0),
+      nota: incassiH24.some(i => i.mese === meseAperto)
+        ? 'Incasso delle macchine in questo mese'
+        : 'Nessun incasso registrato per questo mese'
+    }
+  ]);
 }
 
 /** Le medie mensili, il grafico dei mesi e la tabella con gli stessi numeri */
@@ -396,7 +456,7 @@ function render(): void {
     btn.setAttribute('aria-selected', String(attivo));
   });
 
-  renderMeseInCorso();
+  renderMeseAperto();
 
   const elencoMesi = mesiDelPeriodo();
   renderIncassiMensili(elencoMesi);
@@ -466,5 +526,18 @@ export function initDashboard(): void {
       periodo = (btn.getAttribute('data-periodo') as Periodo) || '12';
       render();
     });
+  });
+
+  btnMeseIndietro?.addEventListener('click', () => {
+    meseAperto = meseIndietro(meseAperto);
+    renderMeseAperto();
+  });
+
+  btnMeseAvanti?.addEventListener('click', () => {
+    // Avanti non si va oltre il mese in corso: dopo non c'è niente da vedere
+    if (meseAperto >= meseCorrente()) return;
+
+    meseAperto = meseIndietro(meseAperto, -1);
+    renderMeseAperto();
   });
 }

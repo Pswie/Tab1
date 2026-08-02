@@ -255,13 +255,24 @@
       <section class="card-section">
         <div class="section-header">
           <div class="section-title">
-            <span>Mese in corso</span>
+            <span id="dash-mese-titolo">Mese in corso</span>
           </div>
-          <span class="dash-periodo-nome" id="dash-mese-nome">&mdash;</span>
+
+          <!-- Si gira fra i mesi: la scheda mostra quello aperto, non per
+               forza quello che si sta facendo -->
+          <div class="dash-mese-nav">
+            <button type="button" class="date-arrow-btn" id="btn-mese-indietro" aria-label="Mese precedente">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <span class="dash-periodo-nome" id="dash-mese-nome">&mdash;</span>
+            <button type="button" class="date-arrow-btn" id="btn-mese-avanti" aria-label="Mese successivo">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
         </div>
 
         <div class="dash-hero">
-          <span class="dash-hero-etichetta">Incasso del mese finora</span>
+          <span class="dash-hero-etichetta" id="dash-hero-etichetta">Incasso del mese finora</span>
           <span class="dash-hero-valore" id="dash-mese-totale">&mdash;</span>
           <span class="dash-hero-nota" id="dash-mese-nota"></span>
         </div>
