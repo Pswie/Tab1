@@ -88,12 +88,11 @@ const pulsantiPeriodo = Array.from(
  * filtro, e chi aveva imparato "Tabacchi è blu" leggerebbe il grafico storto.
  */
 const SERIE_DELLE_VOCI: Record<string, number> = {
-  Tabacchi: 1,
   Sisal: 2,
   Mooney: 3,
   Lis: 4,
   Printer: 5,
-  'Lotto netto': 6
+  'Lotto giocato': 6
 };
 
 /** "2026-08-02" -> "2 agosto" */
@@ -437,8 +436,28 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
         nota: `L'8% di ${euroTondo(fuori.lottoEntrate)} giocati: è un compenso, non entra nel totale`
       },
       {
+        etichetta: 'Vincite Lotto pagate',
+        valore: euroTondo(fuori.lottoUscite),
+        nota: 'Soldi del concessionario: passano dalla cassa e non tolgono niente'
+      },
+      {
+        etichetta: 'Tabacchi',
+        valore: euroTondo(fuori.tabacchi),
+        nota: 'Registrato a parte, fuori dal totale'
+      },
+      {
         etichetta: 'Incasso bar',
         valore: euroTondo(fuori.bar),
+        nota: 'Registrato a parte, fuori dal totale'
+      },
+      {
+        etichetta: 'Gratta e Vinci',
+        valore: euroTondo(fuori.grattaEVinci),
+        nota: 'Registrato a parte, fuori dal totale'
+      },
+      {
+        etichetta: 'Logista',
+        valore: euroTondo(fuori.logista),
         nota: 'Registrato a parte, fuori dal totale'
       },
       {

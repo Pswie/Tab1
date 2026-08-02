@@ -63,9 +63,10 @@ let shiftData: Record<ShiftKey, ShiftValues> = {
   pomeriggio: emptyShiftValues()
 };
 
-// Attività in elenco: restano finché non vengono svolte, non ripartono ogni giorno
+// Attività in elenco: restano finché non vengono svolte, non ripartono ogni giorno.
+// Le completate escono dall'elenco dopo una settimana (vedi services/attivita)
 let currentTodos: TodoItem[] = [];
-let todoFilter: TodoFilter = 'tutte';
+let todoFilter: TodoFilter = 'da-fare';
 
 
 // Attività già viste su questo dispositivo, per riconoscere quelle nuove
@@ -85,8 +86,13 @@ const btnDataIndietro = document.getElementById('btn-data-indietro') as HTMLButt
 const btnDataAvanti = document.getElementById('btn-data-avanti') as HTMLButtonElement;
 const btnDataOggi = document.getElementById('btn-data-oggi') as HTMLButtonElement;
 
-const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
+const inputContanti = document.getElementById('input-contanti') as HTMLInputElement;
+
+// Voci registrate per le sole statistiche, fuori da ogni totale
+const inputLogista = document.getElementById('input-logista') as HTMLInputElement;
+const inputGrattaEVinci = document.getElementById('input-gratta-e-vinci') as HTMLInputElement;
 const inputBar = document.getElementById('input-bar') as HTMLInputElement;
+const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
 const inputSisal = document.getElementById('input-sisal') as HTMLInputElement;
 const inputMooney = document.getElementById('input-mooney') as HTMLInputElement;
 const inputLis = document.getElementById('input-lis') as HTMLInputElement;
@@ -203,15 +209,18 @@ function toggleSign(campo: HTMLInputElement) {
  */
 function getShiftValuesFromInputs(): ShiftValues {
   return {
-    tabacchi: parseInputValue(inputTabacchi.value),
-    bar: parseInputValue(inputBar.value),
+    contanti: parseInputValue(inputContanti.value),
     sisal: parseInputValue(inputSisal.value),
     mooney: parseInputValue(inputMooney.value),
     lis: parseInputValue(inputLis.value),
     printer: parseInputValue(inputPrinter.value),
     lotto_entrate: parseInputValue(inputLottoEntrate.value),
     lotto_uscite: parseInputValue(inputLottoUscite.value),
-    fatture: parseInputValue(inputFatture.value)
+    fatture: parseInputValue(inputFatture.value),
+    logista: parseInputValue(inputLogista.value),
+    gratta_e_vinci: parseInputValue(inputGrattaEVinci.value),
+    bar: parseInputValue(inputBar.value),
+    tabacchi: parseInputValue(inputTabacchi.value)
   };
 }
 
@@ -219,8 +228,7 @@ function getShiftValuesFromInputs(): ShiftValues {
  * Riversa nel form le voci di un turno
  */
 function applyShiftValuesToInputs(values: ShiftValues) {
-  inputTabacchi.value = formatInputValue(values.tabacchi);
-  inputBar.value = formatInputValue(values.bar);
+  inputContanti.value = formatInputValue(values.contanti);
   inputSisal.value = formatInputValue(values.sisal);
   inputMooney.value = formatInputValue(values.mooney);
   inputLis.value = formatInputValue(values.lis);
@@ -228,6 +236,10 @@ function applyShiftValuesToInputs(values: ShiftValues) {
   inputLottoEntrate.value = formatInputValue(values.lotto_entrate);
   inputLottoUscite.value = formatInputValue(values.lotto_uscite);
   inputFatture.value = formatInputValue(values.fatture);
+  inputLogista.value = formatInputValue(values.logista);
+  inputGrattaEVinci.value = formatInputValue(values.gratta_e_vinci);
+  inputBar.value = formatInputValue(values.bar);
+  inputTabacchi.value = formatInputValue(values.tabacchi);
 
   updateSignStates();
 }
@@ -444,9 +456,8 @@ async function loadDateIntoForm(dateStr: string) {
  * Attività visibili in base al filtro attivo
  */
 function getTodosVisibili(): TodoItem[] {
-  if (todoFilter === 'da-fare') return currentTodos.filter(t => !t.completed);
   if (todoFilter === 'fatte') return currentTodos.filter(t => t.completed);
-  return currentTodos;
+  return currentTodos.filter(t => !t.completed);
 }
 
 /**
@@ -492,10 +503,10 @@ function renderTodoList() {
   const visibili = getTodosVisibili();
 
   if (visibili.length === 0) {
-    const messaggio = totale === 0
-      ? 'Nessuna attività per oggi. Aggiungine una qui sopra.'
-      : todoFilter === 'fatte'
-        ? 'Nessuna attività completata.'
+    const messaggio = todoFilter === 'fatte'
+      ? "Nessuna attività completata nell'ultima settimana."
+      : totale === 0
+        ? 'Nessuna attività per oggi. Aggiungine una qui sopra.'
         : 'Tutto fatto.';
 
     todoListContainer.innerHTML = `
@@ -590,6 +601,7 @@ function setupTodoListDelegation() {
 
     if (azione === 'toggle') {
       todo.completed = !todo.completed;
+      todo.completedAt = todo.completed ? new Date().toISOString() : undefined;
       renderTodoList();
       impostaCompletata(todo.id, todo.completed);
     } else if (azione === 'edit') {
@@ -730,7 +742,7 @@ async function addNewTodoItem() {
   segnaTodoVisti(currentTodos.map(t => t.id));
 
   // Una nuova attività è da fare: col filtro sulle completate sparirebbe subito
-  if (todoFilter === 'fatte') todoFilter = 'tutte';
+  if (todoFilter === 'fatte') todoFilter = 'da-fare';
 
   renderTodoList();
 }
@@ -896,8 +908,9 @@ function setupEventListeners() {
   });
 
   const allInputs = [
-    inputTabacchi, inputBar, inputSisal, inputMooney, inputLis, inputPrinter,
-    inputLottoEntrate, inputLottoUscite, inputFatture
+    inputContanti, inputSisal, inputMooney, inputLis, inputPrinter,
+    inputLottoEntrate, inputLottoUscite, inputFatture,
+    inputLogista, inputGrattaEVinci, inputBar, inputTabacchi
   ];
 
   allInputs.forEach(input => {
@@ -937,7 +950,7 @@ function setupEventListeners() {
 
   todoFilterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      todoFilter = (btn.getAttribute('data-filter') as TodoFilter) || 'tutte';
+      todoFilter = (btn.getAttribute('data-filter') as TodoFilter) || 'da-fare';
       renderTodoList();
     });
   });

@@ -73,15 +73,18 @@ function italianDateShifted(days: number, instant: Date = new Date()): string {
  */
 export function emptyShiftValues(): ShiftValues {
   return {
-    tabacchi: 0,
-    bar: 0,
+    contanti: 0,
     sisal: 0,
     mooney: 0,
     lis: 0,
     printer: 0,
     lotto_entrate: 0,
     lotto_uscite: 0,
-    fatture: 0
+    fatture: 0,
+    logista: 0,
+    gratta_e_vinci: 0,
+    bar: 0,
+    tabacchi: 0
   };
 }
 
@@ -89,10 +92,14 @@ export function emptyShiftValues(): ShiftValues {
  * Indica se una chiusura è stata compilata. Serve a distinguere "serale a zero
  * perché non ancora inserita" da "serale davvero pari a zero": finché la sera è
  * vuota il totale della giornata resta quello del pranzo.
+ *
+ * Le voci da statistiche restano fuori: da sole non chiudono un turno, e un
+ * incasso del bar segnato per primo farebbe passare per fatta una chiusura
+ * che nessuno ha ancora compilato.
  */
 export function isShiftFilled(values: ShiftValues): boolean {
   return (
-    values.tabacchi !== 0 ||
+    values.contanti !== 0 ||
     values.sisal !== 0 ||
     values.mooney !== 0 ||
     values.lis !== 0 ||
@@ -122,18 +129,25 @@ export function calculateLottoNet(entrate: number, uscite: number): number {
 
 /**
  * Totale di una singola lettura:
- * Tabacchi + Sisal + Lis + Printer + Lotto Netto - Fatture
+ * Contanti + Sisal + Mooney + Lis + Printer + Lotto giocato - Fatture
+ *
+ * Del Lotto entra il giocato e non il netto: il negozio incassa su quello che
+ * viene giocato, mentre le vincite pagate allo sportello sono soldi del
+ * concessionario che passano dalla cassa e non tolgono niente all'incasso.
+ *
+ * Tabacchi, bar, logista e gratta e vinci non compaiono: si registrano per le
+ * statistiche e basta.
  */
 export function calculateShiftReading(values: ShiftValues): number {
   const safe = (n: number) => (isNaN(n) ? 0 : n);
 
   const totale =
-    safe(values.tabacchi) +
+    safe(values.contanti) +
     safe(values.sisal) +
     safe(values.mooney) +
     safe(values.lis) +
     safe(values.printer) +
-    (safe(values.lotto_entrate) - safe(values.lotto_uscite)) -
+    safe(values.lotto_entrate) -
     safe(values.fatture);
 
   return Number(totale.toFixed(2));

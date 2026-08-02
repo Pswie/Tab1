@@ -806,8 +806,11 @@ body {
   white-space: nowrap;
 }
 
-/* BLOCCO MOVIMENTI LOTTO (BOX BIANCO CON ELEGANTI RIGHINI SOTTILI VERDE E ROSSO) */
-.lotto-box-container {
+/* BLOCCO MOVIMENTI LOTTO (BOX BIANCO CON ELEGANTI RIGHINI SOTTILI VERDE E ROSSO)
+   e blocco dei dati da statistiche, che ne ripete la forma: sono due gruppi di
+   voci a sé stanti dentro allo stesso form, e si leggono meglio uguali. */
+.lotto-box-container,
+.stat-box-container {
   background-color: #FFFFFF;
   border: 1.5px solid var(--border-pearl);
   border-radius: var(--radius-inner);
@@ -818,7 +821,8 @@ body {
   box-shadow: var(--shadow-ambient);
 }
 
-.lotto-box-header {
+.lotto-box-header,
+.stat-box-header {
   font-size: 0.85rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -826,6 +830,29 @@ body {
   color: var(--text-secondary);
   padding-bottom: 0.5rem;
   border-bottom: 1px dashed var(--border-pearl);
+}
+
+/* L'avvertenza sta sulla stessa riga del titolo finché ci sta, poi va a capo:
+   è la ragione d'essere del box e deve leggersi prima dei campi. */
+.stat-box-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+
+.stat-box-nota {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+/* Righino neutro: questi importi si guardano, non fanno conto */
+.stat-field {
+  border-left: 3.5px solid var(--border-strong);
 }
 
 /* Lotto Entrate: Righino Verde Sottile Elegante */

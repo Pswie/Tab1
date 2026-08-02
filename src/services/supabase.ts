@@ -32,15 +32,18 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
   if (!row) return emptyShiftValues();
 
   return {
-    tabacchi: Number(row.tabacchi) || 0,
-    bar: Number(row.bar) || 0,
+    contanti: Number(row.contanti) || 0,
     sisal: Number(row.sisal) || 0,
     mooney: Number(row.mooney) || 0,
     lis: Number(row.lis) || 0,
     printer: Number(row.printer) || 0,
     lotto_entrate: Number(row.lotto_entrate) || 0,
     lotto_uscite: Number(row.lotto_uscite) || 0,
-    fatture: Number(row.fatture) || 0
+    fatture: Number(row.fatture) || 0,
+    logista: Number(row.logista) || 0,
+    gratta_e_vinci: Number(row.gratta_e_vinci) || 0,
+    bar: Number(row.bar) || 0,
+    tabacchi: Number(row.tabacchi) || 0
   };
 }
 

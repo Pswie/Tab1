@@ -49,9 +49,18 @@ CREATE TABLE IF NOT EXISTS public.daily_logs (
 ALTER TABLE public.daily_logs
     ADD COLUMN IF NOT EXISTS mooney NUMERIC(10,2) NOT NULL DEFAULT 0.00;
 
--- Incasso del bar: si registra soltanto, non entra in nessun totale
+-- Contanti in cassa: entra nel totale del turno al posto dei tabacchi
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS contanti NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+
+-- Voci da statistiche: si registrano soltanto, non entrano in nessun totale.
+-- Ci sono finiti anche i tabacchi, che prima facevano parte del totale.
 ALTER TABLE public.daily_logs
     ADD COLUMN IF NOT EXISTS bar NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS logista NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS gratta_e_vinci NUMERIC(10,2) NOT NULL DEFAULT 0.00;
 
 -- Le colonne calcolate si rifanno ogni volta: non contengono dati propri,
 -- quindi rigenerarle è l'unico modo per aggiornarne la formula senza rischi.
@@ -60,10 +69,12 @@ ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_netto;
 ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_aggio;
 ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS compilato;
 
+-- Del Lotto entra il GIOCATO e non il netto: è su quello che il negozio
+-- prende l'aggio, mentre le vincite pagate sono soldi del concessionario che
+-- passano dalla cassa e non tolgono niente all'incasso.
 ALTER TABLE public.daily_logs
     ADD COLUMN totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
-        (tabacchi + sisal + mooney + lis + printer
-            + (lotto_entrate - lotto_uscite)) - fatture
+        (contanti + sisal + mooney + lis + printer + lotto_entrate) - fatture
     ) STORED;
 
 ALTER TABLE public.daily_logs
@@ -77,10 +88,12 @@ ALTER TABLE public.daily_logs
     ) STORED;
 
 -- Distingue "turno a zero perché non ancora inserito" da "turno davvero a zero".
--- Il bar resta fuori: da solo non fa considerare chiuso un turno.
+-- Le voci da statistiche restano fuori: da sole non fanno considerare chiuso
+-- un turno che nessuno ha ancora compilato.
 ALTER TABLE public.daily_logs
     ADD COLUMN compilato BOOLEAN GENERATED ALWAYS AS (
-        tabacchi <> 0 OR sisal <> 0 OR mooney <> 0 OR lis <> 0 OR printer <> 0
+        contanti <> 0 OR sisal <> 0 OR mooney <> 0
+        OR lis <> 0 OR printer <> 0
         OR lotto_entrate <> 0 OR lotto_uscite <> 0 OR fatture <> 0
     ) STORED;
 
@@ -130,6 +143,12 @@ ALTER TABLE public.daily_logs_storico
     ADD COLUMN IF NOT EXISTS mooney NUMERIC(10,2);
 ALTER TABLE public.daily_logs_storico
     ADD COLUMN IF NOT EXISTS bar NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS contanti NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS logista NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS gratta_e_vinci NUMERIC(10,2);
 
 CREATE INDEX IF NOT EXISTS idx_storico_date
     ON public.daily_logs_storico(date DESC, turno, versione DESC);
@@ -152,10 +171,12 @@ AS $$
 DECLARE
     prossima_versione INTEGER;
 BEGIN
-    IF (OLD.tabacchi, OLD.bar, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
+    IF (OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
+        OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
         OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture)
        IS DISTINCT FROM
-       (NEW.tabacchi, NEW.bar, NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
+       (NEW.contanti, NEW.tabacchi, NEW.bar, NEW.logista, NEW.gratta_e_vinci,
+        NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
         NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture)
     THEN
         IF OLD.updated_at < now() - INTERVAL '2 hours' THEN
@@ -166,11 +187,13 @@ BEGIN
 
             INSERT INTO public.daily_logs_storico (
                 date, turno, versione, ferma_dal,
-                tabacchi, bar, sisal, mooney, lis, printer,
+                contanti, tabacchi, bar, logista, gratta_e_vinci,
+                sisal, mooney, lis, printer,
                 lotto_entrate, lotto_uscite, fatture, totale_turno
             ) VALUES (
                 OLD.date, OLD.turno, prossima_versione, OLD.updated_at,
-                OLD.tabacchi, OLD.bar, OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
+                OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
+                OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
                 OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.totale_turno
             );
         END IF;

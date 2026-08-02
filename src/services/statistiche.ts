@@ -3,7 +3,6 @@ import { ShiftRow, ShiftValues } from '../types';
 import {
   calculateDayTotals,
   calculateLottoAggio,
-  calculateLottoNet,
   emptyShiftValues,
   getTodayDateString,
   isShiftFilled
@@ -84,7 +83,7 @@ async function leggiChiusure(): Promise<ShiftRow[]> {
     const { data, error } = await supabase
       .from('daily_logs')
       // Solo le colonne che servono: su migliaia di righe il resto è peso inutile
-      .select('date, turno, tabacchi, bar, sisal, mooney, lis, printer, lotto_entrate, lotto_uscite, fatture')
+      .select('date, turno, contanti, tabacchi, sisal, mooney, lis, printer, lotto_entrate, lotto_uscite, fatture, bar, logista, gratta_e_vinci')
       // L'ordinamento comprende il turno: due righe con la stessa data
       // potrebbero altrimenti cambiare posto fra una pagina e l'altra, e una
       // chiusura finirebbe letta due volte o mai
@@ -107,29 +106,35 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
   if (!riga) return emptyShiftValues();
 
   return {
-    tabacchi: Number(riga.tabacchi) || 0,
-    bar: Number(riga.bar) || 0,
+    contanti: Number(riga.contanti) || 0,
     sisal: Number(riga.sisal) || 0,
     mooney: Number(riga.mooney) || 0,
     lis: Number(riga.lis) || 0,
     printer: Number(riga.printer) || 0,
     lotto_entrate: Number(riga.lotto_entrate) || 0,
     lotto_uscite: Number(riga.lotto_uscite) || 0,
-    fatture: Number(riga.fatture) || 0
+    fatture: Number(riga.fatture) || 0,
+    logista: Number(riga.logista) || 0,
+    gratta_e_vinci: Number(riga.gratta_e_vinci) || 0,
+    bar: Number(riga.bar) || 0,
+    tabacchi: Number(riga.tabacchi) || 0
   };
 }
 
 function sommaVoci(elenco: ShiftValues[]): ShiftValues {
   return elenco.reduce<ShiftValues>((somma, v) => ({
-    tabacchi: somma.tabacchi + v.tabacchi,
-    bar: somma.bar + v.bar,
+    contanti: somma.contanti + v.contanti,
     sisal: somma.sisal + v.sisal,
     mooney: somma.mooney + v.mooney,
     lis: somma.lis + v.lis,
     printer: somma.printer + v.printer,
     lotto_entrate: somma.lotto_entrate + v.lotto_entrate,
     lotto_uscite: somma.lotto_uscite + v.lotto_uscite,
-    fatture: somma.fatture + v.fatture
+    fatture: somma.fatture + v.fatture,
+    logista: somma.logista + v.logista,
+    gratta_e_vinci: somma.gratta_e_vinci + v.gratta_e_vinci,
+    bar: somma.bar + v.bar,
+    tabacchi: somma.tabacchi + v.tabacchi
   }), emptyShiftValues());
 }
 
@@ -319,21 +324,20 @@ export function mediePerGiornoSettimana(giornate: GiornataIncasso[]): MediaSetti
 /**
  * Quanto ha portato ogni servizio nel periodo.
  *
- * Il Lotto entra come netto, cioè entrate meno uscite, perché è così che
- * finisce nel totale della giornata. Bar, fatture e aggio restano fuori: il
- * bar non è mai stato sommato, le fatture si sottraggono e l'aggio è un
- * compenso, non un incasso di cassa.
+ * Del Lotto si guarda il GIOCATO: è la cifra su cui il negozio prende l'aggio,
+ * ed è così che entra nel totale della giornata. Restano fuori le voci da
+ * statistiche, che hanno un riquadro loro, le fatture, che si sottraggono, e
+ * l'aggio, che è un compenso e non un incasso di cassa.
  */
 export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizione[] {
   const voci = sommaVoci(giornate.map(g => g.voci));
 
   const righe = [
-    { etichetta: 'Tabacchi', valore: voci.tabacchi },
     { etichetta: 'Sisal', valore: voci.sisal },
     { etichetta: 'Mooney', valore: voci.mooney },
     { etichetta: 'Lis', valore: voci.lis },
     { etichetta: 'Printer', valore: voci.printer },
-    { etichetta: 'Lotto netto', valore: calculateLottoNet(voci.lotto_entrate, voci.lotto_uscite) }
+    { etichetta: 'Lotto giocato', valore: voci.lotto_entrate }
   ];
 
   // La quota si misura sulla somma di quello che entra: le voci in perdita
@@ -347,18 +351,26 @@ export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizio
 
 /** Le altre voci della giornata, quelle che nel totale non entrano */
 export function vociFuoriTotale(giornate: GiornataIncasso[]): {
+  tabacchi: number;
   bar: number;
+  grattaEVinci: number;
+  logista: number;
   fatture: number;
   aggioLotto: number;
   lottoEntrate: number;
+  lottoUscite: number;
 } {
   const voci = sommaVoci(giornate.map(g => g.voci));
 
   return {
+    tabacchi: voci.tabacchi,
     bar: voci.bar,
+    grattaEVinci: voci.gratta_e_vinci,
+    logista: voci.logista,
     fatture: voci.fatture,
     aggioLotto: giornate.reduce((s, g) => s + g.aggioLotto, 0),
-    lottoEntrate: voci.lotto_entrate
+    lottoEntrate: voci.lotto_entrate,
+    lottoUscite: voci.lotto_uscite
   };
 }
 

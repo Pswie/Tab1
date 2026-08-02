@@ -343,7 +343,7 @@
         <figure class="dash-figura">
           <figcaption class="dash-figura-titolo">
             Da dove arriva l'incasso
-            <span class="dash-figura-nota">Il Lotto entra come netto, cioè entrate meno uscite</span>
+            <span class="dash-figura-nota">Del Lotto conta il giocato: è su quello che si prende l'aggio</span>
           </figcaption>
           <div class="dash-barre" id="dash-ripartizione"></div>
         </figure>
@@ -584,26 +584,64 @@
         </div>
 
         <form id="daily-log-form" class="entry-form-grid" onsubmit="event.preventDefault();">
-          <!-- Tabacchi -->
+          <!-- Contanti: prima voce della chiusura, entra nel totale -->
           <div class="field-item">
             <div class="field-label-group">
-              <span class="field-label">Tabacchi</span>
+              <span class="field-label">Contanti</span>
             </div>
             <div class="input-currency-wrapper">
               <span class="currency-symbol">€</span>
-              <input type="text" id="input-tabacchi" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              <input type="text" id="input-contanti" class="currency-input" placeholder="0,00" inputmode="decimal" />
             </div>
           </div>
 
-          <!-- Bar: valore informativo, non entra in nessun totale -->
-          <div class="field-item">
-            <div class="field-label-group">
-              <span class="field-label">Bar</span>
-              <span class="field-subtext">Non sommato al totale</span>
+          <!-- BLOCCO DATI PER LE STATISTICHE
+               Si registrano per essere guardati nella dashboard: nessuno di
+               questi importi entra nel totale del turno o della giornata. -->
+          <div class="stat-box-container">
+            <div class="stat-box-header">
+              <span>Dati per le statistiche</span>
+              <span class="stat-box-nota">Nessuno entra nei totali</span>
             </div>
-            <div class="input-currency-wrapper">
-              <span class="currency-symbol">€</span>
-              <input type="text" id="input-bar" class="currency-input" placeholder="0,00" inputmode="decimal" />
+
+            <div class="field-item stat-field">
+              <div class="field-label-group">
+                <span class="field-label">Logista</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-logista" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="field-item stat-field">
+              <div class="field-label-group">
+                <span class="field-label">Gratta e Vinci</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-gratta-e-vinci" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="field-item stat-field">
+              <div class="field-label-group">
+                <span class="field-label">Bar</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-bar" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="field-item stat-field">
+              <div class="field-label-group">
+                <span class="field-label">Tabacchi</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-tabacchi" class="currency-input" placeholder="0,00" inputmode="decimal" />
+              </div>
             </div>
           </div>
 
@@ -677,10 +715,11 @@
               <span>Movimenti Lotto</span>
             </div>
 
-            <!-- Lotto Entrate (Righino Verde Sottile Elegante) -->
+            <!-- Lotto Entrate: il giocato, l'unica voce del Lotto che fa totale -->
             <div class="field-item lotto-field-entrate">
               <div class="field-label-group">
                 <span class="field-label label-lotto-green">Lotto Entrate</span>
+                <span class="field-subtext">Il giocato: entra nel totale</span>
               </div>
               <div class="input-currency-wrapper">
                 <span class="currency-symbol symbol-lotto-green">€</span>
@@ -688,10 +727,11 @@
               </div>
             </div>
 
-            <!-- Lotto Uscite (Righino Rosso Sottile Elegante) -->
+            <!-- Lotto Uscite: vincite pagate, si registrano e basta -->
             <div class="field-item lotto-field-uscite">
               <div class="field-label-group">
                 <span class="field-label label-lotto-red">Lotto Uscite</span>
+                <span class="field-subtext">Non sottratto al totale</span>
               </div>
               <div class="input-currency-wrapper">
                 <span class="currency-symbol symbol-lotto-red">€</span>
@@ -919,8 +959,7 @@
 
         <!-- Filtri -->
         <div class="todo-filters" role="tablist">
-          <button type="button" class="todo-filter is-active" data-filter="tutte">Tutte</button>
-          <button type="button" class="todo-filter" data-filter="da-fare">Da fare</button>
+          <button type="button" class="todo-filter is-active" data-filter="da-fare">Da fare</button>
           <button type="button" class="todo-filter" data-filter="fatte">Fatte</button>
         </div>
 
@@ -991,12 +1030,8 @@
         </thead>
         <tbody>
           <tr>
-            <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
-            <td class="doc-amount" data-doc="mattina.tabacchi">0,00</td>
-          </tr>
-          <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Bar (non sommato al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="mattina.bar">0,00</td>
+            <td><span class="doc-symbol sym-plus">+</span> Contanti</td>
+            <td class="doc-amount" data-doc="mattina.contanti">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
@@ -1018,16 +1053,16 @@
             <td colspan="2">MOVIMENTI LOTTO</td>
           </tr>
           <tr>
-            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate (giocato)</td>
             <td class="doc-amount" data-doc="mattina.lotto_entrate">0,00</td>
           </tr>
           <tr>
-            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
-            <td class="doc-amount" data-doc="mattina.lotto_uscite">0,00</td>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Uscite (non sottratte al totale)</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_uscite">0,00</td>
           </tr>
-          <tr class="doc-subtotal-row">
-            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
-            <td class="doc-amount" data-doc="mattina.lotto_netto"><strong>0,00</strong></td>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Netto (non sommato al totale)</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_netto">0,00</td>
           </tr>
           <tr class="doc-section-divider">
             <td colspan="2">USCITE E FATTURE</td>
@@ -1035,6 +1070,25 @@
           <tr>
             <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
             <td class="doc-amount" data-doc="mattina.fatture">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">DATI PER LE STATISTICHE (NON SOMMATI)</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Logista</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.logista">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Gratta e Vinci</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.gratta_e_vinci">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Bar</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.bar">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Tabacchi</em></td>
+            <td class="doc-amount doc-note-row" data-doc="mattina.tabacchi">0,00</td>
           </tr>
         </tbody>
         <tfoot>
@@ -1059,12 +1113,8 @@
         </thead>
         <tbody>
           <tr>
-            <td><span class="doc-symbol sym-plus">+</span> Tabacchi</td>
-            <td class="doc-amount" data-doc="pomeriggio.tabacchi">0,00</td>
-          </tr>
-          <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Bar (non sommato al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="pomeriggio.bar">0,00</td>
+            <td><span class="doc-symbol sym-plus">+</span> Contanti</td>
+            <td class="doc-amount" data-doc="pomeriggio.contanti">0,00</td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
@@ -1086,20 +1136,20 @@
             <td colspan="2">MOVIMENTI LOTTO</td>
           </tr>
           <tr>
-            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate</td>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-plus">+</span> Lotto Entrate (giocato)</td>
             <td class="doc-amount" data-doc="pomeriggio.lotto_entrate">0,00</td>
           </tr>
           <tr>
-            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
-            <td class="doc-amount" data-doc="pomeriggio.lotto_uscite">0,00</td>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Uscite (non sottratte al totale)</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_uscite">0,00</td>
           </tr>
-          <tr class="doc-subtotal-row">
-            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
-            <td class="doc-amount" data-doc="pomeriggio.lotto_netto"><strong>0,00</strong></td>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Netto (non sommato al totale)</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_netto">0,00</td>
           </tr>
           <tr>
             <td style="padding-left: 1.25rem;" class="doc-note-row">
-              <em>Aggio stimato Lotto (8% non sommato al totale)</em>
+              <em>Aggio stimato Lotto (8% del giocato, non sommato)</em>
             </td>
             <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_aggio">0,00</td>
           </tr>
@@ -1109,6 +1159,25 @@
           <tr>
             <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
             <td class="doc-amount" data-doc="pomeriggio.fatture">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">DATI PER LE STATISTICHE (NON SOMMATI)</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Logista</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.logista">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Gratta e Vinci</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.gratta_e_vinci">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Bar</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.bar">0,00</td>
+          </tr>
+          <tr>
+            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Tabacchi</em></td>
+            <td class="doc-amount doc-note-row" data-doc="pomeriggio.tabacchi">0,00</td>
           </tr>
         </tbody>
         <tfoot>

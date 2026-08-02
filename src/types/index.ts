@@ -26,7 +26,7 @@ export interface InventarioGiornata {
 }
 
 /** Filtro attivo nella lista delle attività */
-export type TodoFilter = 'tutte' | 'da-fare' | 'fatte';
+export type TodoFilter = 'da-fare' | 'fatte';
 
 export interface TodoItem {
   id: string;
@@ -34,6 +34,12 @@ export interface TodoItem {
   completed: boolean;
   createdBy: string;
   createdAt: string;
+  /**
+   * Quando è stata segnata come fatta, in formato ISO.
+   * Serve a farla sparire dall'elenco dopo una settimana: senza, le completate
+   * si accumulerebbero per sempre.
+   */
+  completedAt?: string;
 }
 
 /**
@@ -49,18 +55,30 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
  * ATTENZIONE: i valori del turno pomeriggio sono LETTURE CUMULATIVE dell'intera
  * giornata, non del solo pomeriggio. Il secondo turno si ricava per differenza:
  * con mattina 1000 e pomeriggio 2000 il secondo turno vale 1000.
+ *
+ * Non tutte le voci fanno il totale: bar, logista, gratta e vinci e tabacchi
+ * si registrano soltanto per guardarli nelle statistiche. Del Lotto entra il
+ * giocato, perché è su quello che il negozio prende l'aggio; le vincite pagate
+ * si segnano ma non si sottraggono.
  */
 export interface ShiftValues {
-  tabacchi: number;
-  /** Incasso del bar: si registra e basta, non entra in nessun totale */
-  bar: number;
+  /** Contanti in cassa */
+  contanti: number;
   sisal: number;
   mooney: number;
   lis: number;
   printer: number;
+  /** Il giocato: è questa la voce che entra nel totale */
   lotto_entrate: number;
+  /** Vincite pagate: si registrano, ma dal totale non si tolgono */
   lotto_uscite: number;
   fatture: number;
+
+  // Voci da statistiche: nessuna di queste entra in un totale
+  logista: number;
+  gratta_e_vinci: number;
+  bar: number;
+  tabacchi: number;
 }
 
 /**
