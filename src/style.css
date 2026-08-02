@@ -67,6 +67,11 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+
+  /* La striscia dei tasti di sistema di Android prende il colore di quello che
+     ci sta sotto: senza questa fascia resterebbe della tinta del tema, cioè
+     rossa. In alto il rosso è voluto, in fondo no. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==========================================================================
