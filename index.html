@@ -2,7 +2,10 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- viewport-fit=cover: senza, su Android la striscia in fondo allo schermo
+       resta della tinta del tema, cioè rossa. Con questo la pagina arriva fin
+       sotto e la riempie del proprio colore, mentre in alto il rosso resta. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>iNES caffè - Registro Contabile & Gestione Incassi</title>
 
   <!-- Icone del sito e dell'app installata su telefono -->
@@ -344,32 +347,125 @@
 
         <div class="dash-riquadri" id="dash-riquadri-extra"></div>
       </section>
+
+      <!-- Negozio e distributori uno accanto all'altro: i due totali restano
+           distinti perché si dichiarano separatamente -->
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Negozio e distributori</span>
+          </div>
+        </div>
+
+        <div class="dash-riquadri" id="dash-riquadri-insieme"></div>
+      </section>
     </div>
 
-    <!-- TAB RISERVATA: DISTRIBUTORI H24
-         Le macchine lavorano anche a negozio chiuso e hanno due registri
-         propri: cosa manca dentro e quanto hanno incassato ogni mese. -->
-    <div id="tab-h24" class="tab-pane">
-      <!-- Compare dal primo del mese finché la dichiarazione non è segnata fatta -->
-      <div class="h24-promemoria is-hidden" id="h24-promemoria">
+    <!-- TAB RISERVATA: DASHBOARD H24
+         I distributori hanno conti propri e si guardano da soli. -->
+    <div id="tab-h24-dashboard" class="tab-pane">
+      <div class="h24-promemoria is-hidden">
         <div class="h24-promemoria-testo">
           <strong>Dichiarazione distributori</strong>
-          <span id="h24-promemoria-nota"></span>
+          <span class="h24-promemoria-nota"></span>
         </div>
-        <button type="button" class="h24-promemoria-btn" id="btn-h24-vai-incassi">Vai agli incassi</button>
+        <button type="button" class="h24-promemoria-btn btn-h24-vai-incassi">Vai agli incassi</button>
       </div>
 
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Distributori H24</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Incassato quest'anno</span>
+            <span id="h24d-totale-anno" class="inv-total-value">&mdash;</span>
+          </div>
+        </div>
+
+        <p class="dash-nota-forte" id="h24d-nota-anno"></p>
+      </section>
+
+      <div class="dash-filtro">
+        <span class="dash-filtro-etichetta">Periodo osservato</span>
+        <div class="dash-periodi" role="tablist" aria-label="Periodo osservato">
+          <button type="button" class="dash-periodo is-active" data-periodo="12" role="tab" aria-selected="true">Ultimi 12 mesi</button>
+          <button type="button" class="dash-periodo" data-periodo="anno" role="tab" aria-selected="false">Anno in corso</button>
+          <button type="button" class="dash-periodo" data-periodo="tutto" role="tab" aria-selected="false">Tutto</button>
+        </div>
+      </div>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Incassi mese per mese</span>
+          </div>
+        </div>
+
+        <div class="dash-riquadri" id="h24d-riquadri"></div>
+
+        <figure class="dash-figura">
+          <figcaption class="dash-figura-titolo">
+            Incasso per mese
+            <span class="dash-figura-nota">Il mese in corso è segnato in rosso</span>
+          </figcaption>
+          <div class="dash-grafico" id="h24d-grafico-mesi"></div>
+        </figure>
+
+        <div class="dash-tabella-guscio">
+          <table class="dash-tabella">
+            <caption class="dash-tabella-titolo">Resoconto mese per mese</caption>
+            <thead>
+              <tr>
+                <th scope="col">Mese</th>
+                <th scope="col" class="dash-num">Incasso</th>
+                <th scope="col" class="dash-num">Sul mese prima</th>
+                <th scope="col">Dichiarazione</th>
+              </tr>
+            </thead>
+            <tbody id="h24d-tabella-mesi"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Cosa vende di più</span>
+          </div>
+        </div>
+
+        <p class="dash-nota-forte" id="h24d-nota-vendite"></p>
+
+        <div class="dash-riquadri" id="h24d-macchine"></div>
+
+        <figure class="dash-figura">
+          <figcaption class="dash-figura-titolo">
+            I dieci più venduti
+            <span class="dash-figura-nota">Pezzi rimessi dentro, cioè quelli usciti</span>
+          </figcaption>
+          <div class="dash-barre" id="h24d-venduti"></div>
+        </figure>
+      </section>
+    </div>
+
+    <!-- TAB RISERVATA: COSA MANCA NELLE MACCHINE
+         Si compila in piedi davanti al distributore: si conta a pacchi,
+         perché è così che si compra. -->
+    <div id="tab-h24-prodotti" class="tab-pane">
       <section class="card-section">
         <div class="section-header">
           <div class="section-title">
             <span>Cosa manca nelle macchine</span>
           </div>
           <div class="inv-total-box">
-            <span class="inv-total-label">Pezzi da portare</span>
+            <span class="inv-total-label">Pacchi da portare</span>
             <span id="h24-totale-mancanti" class="inv-total-value">0</span>
           </div>
         </div>
 
+        <!-- La scheda del prodotto: senza i pezzi per pacco non si sa quanto
+             è davvero uscito dalla macchina -->
         <div class="h24-aggiungi h24-aggiungi-prodotto">
           <input type="text" id="h24-nome-prodotto" class="todo-add-input" placeholder="Nome del prodotto" autocomplete="off" />
           <select id="h24-distributore" class="todo-add-input" aria-label="In quale macchina">
@@ -377,8 +473,12 @@
             <option value="snack">Snack</option>
             <option value="vari">Vari</option>
           </select>
-          <input type="text" id="h24-mancanti-prodotto" class="todo-add-input h24-campo-quantita"
-                 inputmode="numeric" placeholder="Mancanti" autocomplete="off" />
+          <input type="text" id="h24-pezzi-per-pacco" class="todo-add-input h24-campo-quantita"
+                 inputmode="numeric" placeholder="Pz/pacco" autocomplete="off"
+                 aria-label="Pezzi per pacco" />
+          <input type="text" id="h24-pacchi-mancanti" class="todo-add-input h24-campo-quantita"
+                 inputmode="numeric" placeholder="Pacchi" autocomplete="off"
+                 aria-label="Pacchi mancanti" />
           <button type="button" id="btn-h24-aggiungi" class="todo-add-btn">Aggiungi</button>
         </div>
 
@@ -388,10 +488,20 @@
 
         <div class="todo-footer">
           <button type="button" id="btn-h24-rifornito" class="todo-link-btn is-hidden">
-            Ho rifornito tutto: azzera i mancanti
+            Ho rifornito tutto: azzera i pacchi mancanti
           </button>
         </div>
       </section>
+    </div>
+
+    <!-- TAB RISERVATA: INCASSI MENSILI DEI DISTRIBUTORI -->
+    <div id="tab-h24-incassi" class="tab-pane">
+      <div class="h24-promemoria is-hidden">
+        <div class="h24-promemoria-testo">
+          <strong>Dichiarazione distributori</strong>
+          <span class="h24-promemoria-nota"></span>
+        </div>
+      </div>
 
       <section class="card-section">
         <div class="section-header">
