@@ -133,6 +133,13 @@ const btnNotifiche = document.getElementById('btn-notifiche') as HTMLButtonEleme
 const notaNotifiche = document.getElementById('notifiche-nota') as HTMLParagraphElement;
 
 /**
+ * Apre una scheda dall'esterno del gestore dei menu.
+ * Serve a far partire chi amministra dalla propria dashboard invece che
+ * dalla pagina di inserimento, che a lui non serve per prima.
+ */
+let schedaDaAprire: ((tabId: string) => void) | null = null;
+
+/**
  * Aggiorna il badge di stato dell'auto-salvataggio
  */
 function updateSaveStatusBadge(status: SaveStatus) {
@@ -843,34 +850,31 @@ function setupEventListeners() {
       const targetTabId = target.getAttribute('data-tab');
       if (!targetTabId) return;
 
-      tabButtons.forEach(b => {
-        if (b.getAttribute('data-tab') === targetTabId) {
-          b.classList.add('active');
-        } else {
-          b.classList.remove('active');
-        }
-      });
-
-      tabPanes.forEach(pane => {
-        if (pane.id === targetTabId) {
-          pane.classList.add('active');
-        } else {
-          pane.classList.remove('active');
-        }
-      });
-
-      if (targetTabId === 'tab-todos') apriSchedaTodo();
-      if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
-      if (targetTabId === 'tab-rubrica') caricaRubrica();
-      if (targetTabId === 'tab-dashboard') caricaDashboard();
-      if (targetTabId === 'tab-h24-dashboard') caricaDashboardH24();
-      if (targetTabId === 'tab-h24-prodotti') caricaProdottiH24();
-      if (targetTabId === 'tab-h24-incassi') caricaIncassiH24();
-
+      apriScheda(targetTabId);
       closeHotdogMenu();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
+
+  function apriScheda(targetTabId: string) {
+    tabButtons.forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-tab') === targetTabId);
+    });
+
+    tabPanes.forEach(pane => {
+      pane.classList.toggle('active', pane.id === targetTabId);
+    });
+
+    if (targetTabId === 'tab-todos') apriSchedaTodo();
+    if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
+    if (targetTabId === 'tab-rubrica') caricaRubrica();
+    if (targetTabId === 'tab-dashboard') caricaDashboard();
+    if (targetTabId === 'tab-h24-dashboard') caricaDashboardH24();
+    if (targetTabId === 'tab-h24-prodotti') caricaProdottiH24();
+    if (targetTabId === 'tab-h24-incassi') caricaIncassiH24();
+  }
+
+  schedaDaAprire = apriScheda;
 
   // Navigazione fra le giornate, riservata a chi amministra
   btnDataIndietro?.addEventListener('click', () => {
@@ -1019,16 +1023,25 @@ async function initApp() {
 
   // I distributori sono roba di chi amministra: a un dipendente non deve
   // nemmeno accendersi il pallino di una scheda che non può aprire
-  if (amministratore()) initH24();
+  if (amministratore()) {
+    initH24();
+    initDashboardH24();
+
+    // Chi amministra apre l'app per guardare come va, non per inserire i turni
+    schedaDaAprire?.('tab-dashboard');
+  }
 
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
   await caricaSoggiorni();
   await caricaRubrica();
 
-  // Il promemoria della dichiarazione si fa vivo qui: è il modo per
-  // accorgersene il primo del mese senza dover aprire la scheda
-  if (amministratore()) await controllaDichiarazioneH24();
+  // Promemoria della dichiarazione e pallino delle scorte si fanno vivi qui:
+  // è il modo per accorgersene senza dover aprire le schede
+  if (amministratore()) {
+    await controllaDichiarazioneH24();
+    await controllaScorteH24();
+  }
   currentTodos = await elencaAttivita();
   segnaTodoVisti(currentTodos.map(t => t.id));
   renderTodoList();
