@@ -324,10 +324,11 @@ export function mediePerGiornoSettimana(giornate: GiornataIncasso[]): MediaSetti
 /**
  * Quanto ha portato ogni servizio nel periodo.
  *
- * Del Lotto si guarda il GIOCATO: è la cifra su cui il negozio prende l'aggio,
- * ed è così che entra nel totale della giornata. Restano fuori le voci da
- * statistiche, che hanno un riquadro loro, le fatture, che si sottraggono, e
- * l'aggio, che è un compenso e non un incasso di cassa.
+ * Del Lotto si guarda il GIOCATO, che è la cifra su cui il negozio prende
+ * l'aggio: nel totale della giornata entra invece il netto, ma qui interessa
+ * quanto movimenta il Lotto, non quanto resta in cassa. Restano fuori le voci
+ * da statistiche, che hanno un riquadro loro, le fatture, che si sottraggono,
+ * e l'aggio, che è un compenso e non un incasso di cassa.
  */
 export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizione[] {
   const voci = sommaVoci(giornate.map(g => g.voci));

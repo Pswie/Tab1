@@ -438,7 +438,7 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
       {
         etichetta: 'Vincite Lotto pagate',
         valore: euroTondo(fuori.lottoUscite),
-        nota: 'Soldi del concessionario: passano dalla cassa e non tolgono niente'
+        nota: 'Escono dalla cassa: già tolte dal totale delle giornate'
       },
       {
         etichetta: 'Tabacchi',

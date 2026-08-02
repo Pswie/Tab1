@@ -69,12 +69,13 @@ ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_netto;
 ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS lotto_aggio;
 ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS compilato;
 
--- Del Lotto entra il GIOCATO e non il netto: è su quello che il negozio
--- prende l'aggio, mentre le vincite pagate sono soldi del concessionario che
--- passano dalla cassa e non tolgono niente all'incasso.
+-- Del Lotto entra il netto: le vincite pagate escono davvero dalla cassa e
+-- vanno tolte. Il giocato, la cifra su cui si prende l'aggio, si guarda nella
+-- dashboard e non nel totale del turno.
 ALTER TABLE public.daily_logs
     ADD COLUMN totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
-        (contanti + sisal + mooney + lis + printer + lotto_entrate) - fatture
+        (contanti + sisal + mooney + lis + printer
+            + (lotto_entrate - lotto_uscite)) - fatture
     ) STORED;
 
 ALTER TABLE public.daily_logs

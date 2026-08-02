@@ -129,11 +129,11 @@ export function calculateLottoNet(entrate: number, uscite: number): number {
 
 /**
  * Totale di una singola lettura:
- * Contanti + Sisal + Mooney + Lis + Printer + Lotto giocato - Fatture
+ * Contanti + Sisal + Mooney + Lis + Printer + Lotto Netto - Fatture
  *
- * Del Lotto entra il giocato e non il netto: il negozio incassa su quello che
- * viene giocato, mentre le vincite pagate allo sportello sono soldi del
- * concessionario che passano dalla cassa e non tolgono niente all'incasso.
+ * Del Lotto entra il netto: le vincite pagate allo sportello escono davvero
+ * dalla cassa, quindi vanno tolte. Il giocato, che è la cifra su cui si prende
+ * l'aggio, si guarda nella dashboard e non qui.
  *
  * Tabacchi, bar, logista e gratta e vinci non compaiono: si registrano per le
  * statistiche e basta.
@@ -147,7 +147,7 @@ export function calculateShiftReading(values: ShiftValues): number {
     safe(values.mooney) +
     safe(values.lis) +
     safe(values.printer) +
-    safe(values.lotto_entrate) -
+    (safe(values.lotto_entrate) - safe(values.lotto_uscite)) -
     safe(values.fatture);
 
   return Number(totale.toFixed(2));

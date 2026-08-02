@@ -719,7 +719,7 @@
             <div class="field-item lotto-field-entrate">
               <div class="field-label-group">
                 <span class="field-label label-lotto-green">Lotto Entrate</span>
-                <span class="field-subtext">Il giocato: entra nel totale</span>
+                <span class="field-subtext">Il giocato: è il dato delle statistiche</span>
               </div>
               <div class="input-currency-wrapper">
                 <span class="currency-symbol symbol-lotto-green">€</span>
@@ -731,7 +731,7 @@
             <div class="field-item lotto-field-uscite">
               <div class="field-label-group">
                 <span class="field-label label-lotto-red">Lotto Uscite</span>
-                <span class="field-subtext">Non sottratto al totale</span>
+                <span class="field-subtext">Vincite pagate: sottratte dal totale</span>
               </div>
               <div class="input-currency-wrapper">
                 <span class="currency-symbol symbol-lotto-red">€</span>
@@ -1057,12 +1057,12 @@
             <td class="doc-amount" data-doc="mattina.lotto_entrate">0,00</td>
           </tr>
           <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Uscite (non sottratte al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_uscite">0,00</td>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
+            <td class="doc-amount" data-doc="mattina.lotto_uscite">0,00</td>
           </tr>
-          <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Netto (non sommato al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="mattina.lotto_netto">0,00</td>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="mattina.lotto_netto"><strong>0,00</strong></td>
           </tr>
           <tr class="doc-section-divider">
             <td colspan="2">USCITE E FATTURE</td>
@@ -1140,12 +1140,12 @@
             <td class="doc-amount" data-doc="pomeriggio.lotto_entrate">0,00</td>
           </tr>
           <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Uscite (non sottratte al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_uscite">0,00</td>
+            <td style="padding-left: 1.25rem;"><span class="doc-symbol sym-minus">-</span> Lotto Uscite</td>
+            <td class="doc-amount" data-doc="pomeriggio.lotto_uscite">0,00</td>
           </tr>
-          <tr>
-            <td class="doc-note-row" style="padding-left: 1.25rem;"><em>Lotto Netto (non sommato al totale)</em></td>
-            <td class="doc-amount doc-note-row" data-doc="pomeriggio.lotto_netto">0,00</td>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Lotto Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="pomeriggio.lotto_netto"><strong>0,00</strong></td>
           </tr>
           <tr>
             <td style="padding-left: 1.25rem;" class="doc-note-row">

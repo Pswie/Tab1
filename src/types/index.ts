@@ -58,8 +58,8 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
  *
  * Non tutte le voci fanno il totale: bar, logista, gratta e vinci e tabacchi
  * si registrano soltanto per guardarli nelle statistiche. Del Lotto entra il
- * giocato, perché è su quello che il negozio prende l'aggio; le vincite pagate
- * si segnano ma non si sottraggono.
+ * netto, perché le vincite pagate escono davvero dalla cassa; il giocato è la
+ * cifra su cui si prende l'aggio e si guarda nella dashboard.
  */
 export interface ShiftValues {
   /** Contanti in cassa */
@@ -68,9 +68,9 @@ export interface ShiftValues {
   mooney: number;
   lis: number;
   printer: number;
-  /** Il giocato: è questa la voce che entra nel totale */
+  /** Il giocato: è la cifra che si guarda nella dashboard */
   lotto_entrate: number;
-  /** Vincite pagate: si registrano, ma dal totale non si tolgono */
+  /** Vincite pagate: escono dalla cassa, quindi si tolgono dal totale */
   lotto_uscite: number;
   fatture: number;
 
