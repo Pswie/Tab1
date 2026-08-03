@@ -275,6 +275,26 @@ function toggleSign(campo: HTMLInputElement) {
  */
 let fattureDelTurno: VoceFattura[] = [];
 
+/**
+ * Porta nel pomeriggio le fatture della mattina.
+ *
+ * Il pomeriggio è una lettura cumulativa dell'intera giornata: se le fatture
+ * della mattina non ci fossero, il totale del secondo turno se le ritroverebbe
+ * dentro come se fossero un incasso. Si copiano invece di sommarle di nascosto
+ * così restano in elenco, si vedono e si possono togliere.
+ *
+ * Si copiano solo in un pomeriggio che di fatture non ne ha ancora nessuna:
+ * chi ha già scritto qualcosa lì dentro sa quello che ha fatto.
+ */
+function ereditaFattureDallaMattina(): void {
+  const pomeriggio = shiftData.pomeriggio;
+
+  if (pomeriggio.fatture_voci.length > 0 || pomeriggio.fatture !== 0) return;
+
+  pomeriggio.fatture_voci = vociFattura(shiftData.mattina).map(v => ({ ...v }));
+  pomeriggio.fatture = totaleFatture(pomeriggio.fatture_voci);
+}
+
 function mostraAvvisoFatture(testo: string): void {
   if (!avvisoFatture) return;
 
@@ -490,7 +510,12 @@ function updateCalculatedDisplays() {
       : '—';
   }
   if (displayTotaleGiornata) {
-    displayTotaleGiornata.textContent = formatCurrency(totals.totaleGiornata);
+    // Sul turno 1 la giornata vale il turno 1. Chi sta ancora chiudendo la
+    // mattina non deve vedersi muovere il totale sotto gli occhi per via di
+    // quello che qualcun altro sta scrivendo nel pomeriggio.
+    displayTotaleGiornata.textContent = formatCurrency(
+      currentShift === 'mattina' ? totals.totaleTurnoMattina : totals.totaleGiornata
+    );
   }
 
   mostraControlloCassa(
@@ -551,6 +576,8 @@ function switchShift(shift: ShiftKey) {
 
   syncCurrentShiftFromInputs();
   currentShift = shift;
+
+  if (currentShift === 'pomeriggio') ereditaFattureDallaMattina();
 
   applyShiftValuesToInputs(shiftData[currentShift]);
   renderShiftSelector();
@@ -664,9 +691,7 @@ async function loadDateIntoForm(dateStr: string) {
     pomeriggio: log ? log.pomeriggio : emptyShiftValues()
   };
 
-  if (log) {
-  } else {
-  }
+  if (currentShift === 'pomeriggio') ereditaFattureDallaMattina();
 
   applyShiftValuesToInputs(shiftData[currentShift]);
   renderShiftSelector();
@@ -1235,7 +1260,7 @@ function riempiFatturePerStampa(turno: ShiftKey, values: ShiftValues) {
 
   riquadro.style.display = voci.length === 0 ? 'none' : '';
 
-  // Con tante fatture si passa a tre colonne: il foglio resta uno solo
+  // Con tante fatture si passa a quattro colonne: il foglio resta uno solo
   corpo.classList.toggle('is-fitto', voci.length > 12);
 
   corpo.innerHTML = voci.map(v => `

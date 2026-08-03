@@ -1471,42 +1471,43 @@ body {
 /* Il riquadro delle fatture in cima al foglio: compatto, perche' la stampa
    deve stare in una pagina sola */
 .doc-fatture {
-  margin-bottom: 0.35rem;
-  padding: 0.25rem 0.45rem;
+  margin-bottom: 0.25rem;
+  padding: 0.18rem 0.35rem;
   border: 1px solid #94A3B8;
   border-radius: 4px;
 }
 
 .doc-fatture-titolo {
-  font-size: 0.68rem;
+  font-size: 0.55rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #0F172A;
-  margin-bottom: 0.15rem;
+  margin-bottom: 0.08rem;
 }
 
 /* Due fatture per riga, e tre quando sono tante: in colonna singola il
    riquadro si mangiava la pagina e spingeva la tabella su un secondo foglio */
 .doc-fatture-elenco {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 1.1rem;
-  font-size: 0.66rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 0.8rem;
+  font-size: 0.56rem;
+  line-height: 1.35;
 }
 
 .doc-fatture-elenco.is-fitto {
-  grid-template-columns: repeat(3, 1fr);
-  font-size: 0.6rem;
+  grid-template-columns: repeat(4, 1fr);
+  font-size: 0.5rem;
 }
 
 .doc-fattura {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.06rem 0;
-  border-bottom: 1px dotted #CBD5E1;
+  gap: 0.35rem;
+  padding: 0;
+  border-bottom: 1px dotted #E2E8F0;
 }
 
 .doc-fattura-nome {
