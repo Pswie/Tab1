@@ -173,10 +173,11 @@ export function calculateShiftReading(values: ShiftValues): number {
 }
 
 /**
- * Lo scarto di un turno: B + Totale del turno - Effettivo contato.
+ * Lo scarto di un turno: Effettivo contato - Totale del turno - B.
  *
  * Dice se quello che si è contato davvero sta con quello che il totale dice
- * che dovrebbe esserci. Positivo vuol dire che manca, negativo che c'è in più.
+ * che dovrebbe esserci, e lo dice dal punto di vista della cassa: positivo
+ * vuol dire che si è trovato di più, negativo che si è trovato di meno.
  *
  * Il totale del turno arriva da fuori perché per il pomeriggio non è la
  * lettura della riga ma la differenza rispetto alla mattina.
@@ -184,7 +185,7 @@ export function calculateShiftReading(values: ShiftValues): number {
 export function calculateShiftDifference(totaleTurno: number, values: ShiftValues): number {
   const safe = (n: number) => (isNaN(n) ? 0 : n);
 
-  return Number((safe(values.b) + totaleTurno - safe(values.effettivo)).toFixed(2));
+  return Number((safe(values.effettivo) - totaleTurno - safe(values.b)).toFixed(2));
 }
 
 /**

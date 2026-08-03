@@ -401,9 +401,10 @@ function mostraControlloCassa(
   // uno scarto pari all'intero turno
   campoDifferenza.textContent = compilato ? formatSignedCurrency(differenza) : '—';
 
-  // Positivo vuol dire che in cassa c'è meno di quello che dovrebbe esserci
-  campoDifferenza.classList.toggle('is-ammanco', compilato && differenza > 0);
-  campoDifferenza.classList.toggle('is-eccedenza', compilato && differenza < 0);
+  // Positivo vuol dire che in cassa si è trovato di più di quello che il
+  // totale dice che dovrebbe esserci; negativo che si è trovato di meno
+  campoDifferenza.classList.toggle('is-eccedenza', compilato && differenza > 0);
+  campoDifferenza.classList.toggle('is-ammanco', compilato && differenza < 0);
 }
 
 /**

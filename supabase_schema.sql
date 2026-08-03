@@ -91,7 +91,7 @@ ALTER TABLE public.daily_logs
 ALTER TABLE public.daily_logs
     ADD COLUMN IF NOT EXISTS b NUMERIC(10,2) NOT NULL DEFAULT 0.00;
 
--- Lo scarto del turno: B + Totale del turno - Effettivo contato.
+-- Lo scarto del turno: Effettivo contato - Totale del turno - B.
 --
 -- Non è una colonna calcolata e lo scrive l'app: per il turno pomeriggio il
 -- totale è la differenza rispetto alla mattina, e una formula che vede solo la

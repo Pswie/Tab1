@@ -176,7 +176,7 @@ function colonnaMancante(messaggio: string): boolean {
  * Scrive solo la riga del turno che si sta compilando: le due chiusure sono
  * righe distinte e indipendenti, così modificarne una non tocca mai l'altra.
  *
- * `differenza` è lo scarto già calcolato (B + Totale turno - Effettivo): lo
+ * `differenza` è lo scarto già calcolato (Effettivo - Totale turno - B): lo
  * passa chi chiama perché per il pomeriggio serve anche la chiusura della
  * mattina, che qui dentro non c'è.
  */

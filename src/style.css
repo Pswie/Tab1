@@ -851,8 +851,9 @@ body {
   white-space: nowrap;
 }
 
-/* Il segno si legge anche dal colore. Positivo vuol dire che in cassa c'è meno
-   di quello che il totale dice: è quello il caso da guardare, quindi rosso. */
+/* Il segno si legge anche dal colore. Negativo vuol dire che in cassa si è
+   trovato meno di quello che il totale dice: è quello il caso da guardare,
+   quindi rosso. */
 .totale-differenza-value.is-ammanco {
   color: var(--ferrari-red);
 }

@@ -85,11 +85,11 @@ export interface ShiftValues {
    * Quanto si è contato davvero alla chiusura del turno.
    *
    * Non entra nel totale del turno: serve a confrontarlo con quello che il
-   * totale dice che dovrebbe esserci. Si toglie nel conto della differenza.
+   * totale dice che dovrebbe esserci, ed è da lui che parte la differenza.
    */
   effettivo: number;
 
-  /** Voce B: si somma nel conto della differenza */
+  /** Voce B: si toglie nel conto della differenza */
   b: number;
 
   // Voci da statistiche: nessuna di queste entra in un totale
@@ -115,7 +115,7 @@ export interface ShiftRow extends ShiftValues {
   compilato?: boolean;
 
   /**
-   * Lo scarto del turno: B + Totale del turno - Effettivo contato.
+   * Lo scarto del turno: Effettivo contato - Totale del turno - B.
    *
    * Lo scrive l'app e non il database: per il turno pomeriggio il totale è la
    * differenza rispetto alla mattina, e una colonna calcolata, che vede solo
@@ -157,7 +157,7 @@ export interface DayTotals {
   pomeriggioCompilato: boolean;
 
   /**
-   * Lo scarto di ogni turno: B + Totale del turno - Effettivo contato.
+   * Lo scarto di ogni turno: Effettivo contato - Totale del turno - B.
    * Resta fuori dal totale della giornata, che continua a essere la somma
    * delle due chiusure.
    */
