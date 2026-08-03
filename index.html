@@ -481,9 +481,20 @@
           <div class="section-title">
             <span>Cosa manca nelle macchine</span>
           </div>
-          <div class="inv-total-box">
-            <span class="inv-total-label">Pacchi da portare</span>
-            <span id="h24-totale-mancanti" class="inv-total-value">0</span>
+
+          <div class="h24-testa-azioni">
+            <!-- I comandi per correggere l'elenco stanno chiusi qui dentro:
+                 davanti alle macchine servono solo i pacchi, e una x premuta
+                 per sbaglio cancella un prodotto -->
+            <button type="button" id="btn-h24-modifica" class="h24-rotella" aria-pressed="false"
+                    title="Correggi l'elenco" aria-label="Mostra i comandi per correggere l'elenco">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.25"/><path d="M19.1 14.1a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.82 2.82l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.46V20a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.82-2.82l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.46-.97H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.46-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.82-2.82l.06.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .97-1.46V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 .97 1.46 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.82 2.82l-.06.06a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.46.97H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.46.97Z"/></svg>
+            </button>
+
+            <div class="inv-total-box">
+              <span class="inv-total-label">Pacchi da portare</span>
+              <span id="h24-totale-mancanti" class="inv-total-value">0</span>
+            </div>
           </div>
         </div>
 

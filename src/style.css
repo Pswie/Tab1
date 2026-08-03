@@ -4964,3 +4964,61 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* La rotellina che apre i comandi per correggere l'elenco */
+.h24-testa-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.h24-rotella {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.h24-rotella .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.h24-rotella:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.h24-rotella:active {
+  transform: scale(0.94);
+}
+
+/* Aperta: si vede che l'elenco è in correzione */
+.h24-rotella.is-active {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+}
+
+.h24-rotella.is-active .icon {
+  transform: rotate(45deg);
+  transition: var(--transition-normal);
+}
+
+/* Sposta, correggi ed elimina restano chiusi finché non si apre la rotellina:
+   davanti alle macchine servono solo i pacchi, e una x premuta per sbaglio
+   cancella un prodotto senza chiedere niente */
+.h24-lista:not(.is-modifica) .h24-azioni {
+  display: none;
+}

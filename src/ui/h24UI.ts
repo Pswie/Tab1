@@ -52,6 +52,7 @@ const campoPerPacco = document.getElementById('h24-pezzi-per-pacco') as HTMLInpu
 const campoPacchi = document.getElementById('h24-pacchi-mancanti') as HTMLInputElement;
 const sceltaDistributore = document.getElementById('h24-distributore') as HTMLSelectElement;
 const pulsanteAggiungi = document.getElementById('btn-h24-aggiungi') as HTMLButtonElement;
+const pulsanteModifica = document.getElementById('btn-h24-modifica') as HTMLButtonElement;
 const pulsanteRifornito = document.getElementById('btn-h24-rifornito') as HTMLButtonElement;
 const avviso = document.getElementById('h24-avviso') as HTMLParagraphElement;
 
@@ -156,7 +157,7 @@ function rigaProdotto(p: ProdottoH24): string {
         <button type="button" class="h24-passo" data-action="piu" aria-label="Un pacco in più di ${escapeHtml(p.nome)}">+</button>
       </div>
 
-      <div class="rub-azioni">
+      <div class="rub-azioni h24-azioni">
         <select class="h24-sposta" data-action="sposta" aria-label="Sposta ${escapeHtml(p.nome)} in un'altra macchina">
           <option value="${p.distributore}">${escapeHtml(NOMI_DISTRIBUTORI[p.distributore])}</option>
           ${altre.map(d => `<option value="${d}">&rarr; ${escapeHtml(NOMI_DISTRIBUTORI[d])}</option>`).join('')}
@@ -606,6 +607,16 @@ export function initH24(): void {
   riempiElencoMesi();
 
   pulsanteAggiungi?.addEventListener('click', aggiungi);
+
+  // La rotellina apre e chiude i comandi per correggere l'elenco. Parte sempre
+  // chiusa: si riapre di proposito, non ci si ritrova dentro.
+  pulsanteModifica?.addEventListener('click', () => {
+    const aperta = listaProdotti.classList.toggle('is-modifica');
+
+    pulsanteModifica.setAttribute('aria-pressed', String(aperta));
+    pulsanteModifica.classList.toggle('is-active', aperta);
+    pulsanteModifica.title = aperta ? 'Nascondi i comandi' : "Correggi l'elenco";
+  });
 
   [campoNome, campoPerPacco, campoPacchi].forEach(campo => {
     campo?.addEventListener('keydown', e => {
