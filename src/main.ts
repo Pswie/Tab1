@@ -1234,11 +1234,15 @@ function riempiFatturePerStampa(turno: ShiftKey, values: ShiftValues) {
   const voci = vociFattura(values);
 
   riquadro.style.display = voci.length === 0 ? 'none' : '';
+
+  // Con tante fatture si passa a tre colonne: il foglio resta uno solo
+  corpo.classList.toggle('is-fitto', voci.length > 12);
+
   corpo.innerHTML = voci.map(v => `
-    <tr>
-      <td>${escapeHtml(v.nome)}</td>
-      <td class="doc-amount">${formatCurrency(v.importo)}</td>
-    </tr>
+    <span class="doc-fattura">
+      <span class="doc-fattura-nome">${escapeHtml(v.nome)}</span>
+      <span class="doc-fattura-importo">${formatCurrency(v.importo)}</span>
+    </span>
   `).join('');
 }
 

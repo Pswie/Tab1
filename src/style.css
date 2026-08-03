@@ -1471,8 +1471,8 @@ body {
 /* Il riquadro delle fatture in cima al foglio: compatto, perche' la stampa
    deve stare in una pagina sola */
 .doc-fatture {
-  margin-bottom: 0.5rem;
-  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.35rem;
+  padding: 0.25rem 0.45rem;
   border: 1px solid #94A3B8;
   border-radius: 4px;
 }
@@ -1486,19 +1486,39 @@ body {
   margin-bottom: 0.15rem;
 }
 
-.doc-fatture-tabella {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.72rem;
+/* Due fatture per riga, e tre quando sono tante: in colonna singola il
+   riquadro si mangiava la pagina e spingeva la tabella su un secondo foglio */
+.doc-fatture-elenco {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.1rem;
+  font-size: 0.66rem;
 }
 
-.doc-fatture-tabella td {
-  padding: 0.08rem 0;
+.doc-fatture-elenco.is-fitto {
+  grid-template-columns: repeat(3, 1fr);
+  font-size: 0.6rem;
+}
+
+.doc-fattura {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.06rem 0;
   border-bottom: 1px dotted #CBD5E1;
 }
 
-.doc-fatture-tabella tr:last-child td {
-  border-bottom: none;
+.doc-fattura-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-fattura-importo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Riga dell'aggio: informativa, non entra nei totali */
@@ -1658,31 +1678,39 @@ body {
   /* Il riepilogo sta comodo dentro una pagina: così resta uno solo anche
      con i margini che certe stampanti aggiungono per conto loro. */
   .doc-brand-title {
-    font-size: 1.9rem !important;
+    font-size: 1.5rem !important;
   }
 
   .doc-sub-title {
-    font-size: 1rem !important;
+    font-size: 0.85rem !important;
   }
 
   .doc-header {
-    margin-bottom: 0.7rem !important;
+    margin-bottom: 0.45rem !important;
   }
 
   .doc-table th,
   .doc-table td {
-    padding: 0.4rem 0.9rem !important;
-    font-size: 0.95rem !important;
+    padding: 0.26rem 0.8rem !important;
+    font-size: 0.82rem !important;
   }
 
   .doc-footer {
-    margin-top: 0.9rem !important;
-    padding-top: 0.6rem !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.4rem !important;
   }
 
-  .doc-table, .doc-table tr, .doc-table td, .doc-table th {
+  /* Le righe non si spezzano mai a meta'. La tabella intera invece si
+     puo' spezzare: obbligandola a stare unita, se non ci stava se ne
+     andava tutta sulla pagina dopo lasciando la prima mezza vuota. */
+  .doc-table tr, .doc-table td, .doc-table th {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  .doc-shift-title {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.3rem !important;
   }
 
   .doc-brand-title {
