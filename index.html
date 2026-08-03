@@ -150,6 +150,15 @@
           <span>Inserimento dati e stampa A4</span>
         </div>
       </button>
+      <!-- I turni di lavoro li legge chiunque abbia l'accesso: sapere quando
+           si lavora serve prima di tutto a chi ci lavora -->
+      <button type="button" class="hotdog-menu-item" data-tab="tab-turni">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Turni</strong>
+          <span>Chi lavora, giorno per giorno</span>
+        </div>
+      </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span>
         <div class="hotdog-text">
@@ -216,6 +225,9 @@
       </button>
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-turni">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Turni
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-inventario">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario <span class="nav-badge" id="badge-nav-inventario" hidden></span>
@@ -791,6 +803,51 @@
             </button>
           </div>
         </form>
+      </section>
+    </div>
+
+    <!-- TAB: TURNI DI LAVORO
+         Chi lavora, giorno per giorno, una settimana per volta. Non c'entra
+         niente con le chiusure di cassa, che pure si chiamano turni: qui non
+         ci sono importi, solo nomi.
+
+         La scheda la aprono tutti. I comandi per assegnare compaiono soltanto
+         a chi amministra, ed è anche l'unico che le policy su Supabase
+         lasciano scrivere. -->
+    <div id="tab-turni" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Turni</span>
+          </div>
+
+          <div class="turni-nav">
+            <button type="button" class="date-arrow-btn" id="btn-turni-indietro" aria-label="Settimana precedente">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <span class="turni-settimana" id="turni-settimana">&mdash;</span>
+            <button type="button" class="date-arrow-btn" id="btn-turni-avanti" aria-label="Settimana successiva">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="date-oggi-btn" id="btn-turni-oggi">Oggi</button>
+          </div>
+        </div>
+
+        <!-- La domanda che ci si fa più spesso: chi c'è adesso -->
+        <p class="turni-oggi is-hidden" id="turni-oggi"></p>
+
+        <p class="turni-avviso is-hidden" id="turni-avviso"></p>
+
+        <div class="turni-riepilogo">
+          <span class="inv-total-label">Turni assegnati questa settimana</span>
+          <span class="inv-total-value" id="turni-conteggio">0</span>
+        </div>
+
+        <div id="turni-lista" class="turni-lista"></div>
+
+        <!-- Sono le stesse persone tutte le settimane: il nome si sceglie
+             invece di riscriverlo, così non finisce scritto in due modi -->
+        <datalist id="turni-nomi"></datalist>
       </section>
     </div>
 

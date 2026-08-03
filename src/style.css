@@ -4286,3 +4286,275 @@ body {
     max-width: 5.5rem;
   }
 }
+
+/* ==========================================================================
+   TURNI DI LAVORO
+   Una settimana per volta: sette giornate, dentro ognuna i due turni
+   affiancati. Oggi si distingue subito, le giornate passate si spengono.
+   ========================================================================== */
+
+.turni-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.turni-settimana {
+  min-width: 12rem;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.turni-avviso {
+  margin-bottom: 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ferrari-red);
+}
+
+.turni-avviso.is-hidden,
+.turni-oggi.is-hidden {
+  display: none;
+}
+
+/* Chi c'è adesso: sta sopra a tutto perché è la domanda più frequente */
+.turni-oggi {
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.turni-riepilogo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.turni-riepilogo .inv-total-value {
+  font-size: 1.1rem;
+}
+
+.turni-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.turni-giorno {
+  padding: 0.85rem 1rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+/* La giornata di oggi si trova senza cercarla */
+.turni-giorno.is-oggi {
+  border-color: var(--ferrari-red);
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+/* Quello che è già stato non serve più: resta leggibile ma non chiama */
+.turni-giorno.is-passato {
+  opacity: 0.55;
+}
+
+.turni-giorno-testa {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.turni-giorno-nome {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.turni-giorno-data {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.turni-fasce {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.turni-fascia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+}
+
+.turni-fascia-nome {
+  flex: 1 1 100%;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.turni-persone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.turni-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-full);
+}
+
+/* Il pulsante per togliere si porta dietro il suo spazio: senza, a chi legge
+   soltanto la pillola resterebbe sbilanciata */
+.turni-chip.con-comando {
+  padding-right: 0.35rem;
+}
+
+.turni-chip-nota {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.turni-chip-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.turni-chip-x:hover {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+}
+
+.turni-vuoto {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Il tratteggio dice che lì manca qualcosa da riempire */
+.turni-assegna {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  padding: 0.28rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.turni-assegna:hover {
+  color: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+  border-style: solid;
+  background: #FFFFFF;
+}
+
+.turni-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.turni-chiudi {
+  padding: 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.turni-chiudi:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.turni-form .todo-add-input,
+.turni-form .todo-add-btn,
+.turni-form .turni-chiudi {
+  height: 40px;
+}
+
+@media (max-width: 900px) {
+  /* Due turni affiancati non ci stanno più: si mettono uno sotto l'altro */
+  .turni-fasce {
+    grid-template-columns: 1fr;
+  }
+
+  .turni-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .turni-form .todo-add-input {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .turni-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .turni-settimana {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.85rem;
+  }
+}

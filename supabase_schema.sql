@@ -725,3 +725,72 @@ CREATE POLICY "Lettura incassi h24" ON public.h24_incassi FOR SELECT USING (true
 DROP POLICY IF EXISTS "Scrittura incassi h24" ON public.h24_incassi;
 CREATE POLICY "Scrittura incassi h24" ON public.h24_incassi
     FOR ALL USING (true) WITH CHECK (true);
+
+
+-- =========================================================================
+-- 15. TURNI DI LAVORO
+--
+-- Chi lavora, in che giornata e in quale dei due turni. Non c'entra niente
+-- con le chiusure di cassa, che pure si chiamano turni: qui non ci sono
+-- importi, solo nomi.
+--
+-- Lo leggono tutti, lo scrive soltanto chi amministra: il divieto sta qui e
+-- non solo nell'interfaccia, così nascondere i comandi resta una comodità e
+-- non l'unica barriera.
+-- =========================================================================
+
+-- Serve alle policy per sapere chi amministra senza rileggere profili con le
+-- sue stesse regole di riga, che si morderebbero la coda.
+CREATE OR REPLACE FUNCTION public.e_amministratore()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.profili
+        WHERE id = auth.uid()
+          AND accesso
+          AND admin
+    );
+$$;
+
+CREATE TABLE IF NOT EXISTS public.turni_lavoro (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    data DATE NOT NULL,
+    turno TEXT NOT NULL CHECK (turno IN ('mattina', 'pomeriggio')),
+
+    -- Il nome scritto per esteso: i turni si assegnano anche a chi non ha un
+    -- profilo sull'app, e un riferimento a profili lascerebbe fuori proprio
+    -- quelli
+    persona TEXT NOT NULL,
+
+    -- Una precisazione breve accanto al nome: "entra alle 7", "fino alle 12"
+    nota TEXT NOT NULL DEFAULT '',
+
+    creato_da TEXT NOT NULL DEFAULT '',
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    -- La stessa persona sta in un turno una volta sola: riassegnarla aggiorna
+    -- la sua nota invece di sdoppiare la riga
+    UNIQUE (data, turno, persona)
+);
+
+CREATE INDEX IF NOT EXISTS idx_turni_lavoro_data ON public.turni_lavoro(data);
+
+ALTER TABLE public.turni_lavoro ENABLE ROW LEVEL SECURITY;
+
+-- Il calendario lo legge chiunque abbia l'accesso: sapere quando si lavora
+-- serve prima di tutto a chi ci lavora.
+DROP POLICY IF EXISTS "Lettura turni" ON public.turni_lavoro;
+CREATE POLICY "Lettura turni" ON public.turni_lavoro FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Scrittura turni" ON public.turni_lavoro;
+CREATE POLICY "Scrittura turni" ON public.turni_lavoro
+    FOR ALL
+    USING (public.e_amministratore())
+    WITH CHECK (public.e_amministratore());
