@@ -163,6 +163,44 @@ const notaNotifiche = document.getElementById('notifiche-nota') as HTMLParagraph
 let schedaDaAprire: ((tabId: string) => void) | null = null;
 
 /**
+ * L'ultima scheda aperta.
+ *
+ * Ricaricare la pagina mentre si sta guardando l'inventario o i turni non
+ * deve riportare all'inizio: si riapre quella dove si era rimasti. Da telefono
+ * la pagina si ricarica da sola più spesso di quanto si creda.
+ */
+const CHIAVE_SCHEDA = 'tabaccheria_scheda_aperta';
+
+function ricordaScheda(id: string): void {
+  try {
+    localStorage.setItem(CHIAVE_SCHEDA, id);
+  } catch {
+    // Senza LocalStorage si riparte dalla scheda di sempre: nessun danno
+  }
+}
+
+/**
+ * La scheda da riaprire all'avvio, se è ancora una che si può aprire.
+ *
+ * Una scheda riservata non si riapre a chi nel frattempo non la vede più:
+ * il permesso può essere stato tolto da quando è stata salvata.
+ */
+function schedaRicordata(): string | null {
+  let id: string | null = null;
+
+  try {
+    id = localStorage.getItem(CHIAVE_SCHEDA);
+  } catch {
+    return null;
+  }
+
+  if (!id || !document.getElementById(id)) return null;
+
+  const voce = document.querySelector<HTMLElement>(`.nav-tab-item[data-tab="${id}"]`);
+  return voce && !voce.hidden ? id : null;
+}
+
+/**
  * Aggiorna il badge di stato dell'auto-salvataggio
  */
 function updateSaveStatusBadge(status: SaveStatus) {
@@ -958,6 +996,8 @@ function setupEventListeners() {
   });
 
   function apriScheda(targetTabId: string) {
+    ricordaScheda(targetTabId);
+
     tabButtons.forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-tab') === targetTabId);
     });
@@ -1151,10 +1191,13 @@ async function initApp() {
   if (amministratore()) {
     initH24();
     initDashboardH24();
-
-    // Chi amministra apre l'app per guardare come va, non per inserire i turni
-    schedaDaAprire?.('tab-dashboard');
   }
+
+  // Si torna dove si era rimasti. Solo alla primissima apertura, quando non
+  // c'è ancora niente da ricordare, chi amministra parte dalla propria
+  // dashboard: apre l'app per guardare come va, non per inserire i turni.
+  const daRiaprire = schedaRicordata() || (amministratore() ? 'tab-dashboard' : '');
+  if (daRiaprire) schedaDaAprire?.(daRiaprire);
 
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();

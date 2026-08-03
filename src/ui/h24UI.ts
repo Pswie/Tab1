@@ -67,6 +67,42 @@ const campiImporto: Record<Distributore, HTMLInputElement> = {
 const pulsanteSalvaIncasso = document.getElementById('btn-h24-salva-incasso') as HTMLButtonElement;
 const avvisoIncasso = document.getElementById('h24-avviso-incasso') as HTMLParagraphElement;
 
+/**
+ * A chi si manda la lista di quello che manca, per macchina.
+ *
+ * Il numero sta qui e non nel database perché è il fornitore, non un dato che
+ * si cambia dall'app. Il pulsante "Invia lista" compare solo sulle macchine
+ * che hanno un numero: mandare l'ordine degli snack a chi porta le bibite
+ * sarebbe peggio che non mandarlo.
+ *
+ * Formato internazionale senza + e senza spazi, come lo vuole WhatsApp.
+ */
+const NUMERI_ORDINE: Partial<Record<Distributore, string>> = {
+  snack: '393349288562'
+};
+
+/**
+ * La lista da mandare: un prodotto per riga, con "xN" solo quando i pacchi
+ * sono più di uno. Il pacco singolo si scrive senza numero, che è come si
+ * ordina a voce.
+ */
+function testoOrdine(macchina: Distributore): string {
+  return prodotti
+    .filter(p => p.distributore === macchina && p.pacchiMancanti > 0)
+    .map(p => (p.pacchiMancanti > 1 ? `${p.nome} x${p.pacchiMancanti}` : p.nome))
+    .join('\n');
+}
+
+/** Apre WhatsApp con la lista già scritta: a mandarla ci pensa chi legge */
+function inviaOrdine(macchina: Distributore): void {
+  const numero = NUMERI_ORDINE[macchina];
+  const testo = testoOrdine(macchina);
+
+  if (!numero || !testo) return;
+
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(testo)}`, '_blank');
+}
+
 function meseCorrente(): string {
   return getTodayDateString().slice(0, 7);
 }
@@ -168,6 +204,9 @@ function renderProdotti(): void {
               ? `${numero(daPortare)} ${daPortare === 1 ? 'pacco' : 'pacchi'} &middot; ${numero(pezziMacchina)} pezzi`
               : dentro.length === 0 ? 'Nessun prodotto' : 'Piena'}
           </span>
+          ${daPortare > 0 && NUMERI_ORDINE[macchina]
+            ? `<button type="button" class="h24-macchina-btn is-ordine" data-action="ordina">Invia lista</button>`
+            : ''}
           ${daPortare > 0
             ? `<button type="button" class="h24-macchina-btn" data-action="rifornita">Rifornita</button>`
             : ''}
@@ -571,6 +610,13 @@ export function initH24(): void {
     if (!pulsante) return;
 
     const azione = pulsante.getAttribute('data-action');
+
+    // La lista si manda prima di rifornire: dopo, i pacchi sono già a zero
+    if (azione === 'ordina') {
+      const macchina = pulsante.closest('.h24-macchina')?.getAttribute('data-macchina') as Distributore | null;
+      if (macchina) inviaOrdine(macchina);
+      return;
+    }
 
     // Rifornita una macchina sola: le altre due restano come stanno
     if (azione === 'rifornita') {

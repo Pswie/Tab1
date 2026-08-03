@@ -4211,6 +4211,29 @@ body {
   background: var(--surface-subtle);
 }
 
+/* Il secondo pulsante sta accanto al primo: due margini automatici si
+   spartirebbero lo spazio e ne manderebbero uno in mezzo alla riga */
+.h24-macchina-btn + .h24-macchina-btn {
+  margin-left: 0.4rem;
+}
+
+/* La lista si manda prima di rifornire: è il primo dei due gesti */
+.h24-macchina-btn.is-ordine {
+  color: var(--accent-green-text);
+  background: var(--accent-green-bg);
+  border-color: var(--accent-green-line);
+}
+
+.h24-macchina-btn.is-ordine:hover {
+  color: #FFFFFF;
+  background: var(--accent-green-text);
+  border-color: var(--accent-green-text);
+}
+
+.h24-macchina-btn:active {
+  transform: translateY(1px);
+}
+
 .h24-macchina-vuota {
   padding: 1rem 0.25rem;
   font-size: 0.85rem;
