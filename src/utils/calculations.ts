@@ -86,8 +86,7 @@ export function emptyShiftValues(): ShiftValues {
     b: 0,
     logista: 0,
     gratta_e_vinci: 0,
-    bar: 0,
-    tabacchi: 0
+    bar: 0
   };
 }
 
@@ -155,7 +154,7 @@ export function calculateLottoNet(entrate: number, uscite: number): number {
  * dalla cassa, quindi vanno tolte. Il giocato, che è la cifra su cui si prende
  * l'aggio, si guarda nella dashboard e non qui.
  *
- * Tabacchi, bar, logista e gratta e vinci non compaiono: si registrano per le
+ * Bar, logista e gratta e vinci non compaiono: si registrano per le
  * statistiche e basta.
  */
 export function calculateShiftReading(values: ShiftValues): number {

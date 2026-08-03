@@ -95,7 +95,6 @@ const inputContanti = document.getElementById('input-contanti') as HTMLInputElem
 const inputLogista = document.getElementById('input-logista') as HTMLInputElement;
 const inputGrattaEVinci = document.getElementById('input-gratta-e-vinci') as HTMLInputElement;
 const inputBar = document.getElementById('input-bar') as HTMLInputElement;
-const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
 const inputSisalEntrate = document.getElementById('input-sisal-entrate') as HTMLInputElement;
 const inputSisalUscite = document.getElementById('input-sisal-uscite') as HTMLInputElement;
 const inputMooney = document.getElementById('input-mooney') as HTMLInputElement;
@@ -240,8 +239,7 @@ function getShiftValuesFromInputs(): ShiftValues {
     b: parseInputValue(inputB.value),
     logista: parseInputValue(inputLogista.value),
     gratta_e_vinci: parseInputValue(inputGrattaEVinci.value),
-    bar: parseInputValue(inputBar.value),
-    tabacchi: parseInputValue(inputTabacchi.value)
+    bar: parseInputValue(inputBar.value)
   };
 }
 
@@ -263,7 +261,6 @@ function applyShiftValuesToInputs(values: ShiftValues) {
   inputLogista.value = formatInputValue(values.logista);
   inputGrattaEVinci.value = formatInputValue(values.gratta_e_vinci);
   inputBar.value = formatInputValue(values.bar);
-  inputTabacchi.value = formatInputValue(values.tabacchi);
 
   updateSignStates();
 }
@@ -1004,7 +1001,7 @@ function setupEventListeners() {
     inputContanti, inputSisalEntrate, inputSisalUscite, inputMooney, inputLis, inputPrinter,
     inputLottoEntrate, inputLottoUscite, inputFatture,
     inputEffettivo, inputB,
-    inputLogista, inputGrattaEVinci, inputBar, inputTabacchi
+    inputLogista, inputGrattaEVinci, inputBar
   ];
 
   allInputs.forEach(input => {

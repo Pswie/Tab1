@@ -49,8 +49,7 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
     b: Number(row.b) || 0,
     logista: Number(row.logista) || 0,
     gratta_e_vinci: Number(row.gratta_e_vinci) || 0,
-    bar: Number(row.bar) || 0,
-    tabacchi: Number(row.tabacchi) || 0
+    bar: Number(row.bar) || 0
   };
 }
 

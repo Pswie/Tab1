@@ -56,8 +56,8 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
  * giornata, non del solo pomeriggio. Il secondo turno si ricava per differenza:
  * con mattina 1000 e pomeriggio 2000 il secondo turno vale 1000.
  *
- * Non tutte le voci fanno il totale: bar, logista, gratta e vinci e tabacchi
- * si registrano soltanto per guardarli nelle statistiche. Del Lotto entra il
+ * Non tutte le voci fanno il totale: bar, logista e gratta e vinci si
+ * registrano soltanto per guardarli nelle statistiche. Del Lotto entra il
  * netto, perché le vincite pagate escono davvero dalla cassa; il giocato è la
  * cifra su cui si prende l'aggio e si guarda nella dashboard.
  */
@@ -96,7 +96,6 @@ export interface ShiftValues {
   logista: number;
   gratta_e_vinci: number;
   bar: number;
-  tabacchi: number;
 }
 
 /**

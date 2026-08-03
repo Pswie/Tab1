@@ -441,11 +441,6 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
         nota: 'Escono dalla cassa: già tolte dal totale delle giornate'
       },
       {
-        etichetta: 'Tabacchi',
-        valore: euroTondo(fuori.tabacchi),
-        nota: 'Registrato a parte, fuori dal totale'
-      },
-      {
         etichetta: 'Incasso bar',
         valore: euroTondo(fuori.bar),
         nota: 'Registrato a parte, fuori dal totale'

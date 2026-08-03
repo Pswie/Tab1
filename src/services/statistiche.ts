@@ -123,8 +123,7 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
     b: Number(riga.b) || 0,
     logista: Number(riga.logista) || 0,
     gratta_e_vinci: Number(riga.gratta_e_vinci) || 0,
-    bar: Number(riga.bar) || 0,
-    tabacchi: Number(riga.tabacchi) || 0
+    bar: Number(riga.bar) || 0
   };
 }
 
@@ -143,8 +142,7 @@ function sommaVoci(elenco: ShiftValues[]): ShiftValues {
     b: somma.b + v.b,
     logista: somma.logista + v.logista,
     gratta_e_vinci: somma.gratta_e_vinci + v.gratta_e_vinci,
-    bar: somma.bar + v.bar,
-    tabacchi: somma.tabacchi + v.tabacchi
+    bar: somma.bar + v.bar
   }), emptyShiftValues());
 }
 
@@ -363,7 +361,6 @@ export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizio
 
 /** Le altre voci della giornata, quelle che nel totale non entrano */
 export function vociFuoriTotale(giornate: GiornataIncasso[]): {
-  tabacchi: number;
   bar: number;
   grattaEVinci: number;
   logista: number;
@@ -375,7 +372,6 @@ export function vociFuoriTotale(giornate: GiornataIncasso[]): {
   const voci = sommaVoci(giornate.map(g => g.voci));
 
   return {
-    tabacchi: voci.tabacchi,
     bar: voci.bar,
     grattaEVinci: voci.gratta_e_vinci,
     logista: voci.logista,
