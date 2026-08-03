@@ -815,7 +815,11 @@ CREATE TABLE IF NOT EXISTS public.turni_lavoro (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     data DATE NOT NULL,
-    turno TEXT NOT NULL CHECK (turno IN ('mattina', 'pomeriggio')),
+
+    -- Le fasce del foglio appeso in negozio. L'intermedio non c'è tutti i
+    -- giorni ed è normale; le ferie valgono per più giornate di fila e si
+    -- scrivono una riga per giorno, come tutto il resto.
+    turno TEXT NOT NULL,
 
     -- Il nome scritto per esteso: i turni si assegnano anche a chi non ha un
     -- profilo sull'app, e un riferimento a profili lascerebbe fuori proprio
@@ -834,6 +838,13 @@ CREATE TABLE IF NOT EXISTS public.turni_lavoro (
     UNIQUE (data, turno, persona)
 );
 
+-- Il vincolo si rifà ogni volta: le fasce sono cambiate dopo la prima versione
+-- e una tabella già creata resterebbe ferma a quelle vecchie.
+ALTER TABLE public.turni_lavoro DROP CONSTRAINT IF EXISTS turni_lavoro_turno_check;
+ALTER TABLE public.turni_lavoro
+    ADD CONSTRAINT turni_lavoro_turno_check
+    CHECK (turno IN ('mattina', 'intermedio', 'pomeriggio', 'festa', 'ferie'));
+
 CREATE INDEX IF NOT EXISTS idx_turni_lavoro_data ON public.turni_lavoro(data);
 
 ALTER TABLE public.turni_lavoro ENABLE ROW LEVEL SECURITY;
@@ -848,3 +859,49 @@ CREATE POLICY "Scrittura turni" ON public.turni_lavoro
     FOR ALL
     USING (public.e_amministratore())
     WITH CHECK (public.e_amministratore());
+
+
+-- -------------------------------------------------------------------------
+-- La settimana dal 3 al 9 agosto 2026, ricopiata dal foglio appeso in negozio.
+--
+-- Serve a non partire da una scheda vuota. ON CONFLICT DO NOTHING fa sì che
+-- rieseguire questo file non tocchi quello che nel frattempo e' stato
+-- corretto dall'app.
+-- -------------------------------------------------------------------------
+INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
+    ('2026-08-03', 'mattina', 'Cinzia'),
+    ('2026-08-03', 'intermedio', 'Anita'),
+    ('2026-08-03', 'pomeriggio', 'Rosy'),
+    ('2026-08-03', 'festa', 'Imparato'),
+    ('2026-08-04', 'mattina', 'Cinzia'),
+    ('2026-08-04', 'mattina', 'Imparato'),
+    ('2026-08-04', 'pomeriggio', 'Rosy'),
+    ('2026-08-04', 'pomeriggio', 'Anita'),
+    ('2026-08-05', 'mattina', 'Cinzia'),
+    ('2026-08-05', 'intermedio', 'Imparato'),
+    ('2026-08-05', 'pomeriggio', 'Anita'),
+    ('2026-08-05', 'festa', 'Rosy'),
+    ('2026-08-06', 'mattina', 'Imparato'),
+    ('2026-08-06', 'intermedio', 'Cinzia'),
+    ('2026-08-06', 'pomeriggio', 'Rosy'),
+    ('2026-08-06', 'festa', 'Anita'),
+    ('2026-08-07', 'mattina', 'Imparato'),
+    ('2026-08-07', 'intermedio', 'Rosy'),
+    ('2026-08-07', 'pomeriggio', 'Anita'),
+    ('2026-08-07', 'festa', 'Cinzia'),
+    ('2026-08-08', 'mattina', 'Cinzia'),
+    ('2026-08-08', 'mattina', 'Imparato'),
+    ('2026-08-08', 'pomeriggio', 'Rosy'),
+    ('2026-08-08', 'pomeriggio', 'Anita'),
+    ('2026-08-09', 'mattina', 'Cinzia'),
+    ('2026-08-09', 'mattina', 'Imparato'),
+    ('2026-08-09', 'pomeriggio', 'Rosy'),
+    ('2026-08-09', 'pomeriggio', 'Anita'),
+    ('2026-08-03', 'ferie', 'Mery'),
+    ('2026-08-04', 'ferie', 'Mery'),
+    ('2026-08-05', 'ferie', 'Mery'),
+    ('2026-08-06', 'ferie', 'Mery'),
+    ('2026-08-07', 'ferie', 'Mery'),
+    ('2026-08-08', 'ferie', 'Mery'),
+    ('2026-08-09', 'ferie', 'Mery')
+ON CONFLICT (data, turno, persona) DO NOTHING;

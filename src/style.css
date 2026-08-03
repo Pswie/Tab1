@@ -4364,9 +4364,15 @@ body {
 
 /* ==========================================================================
    TURNI DI LAVORO
-   Una settimana per volta: sette giornate, dentro ognuna i due turni
-   affiancati. Oggi si distingue subito, le giornate passate si spengono.
+   Il foglio appeso in negozio: le fasce in riga, le sette giornate in colonna.
+   Da telefono la tabella si srotola in una giornata dopo l'altra, perché
+   sette colonne su uno schermo stretto non si leggono.
    ========================================================================== */
+
+.turni-testa {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 
 .turni-nav {
   display: flex;
@@ -4375,10 +4381,11 @@ body {
 }
 
 .turni-settimana {
-  min-width: 12rem;
+  min-width: 11.5rem;
   text-align: center;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
@@ -4391,141 +4398,203 @@ body {
 }
 
 .turni-avviso.is-hidden,
-.turni-oggi.is-hidden {
+.turni-oggi.is-hidden,
+.turni-ferie.is-hidden {
   display: none;
 }
 
 /* Chi c'è adesso: sta sopra a tutto perché è la domanda più frequente */
 .turni-oggi {
-  padding: 0.7rem 1rem;
-  margin-bottom: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
   font-size: 0.88rem;
-  font-weight: 600;
   color: var(--text-primary);
   background: var(--surface-subtle);
   border: 1px solid var(--border-pearl);
   border-radius: var(--radius-inner);
 }
 
-.turni-riepilogo {
+.turni-oggi-titolo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ferrari-red);
+}
+
+.turni-oggi-voce {
+  font-weight: 600;
+}
+
+.turni-oggi-fascia {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Le ferie valgono per più giorni: stanno sopra al calendario, come sul foglio */
+.turni-ferie {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.turni-riepilogo .inv-total-value {
-  font-size: 1.1rem;
-}
-
-.turni-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.turni-giorno {
-  padding: 0.85rem 1rem;
-  background: var(--surface-card-inner);
-  border: 1px solid var(--border-pearl);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.85rem;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
   border-radius: var(--radius-inner);
 }
 
-/* La giornata di oggi si trova senza cercarla */
-.turni-giorno.is-oggi {
-  border-color: var(--ferrari-red);
-  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+.turni-ferie-titolo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #92400E;
 }
 
-/* Quello che è già stato non serve più: resta leggibile ma non chiama */
-.turni-giorno.is-passato {
-  opacity: 0.55;
+/* --- La griglia ---------------------------------------------------------- */
+
+/* Da telefono: una giornata dopo l'altra, nell'ordine del documento */
+.turni-griglia {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Le etichette di riga servono solo quando c'è la tabella vera */
+.turni-fascia-testa {
+  display: none;
 }
 
 .turni-giorno-testa {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  margin-bottom: 0.6rem;
+  padding: 0.7rem 0.15rem 0.35rem;
+  margin-top: 0.6rem;
+  border-bottom: 1px solid var(--border-pearl);
 }
 
-.turni-giorno-nome {
-  font-size: 0.95rem;
+.turni-giorno-testa:first-of-type {
+  margin-top: 0;
+}
+
+.turni-giorno-sigla {
+  font-size: 0.72rem;
   font-weight: 800;
-  color: var(--text-primary);
-}
-
-.turni-giorno-data {
-  font-size: 0.8rem;
-  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
 }
 
-.turni-fasce {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+.turni-giorno-numero {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
-.turni-fascia {
+/* La giornata di oggi si trova senza cercarla */
+.turni-giorno-testa.is-oggi {
+  border-bottom-color: var(--ferrari-red);
+}
+
+.turni-giorno-testa.is-oggi .turni-giorno-sigla,
+.turni-giorno-testa.is-oggi .turni-giorno-numero {
+  color: var(--ferrari-red);
+}
+
+.turni-cella {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.75rem;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-pearl);
-  border-radius: var(--radius-sm);
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.45rem 0.15rem;
 }
 
-.turni-fascia-nome {
-  flex: 1 1 100%;
-  font-size: 0.68rem;
+.turni-cella-etichetta {
+  flex: 0 0 6.5rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--text-muted);
 }
 
 .turni-persone {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-width: 0;
 }
+
+.turni-nessuno {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Da telefono una fascia vuota è solo rumore, a meno di doverla riempire */
+@media (max-width: 899px) {
+  .turni-griglia:not(.is-admin) .turni-cella.is-vuota {
+    display: none;
+  }
+}
+
+/* --- I nomi -------------------------------------------------------------- */
 
 .turni-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.7rem;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
   background: #FFFFFF;
   border: 1px solid var(--border-pearl);
   border-radius: var(--radius-full);
+  transition: var(--transition-fast);
 }
 
-/* Il pulsante per togliere si porta dietro il suo spazio: senza, a chi legge
-   soltanto la pillola resterebbe sbilanciata */
 .turni-chip.con-comando {
-  padding-right: 0.35rem;
+  padding-right: 0.25rem;
+}
+
+/* Il proprio nome in grassetto: la domanda vera è "quando lavoro io" */
+.turni-chip.is-mio {
+  font-weight: 800;
+  border-color: var(--ferrari-red);
+  box-shadow: 0 0 0 2px var(--ferrari-red-glow);
+}
+
+.turni-chip.is-ferie {
+  border-color: #FDE68A;
 }
 
 .turni-chip-nota {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .turni-chip-x {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   padding: 0;
   color: var(--text-muted);
   background: transparent;
@@ -4536,100 +4605,273 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+.turni-chip-x svg {
+  width: 12px;
+  height: 12px;
+}
+
 .turni-chip-x:hover {
   color: #FFFFFF;
   background: var(--ferrari-red);
 }
 
-.turni-vuoto {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-muted);
+.turni-chip-x:active {
+  transform: scale(0.9);
 }
 
 /* Il tratteggio dice che lì manca qualcosa da riempire */
-.turni-assegna {
-  display: inline-flex;
+.turni-piu {
+  display: flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-left: auto;
-  padding: 0.28rem 0.7rem;
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-secondary);
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--text-muted);
   background: transparent;
   border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-full);
+  border-radius: 50%;
   cursor: pointer;
   transition: var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
 }
 
-.turni-assegna:hover {
+.turni-piu svg {
+  width: 14px;
+  height: 14px;
+}
+
+.turni-piu:hover {
   color: var(--ferrari-red);
   border-color: var(--ferrari-red);
   border-style: solid;
-  background: #FFFFFF;
 }
+
+.turni-piu:active {
+  transform: scale(0.92);
+}
+
+/* --- Il riquadro per assegnare ------------------------------------------- */
 
 .turni-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
-  gap: 0.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   width: 100%;
-  margin-top: 0.15rem;
+  margin-top: 0.35rem;
 }
 
-.turni-chiudi {
-  padding: 0 0.85rem;
+.turni-campo {
+  flex: 1 1 8rem;
+  min-width: 0;
+  height: 38px;
+  padding: 0 0.65rem;
   font-family: var(--font-sans);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.9rem;
   color: var(--text-primary);
   background: #FFFFFF;
   border: 1px solid var(--border-pearl);
   border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
+  outline: none;
   transition: var(--transition-fast);
 }
 
-.turni-chiudi:hover {
+.turni-campo:focus {
+  border-color: var(--ferrari-red);
+  box-shadow: 0 0 0 3px var(--ferrari-red-glow);
+}
+
+.turni-form-azioni {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.turni-btn-primario,
+.turni-btn {
+  height: 38px;
+  padding: 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.turni-btn-primario {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border: 1px solid var(--ferrari-red);
+}
+
+.turni-btn-primario:hover {
+  background: var(--ferrari-red-hover);
+}
+
+.turni-btn {
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+}
+
+.turni-btn:hover {
   border-color: var(--border-strong);
   background: var(--surface-subtle);
 }
 
-.turni-form .todo-add-input,
-.turni-form .todo-add-btn,
-.turni-form .turni-chiudi {
-  height: 40px;
+.turni-btn-primario:active,
+.turni-btn:active {
+  transform: translateY(1px);
 }
 
-@media (max-width: 900px) {
-  /* Due turni affiancati non ci stanno più: si mettono uno sotto l'altro */
-  .turni-fasce {
-    grid-template-columns: 1fr;
-  }
+/* --- La legenda ---------------------------------------------------------- */
 
-  .turni-form {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .turni-form .todo-add-input {
-    grid-column: 1 / -1;
-  }
+.turni-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-pearl);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-@media (max-width: 640px) {
-  .turni-nav {
-    width: 100%;
-    justify-content: space-between;
+.turni-legenda-voce {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.turni-legenda-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.turni-legenda-punto.is-mattina { background: var(--serie-1); }
+.turni-legenda-punto.is-intermedio { background: var(--serie-4); }
+.turni-legenda-punto.is-pomeriggio { background: var(--serie-2); }
+.turni-legenda-punto.is-festa { background: var(--border-strong); }
+
+.turni-legenda-me {
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+/* --- Da schermo largo torna la tabella del foglio ------------------------ */
+
+@media (min-width: 900px) {
+  .turni-griglia {
+    display: grid;
+    grid-template-columns: max-content repeat(7, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--border-pearl);
+    border: 1px solid var(--border-pearl);
+    border-radius: var(--radius-inner);
   }
 
-  .turni-settimana {
-    min-width: 0;
-    flex: 1;
-    font-size: 0.85rem;
+  /* Ogni cella si posiziona da sola: nel documento restano in ordine di
+     giornata, che è quello che serve al telefono */
+  .turni-fascia-testa {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+    background: var(--surface-subtle);
+  }
+
+  .turni-giorno-testa {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    margin-top: 0;
+    padding: 0.6rem 0.35rem;
+    background: var(--surface-subtle);
+    border-bottom: none;
+  }
+
+  .turni-giorno-testa.is-oggi {
+    background: var(--ferrari-red);
+  }
+
+  .turni-giorno-testa.is-oggi .turni-giorno-sigla,
+  .turni-giorno-testa.is-oggi .turni-giorno-numero {
+    color: #FFFFFF;
+  }
+
+  .turni-cella {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    padding: 0.55rem 0.5rem;
+    background: var(--surface-card-outer);
+  }
+
+  /* L'etichetta della fascia la porta la prima colonna */
+  .turni-cella-etichetta {
+    display: none;
+  }
+
+  .turni-cella.is-festa {
+    background: var(--surface-subtle);
+  }
+
+  .turni-cella.is-oggi {
+    background: #FFF8F7;
+  }
+
+  .turni-persone {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .turni-chip {
+    max-width: 100%;
+  }
+
+  .turni-chip-nome {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .turni-piu {
+    align-self: flex-start;
+  }
+
+  /* Il riquadro per assegnare non sta in una colonna stretta: esce dalla cella
+     e si prende lo spazio che gli serve */
+  .turni-cella.is-aperta {
+    position: relative;
+    z-index: 5;
+  }
+
+  .turni-cella .turni-form {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 17rem;
+    padding: 0.6rem;
+    background: #FFFFFF;
+    border: 1px solid var(--border-pearl);
+    border-radius: var(--radius-inner);
+    box-shadow: var(--shadow-modal);
+  }
+
+  /* Nelle ultime colonne il riquadro uscirebbe dallo schermo */
+  .turni-cella[style*="grid-column:7"] .turni-form,
+  .turni-cella[style*="grid-column:8"] .turni-form {
+    left: auto;
+    right: 0;
   }
 }

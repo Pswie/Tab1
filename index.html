@@ -888,7 +888,7 @@
          lasciano scrivere. -->
     <div id="tab-turni" class="tab-pane">
       <section class="card-section">
-        <div class="section-header">
+        <div class="section-header turni-testa">
           <div class="section-title">
             <span>Turni</span>
           </div>
@@ -902,6 +902,9 @@
               <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </button>
             <button type="button" class="date-oggi-btn" id="btn-turni-oggi">Oggi</button>
+            <!-- Le ferie valgono per più giorni di fila: si segnano da qui e
+                 non cella per cella -->
+            <button type="button" class="date-oggi-btn" id="btn-turni-ferie" hidden>Ferie</button>
           </div>
         </div>
 
@@ -910,12 +913,21 @@
 
         <p class="turni-avviso is-hidden" id="turni-avviso"></p>
 
-        <div class="turni-riepilogo">
-          <span class="inv-total-label">Turni assegnati questa settimana</span>
-          <span class="inv-total-value" id="turni-conteggio">0</span>
-        </div>
+        <!-- Le ferie stanno sopra al calendario, come sul foglio in negozio -->
+        <div class="turni-ferie is-hidden" id="turni-ferie"></div>
 
-        <div id="turni-lista" class="turni-lista"></div>
+        <!-- Le fasce in riga e le sette giornate in colonna. La posizione delle
+             celle la decide il CSS Grid, non l'ordine qui dentro: da telefono
+             la stessa marcatura si srotola in una giornata dopo l'altra. -->
+        <div id="turni-griglia" class="turni-griglia"></div>
+
+        <p class="turni-legenda">
+          <span class="turni-legenda-voce"><span class="turni-legenda-punto is-mattina"></span> Mattina</span>
+          <span class="turni-legenda-voce"><span class="turni-legenda-punto is-intermedio"></span> Intermedio 9:30 / 13:30 &middot; 16:30, dipende dalla giornata</span>
+          <span class="turni-legenda-voce"><span class="turni-legenda-punto is-pomeriggio"></span> Pomeriggio</span>
+          <span class="turni-legenda-voce"><span class="turni-legenda-punto is-festa"></span> Festa</span>
+          <span class="turni-legenda-voce turni-legenda-me">Il tuo nome è in grassetto</span>
+        </p>
 
         <!-- Sono le stesse persone tutte le settimane: il nome si sceglie
              invece di riscriverlo, così non finisce scritto in due modi -->
