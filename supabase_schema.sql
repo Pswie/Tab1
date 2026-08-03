@@ -84,6 +84,12 @@ WHERE sisal <> 0
   AND sisal_entrate = 0
   AND sisal_uscite = 0;
 
+-- Le fatture una per una, col nome di cosa e' stato pagato. La colonna
+-- 'fatture' resta e continua a portare il totale: e' quella che entra nel
+-- totale del turno, ed e' l'unico dato che hanno le chiusure scritte prima.
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS fatture_voci JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 -- Controllo di cassa: quanto si è contato davvero alla chiusura del turno e la
 -- voce B. Nessuna delle due entra nel totale del turno.
 ALTER TABLE public.daily_logs
@@ -200,6 +206,8 @@ ALTER TABLE public.daily_logs_storico
     ADD COLUMN IF NOT EXISTS b NUMERIC(10,2);
 ALTER TABLE public.daily_logs_storico
     ADD COLUMN IF NOT EXISTS differenza_turno NUMERIC(12,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS fatture_voci JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_storico_date
     ON public.daily_logs_storico(date DESC, turno, versione DESC);
@@ -224,12 +232,12 @@ DECLARE
 BEGIN
     IF (OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
         OLD.sisal_entrate, OLD.sisal_uscite, OLD.mooney, OLD.lis, OLD.printer,
-        OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture,
+        OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.fatture_voci,
         OLD.effettivo, OLD.b)
        IS DISTINCT FROM
        (NEW.contanti, NEW.tabacchi, NEW.bar, NEW.logista, NEW.gratta_e_vinci,
         NEW.sisal_entrate, NEW.sisal_uscite, NEW.mooney, NEW.lis, NEW.printer,
-        NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture,
+        NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture, NEW.fatture_voci,
         NEW.effettivo, NEW.b)
     THEN
         IF OLD.updated_at < now() - INTERVAL '2 hours' THEN
@@ -242,13 +250,13 @@ BEGIN
                 date, turno, versione, ferma_dal,
                 contanti, tabacchi, bar, logista, gratta_e_vinci,
                 sisal, sisal_entrate, sisal_uscite, mooney, lis, printer,
-                lotto_entrate, lotto_uscite, fatture,
+                lotto_entrate, lotto_uscite, fatture, fatture_voci,
                 effettivo, b, differenza_turno, totale_turno
             ) VALUES (
                 OLD.date, OLD.turno, prossima_versione, OLD.updated_at,
                 OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
                 OLD.sisal, OLD.sisal_entrate, OLD.sisal_uscite, OLD.mooney, OLD.lis, OLD.printer,
-                OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture,
+                OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.fatture_voci,
                 OLD.effettivo, OLD.b, OLD.differenza_turno, OLD.totale_turno
             );
         END IF;

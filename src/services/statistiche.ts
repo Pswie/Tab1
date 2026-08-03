@@ -119,6 +119,7 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
     lotto_entrate: Number(riga.lotto_entrate) || 0,
     lotto_uscite: Number(riga.lotto_uscite) || 0,
     fatture: Number(riga.fatture) || 0,
+    fatture_voci: [],
     effettivo: Number(riga.effettivo) || 0,
     b: Number(riga.b) || 0,
     logista: Number(riga.logista) || 0,
@@ -138,6 +139,8 @@ function sommaVoci(elenco: ShiftValues[]): ShiftValues {
     lotto_entrate: somma.lotto_entrate + v.lotto_entrate,
     lotto_uscite: somma.lotto_uscite + v.lotto_uscite,
     fatture: somma.fatture + v.fatture,
+    // Le statistiche guardano i totali: il dettaglio delle fatture non si somma
+    fatture_voci: [],
     effettivo: somma.effettivo + v.effettivo,
     b: somma.b + v.b,
     logista: somma.logista + v.logista,

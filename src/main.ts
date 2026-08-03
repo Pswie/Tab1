@@ -1,5 +1,5 @@
 import './style.css';
-import { SaveStatus, ShiftKey, ShiftValues, TodoFilter, TodoItem } from './types';
+import { SaveStatus, ShiftKey, ShiftValues, TodoFilter, TodoItem, VoceFattura } from './types';
 import {
   calculateDayTotals,
   calculateLottoAggio,
@@ -16,7 +16,9 @@ import {
   getMinAllowedDateString,
   getTomorrowDateString,
   getWorkingDateString,
-  parseInputValue
+  parseInputValue,
+  totaleFatture,
+  vociFattura
 } from './utils/calculations';
 import { autoSaveDailyLog, fetchEmployeeLogs, fetchLogByDate } from './services/supabase';
 import {
@@ -102,7 +104,13 @@ const inputLis = document.getElementById('input-lis') as HTMLInputElement;
 const inputPrinter = document.getElementById('input-printer') as HTMLInputElement;
 const inputLottoEntrate = document.getElementById('input-lotto-entrate') as HTMLInputElement;
 const inputLottoUscite = document.getElementById('input-lotto-uscite') as HTMLInputElement;
-const inputFatture = document.getElementById('input-fatture') as HTMLInputElement;
+// Fatture: si scrivono una per una e la loro somma e' quella che fa totale
+const inputFatturaNome = document.getElementById('input-fattura-nome') as HTMLInputElement;
+const inputFatturaImporto = document.getElementById('input-fattura-importo') as HTMLInputElement;
+const btnFatturaAggiungi = document.getElementById('btn-fattura-aggiungi') as HTMLButtonElement;
+const listaFatture = document.getElementById('fatture-lista') as HTMLDivElement;
+const avvisoFatture = document.getElementById('fatture-avviso') as HTMLParagraphElement;
+const displayFattureTotale = document.getElementById('display-fatture-totale') as HTMLSpanElement;
 
 // Controllo di cassa: fuori dal totale del turno, dentro al conto dello scarto
 const inputEffettivo = document.getElementById('input-effettivo') as HTMLInputElement;
@@ -260,6 +268,94 @@ function toggleSign(campo: HTMLInputElement) {
 }
 
 /**
+ * Le fatture del turno che si sta compilando.
+ *
+ * Stanno in una lista a parte e non in un campo: il totale è la loro somma, e
+ * a fine mese serve sapere cosa è stato pagato, non solo quanto.
+ */
+let fattureDelTurno: VoceFattura[] = [];
+
+function mostraAvvisoFatture(testo: string): void {
+  if (!avvisoFatture) return;
+
+  avvisoFatture.textContent = testo;
+  avvisoFatture.classList.toggle('is-hidden', !testo);
+}
+
+function renderFatture(): void {
+  if (!listaFatture) return;
+
+  if (displayFattureTotale) {
+    displayFattureTotale.textContent = formatCurrency(totaleFatture(fattureDelTurno));
+  }
+
+  listaFatture.innerHTML = fattureDelTurno.length === 0
+    ? '<p class="fatture-vuoto">Nessuna fattura in questo turno.</p>'
+    : fattureDelTurno.map((v, i) => `
+        <div class="fatture-riga" data-indice="${i}">
+          <span class="fatture-nome">${escapeHtml(v.nome)}</span>
+          <span class="fatture-importo">${formatCurrency(v.importo)}</span>
+          <button type="button" class="fatture-togli" data-action="togli"
+                  aria-label="Togli ${escapeHtml(v.nome)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      `).join('');
+}
+
+/**
+ * Aggiunge una fattura all'elenco del turno.
+ *
+ * Il nome è obbligatorio: una riga senza nome vale quanto l'importo unico di
+ * prima, cioè non dice niente a chi la rilegge.
+ */
+function aggiungiFattura(): void {
+  const nome = inputFatturaNome?.value?.trim() || '';
+  const importo = parseInputValue(inputFatturaImporto?.value || '');
+
+  if (!nome) {
+    mostraAvvisoFatture('Scrivi cosa è stato pagato.');
+    inputFatturaNome?.focus();
+    return;
+  }
+
+  if (importo === 0) {
+    mostraAvvisoFatture("Scrivi l'importo della fattura.");
+    inputFatturaImporto?.focus();
+    return;
+  }
+
+  mostraAvvisoFatture('');
+  fattureDelTurno.push({ nome, importo });
+
+  inputFatturaNome.value = '';
+  inputFatturaImporto.value = '';
+  inputFatturaNome.focus();
+
+  renderFatture();
+  triggerAutoSave();
+}
+
+function setupFattureDelegation(): void {
+  if (!listaFatture) return;
+
+  listaFatture.addEventListener('click', e => {
+    const pulsante = (e.target as HTMLElement).closest('[data-action="togli"]');
+    if (!pulsante) return;
+
+    const riga = pulsante.closest('.fatture-riga') as HTMLElement | null;
+    const indice = Number(riga?.getAttribute('data-indice'));
+    if (isNaN(indice)) return;
+
+    fattureDelTurno.splice(indice, 1);
+
+    renderFatture();
+    triggerAutoSave();
+  });
+}
+
+/**
  * Legge le voci digitate nel form: appartengono sempre al turno selezionato
  */
 function getShiftValuesFromInputs(): ShiftValues {
@@ -272,7 +368,8 @@ function getShiftValuesFromInputs(): ShiftValues {
     printer: parseInputValue(inputPrinter.value),
     lotto_entrate: parseInputValue(inputLottoEntrate.value),
     lotto_uscite: parseInputValue(inputLottoUscite.value),
-    fatture: parseInputValue(inputFatture.value),
+    fatture: totaleFatture(fattureDelTurno),
+    fatture_voci: fattureDelTurno.map(v => ({ ...v })),
     effettivo: parseInputValue(inputEffettivo.value),
     b: parseInputValue(inputB.value),
     logista: parseInputValue(inputLogista.value),
@@ -293,7 +390,8 @@ function applyShiftValuesToInputs(values: ShiftValues) {
   inputPrinter.value = formatInputValue(values.printer);
   inputLottoEntrate.value = formatInputValue(values.lotto_entrate);
   inputLottoUscite.value = formatInputValue(values.lotto_uscite);
-  inputFatture.value = formatInputValue(values.fatture);
+  fattureDelTurno = vociFattura(values).map(v => ({ ...v }));
+  renderFatture();
   inputEffettivo.value = formatInputValue(values.effettivo);
   inputB.value = formatInputValue(values.b);
   inputLogista.value = formatInputValue(values.logista);
@@ -1040,7 +1138,7 @@ function setupEventListeners() {
 
   const allInputs = [
     inputContanti, inputSisalEntrate, inputSisalUscite, inputMooney, inputLis, inputPrinter,
-    inputLottoEntrate, inputLottoUscite, inputFatture,
+    inputLottoEntrate, inputLottoUscite,
     inputEffettivo, inputB,
     inputLogista, inputGrattaEVinci, inputBar
   ];
@@ -1079,6 +1177,20 @@ function setupEventListeners() {
     }
   });
 
+  setupFattureDelegation();
+
+  btnFatturaAggiungi?.addEventListener('click', aggiungiFattura);
+
+  // Invio su uno dei due campi aggiunge: si scrive cosa, quanto, invio
+  [inputFatturaNome, inputFatturaImporto].forEach(campo => {
+    campo?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        aggiungiFattura();
+      }
+    });
+  });
+
   setupTodoListDelegation();
 
   todoFilterButtons.forEach(btn => {
@@ -1106,6 +1218,28 @@ function setupEventListeners() {
       window.print();
     });
   }
+}
+
+/**
+ * Riempie il riquadro delle fatture in cima al foglio di stampa.
+ *
+ * Senza fatture il riquadro sparisce del tutto: il foglio deve stare in una
+ * pagina sola, e un riquadro vuoto ruberebbe spazio a quello che conta.
+ */
+function riempiFatturePerStampa(turno: ShiftKey, values: ShiftValues) {
+  const riquadro = document.querySelector<HTMLElement>(`[data-doc-fatture="${turno}"]`);
+  const corpo = document.querySelector<HTMLElement>(`[data-doc-fatture-righe="${turno}"]`);
+  if (!riquadro || !corpo) return;
+
+  const voci = vociFattura(values);
+
+  riquadro.style.display = voci.length === 0 ? 'none' : '';
+  corpo.innerHTML = voci.map(v => `
+    <tr>
+      <td>${escapeHtml(v.nome)}</td>
+      <td class="doc-amount">${formatCurrency(v.importo)}</td>
+    </tr>
+  `).join('');
 }
 
 /**
@@ -1148,9 +1282,16 @@ function fillPrintDocument() {
   };
 
   (Object.keys(mattina) as Array<keyof ShiftValues>).forEach(voce => {
-    valori[`mattina.${voce}`] = mattina[voce];
-    valori[`pomeriggio.${voce}`] = totals.pomeriggioCompilato ? pomeriggio[voce] : null;
+    // Il dettaglio delle fatture non è un importo da mettere in una cella:
+    // ha un riquadro tutto suo in cima al foglio
+    if (voce === 'fatture_voci') return;
+
+    valori[`mattina.${voce}`] = mattina[voce] as number;
+    valori[`pomeriggio.${voce}`] = totals.pomeriggioCompilato ? (pomeriggio[voce] as number) : null;
   });
+
+  riempiFatturePerStampa('mattina', mattina);
+  riempiFatturePerStampa('pomeriggio', pomeriggio);
 
   document.querySelectorAll<HTMLElement>('#document-print-sheet [data-doc]').forEach(cell => {
     const chiave = cell.getAttribute('data-doc');

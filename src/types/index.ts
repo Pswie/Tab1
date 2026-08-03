@@ -50,6 +50,17 @@ export interface TodoItem {
 export type ShiftKey = 'mattina' | 'pomeriggio';
 
 /**
+ * Una fattura pagata nel turno: cosa era e quanto è costata.
+ *
+ * Si scrivono una per una invece che come importo unico: a fine mese "180 €
+ * di fatture" non dice niente, "Cartine 240" sì.
+ */
+export interface VoceFattura {
+  nome: string;
+  importo: number;
+}
+
+/**
  * Le voci registrate in una chiusura.
  *
  * ATTENZIONE: i valori del turno pomeriggio sono LETTURE CUMULATIVE dell'intera
@@ -79,7 +90,17 @@ export interface ShiftValues {
   lotto_entrate: number;
   /** Vincite pagate: escono dalla cassa, quindi si tolgono dal totale */
   lotto_uscite: number;
+
+  /**
+   * Il totale delle fatture del turno: è la somma di `fatture_voci`.
+   *
+   * Resta un numero a sé perché è quello che entra nel totale del turno, e
+   * perché le chiusure vecchie hanno l'importo senza il dettaglio.
+   */
   fatture: number;
+
+  /** Le fatture una per una, con il nome di cosa è stato pagato */
+  fatture_voci: VoceFattura[];
 
   /**
    * Quanto si è contato davvero alla chiusura del turno.

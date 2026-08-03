@@ -1,4 +1,4 @@
-import { DayTotals, ShiftKey, ShiftValues } from '../types';
+import { DayTotals, ShiftKey, ShiftValues, VoceFattura } from '../types';
 
 /** Ora in cui si passa dal turno pomeriggio del giorno prima a quello mattina */
 const ORA_INIZIO_MATTINA = 10;
@@ -82,6 +82,7 @@ export function emptyShiftValues(): ShiftValues {
     lotto_entrate: 0,
     lotto_uscite: 0,
     fatture: 0,
+    fatture_voci: [],
     effettivo: 0,
     b: 0,
     logista: 0,
@@ -122,6 +123,27 @@ export function isShiftFilled(values: ShiftValues): boolean {
 export function calculateLottoAggio(entrate: number): number {
   const e = isNaN(entrate) ? 0 : entrate;
   return Number((e * 0.08).toFixed(2));
+}
+
+/**
+ * Il totale delle fatture: la somma di quelle scritte una per una.
+ */
+export function totaleFatture(voci: VoceFattura[]): number {
+  const somma = (voci || []).reduce((s, v) => s + (isNaN(v.importo) ? 0 : v.importo), 0);
+  return Number(somma.toFixed(2));
+}
+
+/**
+ * Le fatture da mostrare per una chiusura.
+ *
+ * Le chiusure scritte prima del dettaglio hanno solo l'importo: si presentano
+ * come un'unica voce, così il totale non cambia e da lì si può correggere.
+ */
+export function vociFattura(values: ShiftValues): VoceFattura[] {
+  if (values.fatture_voci && values.fatture_voci.length > 0) return values.fatture_voci;
+  if (!values.fatture) return [];
+
+  return [{ nome: 'Fatture', importo: values.fatture }];
 }
 
 /**

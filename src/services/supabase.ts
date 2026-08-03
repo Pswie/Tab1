@@ -45,6 +45,7 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
     lotto_entrate: Number(row.lotto_entrate) || 0,
     lotto_uscite: Number(row.lotto_uscite) || 0,
     fatture: Number(row.fatture) || 0,
+    fatture_voci: Array.isArray(row.fatture_voci) ? row.fatture_voci : [],
     effettivo: Number(row.effettivo) || 0,
     b: Number(row.b) || 0,
     logista: Number(row.logista) || 0,
@@ -155,6 +156,7 @@ export async function fetchLogByDate(dateStr: string): Promise<DayRecord | null>
  * viene aggiornato, PostgREST rifiuta l'intera scrittura perché non le conosce.
  */
 const COLONNE_NUOVE = [
+  'fatture_voci',
   'effettivo',
   'b',
   'differenza_turno',
@@ -225,7 +227,8 @@ export async function autoSaveDailyLog(
           'vecchio. Esegui supabase_schema.sql per aggiornare lo schema.'
         );
 
-        const { effettivo, b, sisal_entrate, sisal_uscite, ...vociVecchie } = values;
+        const { effettivo, b, sisal_entrate, sisal_uscite, fatture_voci, ...vociVecchie } = values;
+        void fatture_voci;
         void effettivo;
         void b;
 

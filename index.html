@@ -788,14 +788,34 @@
             </div>
           </div>
 
-          <!-- Fatture -->
-          <div class="field-item">
-            <div class="field-label-group">
-              <span class="field-label">Fatture</span>
+          <!-- FATTURE
+               Una per una, col nome di cosa è stato pagato: a fine mese
+               "180 € di fatture" non dice niente, "Cartine 240" sì. Il totale
+               è la somma, ed è quello che si toglie dal turno. -->
+          <div class="fatture-box-container">
+            <div class="fatture-box-header">
+              <span>Fatture del turno</span>
+              <span class="stat-box-nota">Si tolgono dal totale</span>
             </div>
-            <div class="input-currency-wrapper">
-              <span class="currency-symbol">€</span>
-              <input type="text" id="input-fatture" class="currency-input" placeholder="0,00" inputmode="decimal" />
+
+            <div class="fatture-aggiungi">
+              <input type="text" id="input-fattura-nome" class="todo-add-input"
+                     placeholder="Cosa (es. Cartine)" autocomplete="off" aria-label="Nome della fattura" />
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol">€</span>
+                <input type="text" id="input-fattura-importo" class="currency-input"
+                       placeholder="0,00" inputmode="decimal" aria-label="Importo della fattura" />
+              </div>
+              <button type="button" id="btn-fattura-aggiungi" class="todo-add-btn">Aggiungi</button>
+            </div>
+
+            <p class="fatture-avviso is-hidden" id="fatture-avviso"></p>
+
+            <div id="fatture-lista" class="fatture-lista"></div>
+
+            <div class="subtotal-calculated-row">
+              <span class="subtotal-label">Totale fatture</span>
+              <span id="display-fatture-totale" class="subtotal-value">0,00 €</span>
             </div>
           </div>
 
@@ -1170,6 +1190,15 @@
       <!-- TURNO MATTINA -->
       <section class="doc-shift-block" data-shift="mattina">
       <div class="doc-shift-title">Turno Mattina</div>
+
+      <!-- Le fatture in cima, con il nome di cosa e' stato pagato: il totale
+           qui sotto nella tabella e' la somma di queste righe -->
+      <section class="doc-fatture" data-doc-fatture="mattina">
+        <div class="doc-fatture-titolo">Fatture del turno</div>
+        <table class="doc-fatture-tabella">
+          <tbody data-doc-fatture-righe="mattina"></tbody>
+        </table>
+      </section>
       <table class="doc-table">
         <thead>
           <tr>
@@ -1249,6 +1278,15 @@
       <!-- TURNO POMERIGGIO -->
       <section class="doc-shift-block" data-shift="pomeriggio">
       <div class="doc-shift-title">Turno Pomeriggio</div>
+
+      <!-- Le fatture in cima, con il nome di cosa e' stato pagato: il totale
+           qui sotto nella tabella e' la somma di queste righe -->
+      <section class="doc-fatture" data-doc-fatture="pomeriggio">
+        <div class="doc-fatture-titolo">Fatture del turno</div>
+        <table class="doc-fatture-tabella">
+          <tbody data-doc-fatture-righe="pomeriggio"></tbody>
+        </table>
+      </section>
       <table class="doc-table">
         <thead>
           <tr>
