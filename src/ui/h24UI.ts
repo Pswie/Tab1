@@ -95,7 +95,6 @@ function vuoto(messaggio: string, icona: string): string {
   `;
 }
 
-const ICONA_MACCHINA = '<rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M8 6.5h8"/><path d="M8 11h8"/><path d="M8 15.5h4"/>';
 const ICONA_EURO = '<circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 0 0-5.5 2.5 3.5 3.5 0 0 0 5.5 2.5"/><path d="M8 11h4"/><path d="M8 13h4"/>';
 
 function rigaProdotto(p: ProdottoH24): string {
@@ -152,16 +151,8 @@ function renderProdotti(): void {
   // Il pallino sul menu dice che c'è merce da portare, anche a scheda chiusa
   segnala('h24', pacchi);
 
-  if (prodotti.length === 0) {
-    listaProdotti.innerHTML = vuoto(
-      'Nessun prodotto in elenco. Carica le schede di quello che sta nelle macchine.',
-      ICONA_MACCHINA
-    );
-    return;
-  }
-
-  // Una macchina per volta: il giro di rifornimento si fa così, non
-  // scorrendo un elenco unico in cui drink e snack sono mescolati
+  // Le tre macchine si vedono sempre, anche vuote: sono tre posti distinti da
+  // riempire, e un unico riquadro "nessun prodotto" non lo farebbe capire
   listaProdotti.innerHTML = DISTRIBUTORI.map(macchina => {
     const dentro = prodotti.filter(p => p.distributore === macchina);
     const daPortare = dentro.reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
