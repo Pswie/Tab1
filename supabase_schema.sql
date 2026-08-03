@@ -907,8 +907,7 @@ INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
 ON CONFLICT (data, turno, persona) DO NOTHING;
 
 -- -------------------------------------------------------------------------
--- La settimana dal 10 al 16 agosto 2026. Sabato 15 e domenica 16 non sono
--- ancora qui: sul foglio non si leggevano con certezza.
+-- La settimana dal 10 al 16 agosto 2026.
 -- -------------------------------------------------------------------------
 INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
     ('2026-08-10', 'mattina', 'Rosy'),
@@ -978,4 +977,21 @@ INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
     ('2026-08-21', 'ferie', 'Francy'),
     ('2026-08-22', 'ferie', 'Francy'),
     ('2026-08-23', 'ferie', 'Francy')
+ON CONFLICT (data, turno, persona) DO NOTHING;
+
+-- -------------------------------------------------------------------------
+-- Sabato 15 e domenica 16 agosto: tre persone di pomeriggio e nessuno di
+-- festa, lavorano tutti e cinque.
+-- -------------------------------------------------------------------------
+INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
+    ('2026-08-15', 'mattina', 'Rosy'),
+    ('2026-08-15', 'mattina', 'Anita'),
+    ('2026-08-15', 'pomeriggio', 'Mery'),
+    ('2026-08-15', 'pomeriggio', 'Imparato'),
+    ('2026-08-15', 'pomeriggio', 'Cinzia'),
+    ('2026-08-16', 'mattina', 'Anita'),
+    ('2026-08-16', 'mattina', 'Imparato'),
+    ('2026-08-16', 'pomeriggio', 'Mery'),
+    ('2026-08-16', 'pomeriggio', 'Cinzia'),
+    ('2026-08-16', 'pomeriggio', 'Rosy')
 ON CONFLICT (data, turno, persona) DO NOTHING;
