@@ -3358,6 +3358,10 @@ body {
   white-space: nowrap;
 }
 
+.dash-stato.is-hidden {
+  display: none;
+}
+
 .dash-stato {
   margin: -0.4rem 0 0 0;
   padding: 0.85rem 1.1rem;
@@ -3866,6 +3870,10 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.rub-avviso.is-hidden {
+  display: none;
+}
+
 .rub-avviso {
   margin-bottom: 0.75rem;
   font-size: 0.84rem;
@@ -4030,6 +4038,10 @@ body {
 
 /* Il promemoria della dichiarazione resta finché non è segnata fatta: una
    notifica si vede una volta sola, e chi non l'ha vista non la ritrova */
+.h24-promemoria.is-hidden {
+  display: none;
+}
+
 .h24-promemoria {
   display: flex;
   align-items: center;

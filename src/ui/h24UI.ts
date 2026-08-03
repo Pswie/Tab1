@@ -275,8 +275,11 @@ function renderPromemoria(): void {
 
   riquadri.forEach(r => {
     r.classList.toggle('is-hidden', !serve);
+
+    // Il testo si svuota quando non serve più: se un domani il riquadro
+    // tornasse visibile per un altro motivo, non deve mostrare il mese vecchio
     const dove = r.querySelector('.h24-promemoria-nota');
-    if (dove && serve) dove.textContent = nota;
+    if (dove) dove.textContent = serve ? nota : '';
   });
 }
 
