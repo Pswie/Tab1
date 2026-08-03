@@ -38,7 +38,18 @@ export interface IncassoH24 {
   id: string;
   /** YYYY-MM */
   mese: string;
+
+  /** Il totale del mese: la somma delle tre macchine */
   importo: number;
+
+  /**
+   * Quanto ha incassato ogni macchina.
+   *
+   * Le macchine si svuotano una per una e ognuna ha il suo contatore: un
+   * totale unico non direbbe quale delle tre sta lavorando e quale no.
+   */
+  importi: Record<Distributore, number>;
+
   dichiarato: boolean;
   nota: string;
 }
@@ -107,14 +118,41 @@ function prodottoDaRiga(r: Record<string, unknown>): ProdottoH24 {
   };
 }
 
+/** Le colonne per macchina, con lo stesso nome che hanno sul database */
+const COLONNA_INCASSO: Record<Distributore, string> = {
+  drink: 'importo_drink',
+  snack: 'importo_snack',
+  vari: 'importo_vari'
+};
+
+export function totaleMacchine(importi: Record<Distributore, number>): number {
+  return Number(DISTRIBUTORI.reduce((s, m) => s + (Number(importi[m]) || 0), 0).toFixed(2));
+}
+
 function incassoDaRiga(r: Record<string, unknown>): IncassoH24 {
+  const importi = {
+    drink: Number(r.importo_drink) || 0,
+    snack: Number(r.importo_snack) || 0,
+    vari: Number(r.importo_vari) || 0
+  };
+
+  const somma = totaleMacchine(importi);
+
   return {
     id: String(r.id),
     mese: meseDaData(String(r.mese ?? '')),
-    importo: Number(r.importo) || 0,
+    // Prima le tre macchine si segnavano insieme: su quei mesi resta il totale
+    // scritto allora, perché non c'è modo di sapere come dividerlo
+    importo: somma !== 0 ? somma : Number(r.importo) || 0,
+    importi,
     dichiarato: Boolean(r.dichiarato),
     nota: String(r.nota ?? '')
   };
+}
+
+/** Un mese registrato prima che le macchine si segnassero una per una */
+export function senzaDettaglio(voce: IncassoH24): boolean {
+  return voce.importo !== 0 && totaleMacchine(voce.importi) === 0;
 }
 
 /** I pezzi che un prodotto porta con sé quando lo si rifornisce */
@@ -411,25 +449,71 @@ export async function elencaIncassi(): Promise<IncassoH24[]> {
     }
   }
 
+  // Le copie locali scritte prima della divisione per macchina non hanno il
+  // dettaglio: si rimette a zero, così chi legge trova sempre le tre voci
   return leggiLocale<IncassoH24>(CHIAVE_INCASSI)
+    .map(v => ({
+      ...v,
+      importi: {
+        drink: Number(v.importi?.drink) || 0,
+        snack: Number(v.importi?.snack) || 0,
+        vari: Number(v.importi?.vari) || 0
+      }
+    }))
     .sort((a, b) => b.mese.localeCompare(a.mese));
 }
 
 /**
- * Scrive l'incasso di un mese, sostituendo quello che c'era.
- * Un mese ha un totale solo: se si ritorna sullo stesso mese si sta correggendo.
+ * Scrive l'incasso di un mese, una cifra per macchina, sostituendo quello che
+ * c'era. Un mese ha una riga sola: se si ritorna sullo stesso mese si sta
+ * correggendo.
  */
-export async function salvaIncasso(mese: string, importo: number, nota = ''): Promise<IncassoH24> {
+export async function salvaIncasso(
+  mese: string,
+  importi: Record<Distributore, number>,
+  nota = ''
+): Promise<IncassoH24> {
+  const importo = totaleMacchine(importi);
+
   if (isSupabaseConfigured() && supabase) {
+    const riga: Record<string, unknown> = {
+      mese: dataDaMese(mese),
+      importo,
+      nota,
+      aggiornato_il: new Date().toISOString()
+    };
+
+    DISTRIBUTORI.forEach(m => {
+      riga[COLONNA_INCASSO[m]] = importi[m] || 0;
+    });
+
+    // Il client va fermato in una costante: dentro alla funzione qui sotto
+    // TypeScript non si fida più del controllo fatto sopra
+    const db = supabase;
+
     try {
-      const { data, error } = await supabase
-        .from('h24_incassi')
-        .upsert(
-          { mese: dataDaMese(mese), importo, nota, aggiornato_il: new Date().toISOString() },
-          { onConflict: 'mese' }
-        )
-        .select()
-        .single();
+      const scrivi = (r: Record<string, unknown>) =>
+        db.from('h24_incassi').upsert(r, { onConflict: 'mese' }).select().single();
+
+      let { data, error } = await scrivi(riga);
+
+      // Sul database non ancora aggiornato le colonne per macchina non
+      // esistono: meglio salvare almeno il totale che perdere il mese
+      if (error && /importo_(drink|snack|vari)/.test(error.message)) {
+        console.warn(
+          'Colonne per macchina assenti su h24_incassi: salvato il solo totale. ' +
+          'Esegui supabase_schema.sql per aggiornare lo schema.'
+        );
+
+        ({ data, error } = await scrivi({
+          mese: dataDaMese(mese),
+          importo,
+          nota,
+          aggiornato_il: new Date().toISOString()
+        }));
+
+        if (!error && data) return { ...incassoDaRiga(data), importi };
+      }
 
       if (!error && data) return incassoDaRiga(data);
       console.warn('Incasso H24 salvato solo in locale:', error?.message);
@@ -442,11 +526,12 @@ export async function salvaIncasso(mese: string, importo: number, nota = ''): Pr
   const esistente = voci.find(v => v.mese === mese);
 
   const voce: IncassoH24 = esistente
-    ? { ...esistente, importo, nota }
+    ? { ...esistente, importo, importi, nota }
     : {
         id: `h24i-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         mese,
         importo,
+        importi,
         dichiarato: false,
         nota
       };

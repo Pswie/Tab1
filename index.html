@@ -540,10 +540,17 @@
         <!-- Un elenco di mesi e non un campo data: il selettore del mese non
              esiste su Safari e su Firefox, dove diventerebbe una casella in cui
              scrivere 2026-08 a mano -->
-        <div class="h24-aggiungi">
+        <!-- Una cifra per macchina: si svuotano una per una e ognuna ha il
+             suo contatore, quindi un totale unico non direbbe quale delle tre
+             sta lavorando. Il totale del mese lo fa la somma. -->
+        <div class="h24-aggiungi h24-aggiungi-incasso">
           <select id="h24-mese" class="todo-add-input" aria-label="Mese dell'incasso"></select>
-          <input type="text" id="h24-importo" class="todo-add-input" inputmode="decimal"
-                 placeholder="Incasso del mese" autocomplete="off" aria-label="Incasso del mese" />
+          <input type="text" id="h24-importo-drink" class="todo-add-input" inputmode="decimal"
+                 placeholder="Drink" autocomplete="off" aria-label="Incasso del distributore Drink" />
+          <input type="text" id="h24-importo-snack" class="todo-add-input" inputmode="decimal"
+                 placeholder="Snack" autocomplete="off" aria-label="Incasso del distributore Snack" />
+          <input type="text" id="h24-importo-vari" class="todo-add-input" inputmode="decimal"
+                 placeholder="Vari" autocomplete="off" aria-label="Incasso del distributore Vari" />
           <button type="button" id="btn-h24-salva-incasso" class="todo-add-btn">Salva</button>
         </div>
 

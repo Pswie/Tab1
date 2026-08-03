@@ -723,6 +723,19 @@ CREATE TABLE IF NOT EXISTS public.h24_incassi (
     aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Ogni macchina ha il suo contatore e si svuota per conto suo: il totale del
+-- mese e' la somma delle tre, ma serve sapere quale sta lavorando.
+ALTER TABLE public.h24_incassi
+    ADD COLUMN IF NOT EXISTS importo_drink NUMERIC(12,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.h24_incassi
+    ADD COLUMN IF NOT EXISTS importo_snack NUMERIC(12,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.h24_incassi
+    ADD COLUMN IF NOT EXISTS importo_vari NUMERIC(12,2) NOT NULL DEFAULT 0.00;
+
+-- La colonna 'importo' resta e continua a portare il totale del mese: sui mesi
+-- segnati prima e' l'unico dato che c'e', e non si sa come dividerlo fra le
+-- tre macchine. Da adesso la scrive l'app come somma delle tre.
+
 CREATE INDEX IF NOT EXISTS idx_h24_incassi_mese ON public.h24_incassi(mese DESC);
 
 -- Ogni giro di rifornimento lascia qui quello che è stato rimesso dentro.

@@ -4876,3 +4876,56 @@ body {
     right: 0;
   }
 }
+
+/* Incassi H24: una cifra per macchina, il totale del mese è la somma */
+.h24-aggiungi-incasso {
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)) auto;
+}
+
+.h24-macchine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.85rem;
+  margin-top: 0.2rem;
+}
+
+.h24-macchina-voce {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.h24-macchina-nome {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.h24-macchina-importo {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.h24-macchine-nota {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+@media (max-width: 760px) {
+  /* Su schermo stretto il mese va per conto suo e le tre macchine sotto */
+  .h24-aggiungi-incasso {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .h24-aggiungi-incasso #h24-mese,
+  .h24-aggiungi-incasso .todo-add-btn {
+    grid-column: 1 / -1;
+  }
+}

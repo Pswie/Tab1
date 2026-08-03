@@ -16,7 +16,9 @@ import {
   pezziDiUnProdotto,
   registraRifornimento,
   salvaIncasso,
-  spostaProdotto
+  senzaDettaglio,
+  spostaProdotto,
+  totaleMacchine
 } from '../services/h24';
 import { escapeHtml, euro, meseIndietro, nomeMese, numero, variazione } from './grafici';
 import { formatInputValue, getTodayDateString, parseInputValue } from '../utils/calculations';
@@ -56,7 +58,12 @@ const avviso = document.getElementById('h24-avviso') as HTMLParagraphElement;
 const listaIncassi = document.getElementById('h24-lista-incassi') as HTMLDivElement;
 const totaleAnno = document.getElementById('h24-totale-anno') as HTMLSpanElement;
 const sceltaMese = document.getElementById('h24-mese') as HTMLSelectElement;
-const campoImporto = document.getElementById('h24-importo') as HTMLInputElement;
+// Un campo per macchina: il totale del mese lo fa la somma
+const campiImporto: Record<Distributore, HTMLInputElement> = {
+  drink: document.getElementById('h24-importo-drink') as HTMLInputElement,
+  snack: document.getElementById('h24-importo-snack') as HTMLInputElement,
+  vari: document.getElementById('h24-importo-vari') as HTMLInputElement
+};
 const pulsanteSalvaIncasso = document.getElementById('btn-h24-salva-incasso') as HTMLButtonElement;
 const avvisoIncasso = document.getElementById('h24-avviso-incasso') as HTMLParagraphElement;
 
@@ -219,6 +226,19 @@ function renderIncassi(): void {
             ${i.dichiarato ? 'Dichiarato' : 'Da dichiarare'}
             ${prima ? variazione(i.importo, prima.importo, 'sul mese prima') : ''}
           </span>
+
+          <!-- Le tre macchine sotto al mese: il totale da solo non dice quale
+               sta lavorando e quale invece è ferma -->
+          ${senzaDettaglio(i)
+            ? '<span class="h24-macchine-nota">Totale segnato prima della divisione per macchina</span>'
+            : `<span class="h24-macchine">
+                 ${DISTRIBUTORI.map(m => `
+                   <span class="h24-macchina-voce">
+                     <span class="h24-macchina-nome">${NOMI_DISTRIBUTORI[m]}</span>
+                     <span class="h24-macchina-importo">${euro(i.importi[m])}</span>
+                   </span>
+                 `).join('')}
+               </span>`}
         </div>
 
         <span class="h24-importo">${euro(i.importo)}</span>
@@ -435,22 +455,30 @@ function avviaModificaScheda(riga: HTMLElement, prodotto: ProdottoH24): void {
 
 async function salvaIncassoDelMese(): Promise<void> {
   const mese = sceltaMese?.value || '';
-  const importo = parseInputValue(campoImporto?.value || '');
+
+  const importi = {
+    drink: parseInputValue(campiImporto.drink?.value || ''),
+    snack: parseInputValue(campiImporto.snack?.value || ''),
+    vari: parseInputValue(campiImporto.vari?.value || '')
+  };
 
   if (!mese) {
     mostraAvviso(avvisoIncasso, 'Scegli il mese.');
     return;
   }
 
-  if (importo <= 0) {
-    mostraAvviso(avvisoIncasso, "Scrivi l'incasso del mese.");
+  // Basta una macchina compilata: capita che una resti ferma tutto il mese
+  if (totaleMacchine(importi) <= 0) {
+    mostraAvviso(avvisoIncasso, "Scrivi quanto ha fatto almeno una delle macchine.");
     return;
   }
 
   mostraAvviso(avvisoIncasso, '');
-  if (campoImporto) campoImporto.value = '';
+  DISTRIBUTORI.forEach(m => {
+    if (campiImporto[m]) campiImporto[m].value = '';
+  });
 
-  const voce = await salvaIncasso(mese, importo);
+  const voce = await salvaIncasso(mese, importi);
 
   incassi = [...incassi.filter(i => i.mese !== mese), voce]
     .sort((a, b) => b.mese.localeCompare(a.mese));
@@ -518,8 +546,10 @@ export function initH24(): void {
 
   pulsanteSalvaIncasso?.addEventListener('click', salvaIncassoDelMese);
 
-  campoImporto?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') salvaIncassoDelMese();
+  DISTRIBUTORI.forEach(m => {
+    campiImporto[m]?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') salvaIncassoDelMese();
+    });
   });
 
   pulsanteRifornito?.addEventListener('click', async () => {
@@ -640,11 +670,13 @@ export function initH24(): void {
     if (pulsante.getAttribute('data-action') === 'modifica') {
       // Si riporta il mese nel modulo in alto: correggere è riscrivere
       if (sceltaMese) sceltaMese.value = mese;
-      if (campoImporto) {
-        campoImporto.value = formatInputValue(voce.importo);
-        campoImporto.focus();
-        campoImporto.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+
+      DISTRIBUTORI.forEach(m => {
+        if (campiImporto[m]) campiImporto[m].value = formatInputValue(voce.importi[m]);
+      });
+
+      campiImporto.drink?.focus();
+      campiImporto.drink?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
