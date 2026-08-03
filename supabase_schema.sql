@@ -905,3 +905,77 @@ INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
     ('2026-08-08', 'ferie', 'Mery'),
     ('2026-08-09', 'ferie', 'Mery')
 ON CONFLICT (data, turno, persona) DO NOTHING;
+
+-- -------------------------------------------------------------------------
+-- La settimana dal 10 al 16 agosto 2026. Sabato 15 e domenica 16 non sono
+-- ancora qui: sul foglio non si leggevano con certezza.
+-- -------------------------------------------------------------------------
+INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
+    ('2026-08-10', 'mattina', 'Rosy'),
+    ('2026-08-10', 'mattina', 'Anita'),
+    ('2026-08-10', 'pomeriggio', 'Cinzia'),
+    ('2026-08-10', 'pomeriggio', 'Imparato'),
+    ('2026-08-10', 'festa', 'Mery'),
+    ('2026-08-11', 'mattina', 'Rosy'),
+    ('2026-08-11', 'mattina', 'Anita'),
+    ('2026-08-11', 'pomeriggio', 'Cinzia'),
+    ('2026-08-11', 'pomeriggio', 'Mery'),
+    ('2026-08-11', 'festa', 'Imparato'),
+    ('2026-08-12', 'mattina', 'Cinzia'),
+    ('2026-08-12', 'mattina', 'Anita'),
+    ('2026-08-12', 'pomeriggio', 'Mery'),
+    ('2026-08-12', 'pomeriggio', 'Imparato'),
+    ('2026-08-12', 'festa', 'Rosy'),
+    ('2026-08-13', 'mattina', 'Rosy'),
+    ('2026-08-13', 'mattina', 'Mery'),
+    ('2026-08-13', 'pomeriggio', 'Cinzia'),
+    ('2026-08-13', 'pomeriggio', 'Imparato'),
+    ('2026-08-13', 'festa', 'Anita'),
+    ('2026-08-14', 'mattina', 'Rosy'),
+    ('2026-08-14', 'mattina', 'Anita'),
+    ('2026-08-14', 'pomeriggio', 'Mery'),
+    ('2026-08-14', 'pomeriggio', 'Imparato'),
+    ('2026-08-14', 'festa', 'Cinzia')
+ON CONFLICT (data, turno, persona) DO NOTHING;
+
+-- -------------------------------------------------------------------------
+-- La settimana dal 17 al 23 agosto 2026, con Francy in ferie tutta la
+-- settimana.
+-- -------------------------------------------------------------------------
+INSERT INTO public.turni_lavoro (data, turno, persona) VALUES
+    ('2026-08-17', 'mattina', 'Cinzia'),
+    ('2026-08-17', 'intermedio', 'Rosy'),
+    ('2026-08-17', 'pomeriggio', 'Anita'),
+    ('2026-08-17', 'festa', 'Mery'),
+    ('2026-08-18', 'mattina', 'Cinzia'),
+    ('2026-08-18', 'mattina', 'Mery'),
+    ('2026-08-18', 'pomeriggio', 'Rosy'),
+    ('2026-08-18', 'pomeriggio', 'Anita'),
+    ('2026-08-19', 'mattina', 'Cinzia'),
+    ('2026-08-19', 'intermedio', 'Mery'),
+    ('2026-08-19', 'pomeriggio', 'Anita'),
+    ('2026-08-19', 'festa', 'Rosy'),
+    ('2026-08-20', 'mattina', 'Mery'),
+    ('2026-08-20', 'intermedio', 'Cinzia'),
+    ('2026-08-20', 'pomeriggio', 'Rosy'),
+    ('2026-08-20', 'festa', 'Anita'),
+    ('2026-08-21', 'mattina', 'Mery'),
+    ('2026-08-21', 'intermedio', 'Anita'),
+    ('2026-08-21', 'pomeriggio', 'Rosy'),
+    ('2026-08-21', 'festa', 'Cinzia'),
+    ('2026-08-22', 'mattina', 'Mery'),
+    ('2026-08-22', 'mattina', 'Cinzia'),
+    ('2026-08-22', 'pomeriggio', 'Rosy'),
+    ('2026-08-22', 'pomeriggio', 'Anita'),
+    ('2026-08-23', 'mattina', 'Mery'),
+    ('2026-08-23', 'mattina', 'Cinzia'),
+    ('2026-08-23', 'pomeriggio', 'Rosy'),
+    ('2026-08-23', 'pomeriggio', 'Anita'),
+    ('2026-08-17', 'ferie', 'Francy'),
+    ('2026-08-18', 'ferie', 'Francy'),
+    ('2026-08-19', 'ferie', 'Francy'),
+    ('2026-08-20', 'ferie', 'Francy'),
+    ('2026-08-21', 'ferie', 'Francy'),
+    ('2026-08-22', 'ferie', 'Francy'),
+    ('2026-08-23', 'ferie', 'Francy')
+ON CONFLICT (data, turno, persona) DO NOTHING;
