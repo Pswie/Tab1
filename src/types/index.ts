@@ -64,7 +64,14 @@ export type ShiftKey = 'mattina' | 'pomeriggio';
 export interface ShiftValues {
   /** Contanti in cassa */
   contanti: number;
-  sisal: number;
+
+  /**
+   * Sisal a entrate e uscite, come il Lotto: nel totale entra il netto.
+   * Prima era una voce sola, e un'uscita si registrava col meno davanti.
+   */
+  sisal_entrate: number;
+  sisal_uscite: number;
+
   mooney: number;
   lis: number;
   printer: number;
@@ -73,6 +80,17 @@ export interface ShiftValues {
   /** Vincite pagate: escono dalla cassa, quindi si tolgono dal totale */
   lotto_uscite: number;
   fatture: number;
+
+  /**
+   * Quanto si è contato davvero alla chiusura del turno.
+   *
+   * Non entra nel totale del turno: serve a confrontarlo con quello che il
+   * totale dice che dovrebbe esserci. Si toglie nel conto della differenza.
+   */
+  effettivo: number;
+
+  /** Voce B: si somma nel conto della differenza */
+  b: number;
 
   // Voci da statistiche: nessuna di queste entra in un totale
   logista: number;
@@ -96,6 +114,15 @@ export interface ShiftRow extends ShiftValues {
   lotto_netto?: number;
   lotto_aggio?: number;
   compilato?: boolean;
+
+  /**
+   * Lo scarto del turno: B + Totale del turno - Effettivo contato.
+   *
+   * Lo scrive l'app e non il database: per il turno pomeriggio il totale è la
+   * differenza rispetto alla mattina, e una colonna calcolata, che vede solo
+   * la propria riga, arriverebbe a un altro numero.
+   */
+  differenza_turno?: number;
 }
 
 /**
@@ -129,6 +156,14 @@ export interface DayTotals {
   lottoAggio: number;
   lottoNetto: number;
   pomeriggioCompilato: boolean;
+
+  /**
+   * Lo scarto di ogni turno: B + Totale del turno - Effettivo contato.
+   * Resta fuori dal totale della giornata, che continua a essere la somma
+   * delle due chiusure.
+   */
+  differenzaTurnoMattina: number;
+  differenzaTurnoPomeriggio: number;
 }
 
 /**

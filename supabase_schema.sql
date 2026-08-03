@@ -62,6 +62,43 @@ ALTER TABLE public.daily_logs
 ALTER TABLE public.daily_logs
     ADD COLUMN IF NOT EXISTS gratta_e_vinci NUMERIC(10,2) NOT NULL DEFAULT 0.00;
 
+-- Sisal a entrate e uscite, come il Lotto: nel totale entra il netto. Prima
+-- era una voce sola, e un'uscita si registrava scrivendoci il meno davanti.
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS sisal_entrate NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS sisal_uscite NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+
+-- Le chiusure già registrate portano l'importo nella voce giusta: positivo
+-- fra le entrate, negativo fra le uscite. Il netto resta identico, quindi
+-- nessun totale del passato cambia.
+--
+-- La vecchia colonna 'sisal' non viene toccata né cancellata: resta com'era,
+-- come copia di quello che era stato scritto, ma non fa più totale. La
+-- condizione sulle due colonne nuove fa sì che rieseguire questo file non
+-- ricopi niente una seconda volta.
+UPDATE public.daily_logs
+SET sisal_entrate = GREATEST(sisal, 0),
+    sisal_uscite = GREATEST(-sisal, 0)
+WHERE sisal <> 0
+  AND sisal_entrate = 0
+  AND sisal_uscite = 0;
+
+-- Controllo di cassa: quanto si è contato davvero alla chiusura del turno e la
+-- voce B. Nessuna delle due entra nel totale del turno.
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS effettivo NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS b NUMERIC(10,2) NOT NULL DEFAULT 0.00;
+
+-- Lo scarto del turno: B + Totale del turno - Effettivo contato.
+--
+-- Non è una colonna calcolata e lo scrive l'app: per il turno pomeriggio il
+-- totale è la differenza rispetto alla mattina, e una formula che vede solo la
+-- propria riga arriverebbe a un altro numero.
+ALTER TABLE public.daily_logs
+    ADD COLUMN IF NOT EXISTS differenza_turno NUMERIC(12,2) NOT NULL DEFAULT 0.00;
+
 -- Le colonne calcolate si rifanno ogni volta: non contengono dati propri,
 -- quindi rigenerarle è l'unico modo per aggiornarne la formula senza rischi.
 ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS totale_turno;
@@ -74,7 +111,7 @@ ALTER TABLE public.daily_logs DROP COLUMN IF EXISTS compilato;
 -- dashboard e non nel totale del turno.
 ALTER TABLE public.daily_logs
     ADD COLUMN totale_turno NUMERIC(12,2) GENERATED ALWAYS AS (
-        (contanti + sisal + mooney + lis + printer
+        (contanti + (sisal_entrate - sisal_uscite) + mooney + lis + printer
             + (lotto_entrate - lotto_uscite)) - fatture
     ) STORED;
 
@@ -93,7 +130,7 @@ ALTER TABLE public.daily_logs
 -- un turno che nessuno ha ancora compilato.
 ALTER TABLE public.daily_logs
     ADD COLUMN compilato BOOLEAN GENERATED ALWAYS AS (
-        contanti <> 0 OR sisal <> 0 OR mooney <> 0
+        contanti <> 0 OR sisal_entrate <> 0 OR sisal_uscite <> 0 OR mooney <> 0
         OR lis <> 0 OR printer <> 0
         OR lotto_entrate <> 0 OR lotto_uscite <> 0 OR fatture <> 0
     ) STORED;
@@ -151,6 +188,19 @@ ALTER TABLE public.daily_logs_storico
 ALTER TABLE public.daily_logs_storico
     ADD COLUMN IF NOT EXISTS gratta_e_vinci NUMERIC(10,2);
 
+-- Le voci aggiunte dopo devono finire nello storico come tutte le altre:
+-- una copia di sicurezza che ne salta qualcuna non è una copia
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS sisal_entrate NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS sisal_uscite NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS effettivo NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS b NUMERIC(10,2);
+ALTER TABLE public.daily_logs_storico
+    ADD COLUMN IF NOT EXISTS differenza_turno NUMERIC(12,2);
+
 CREATE INDEX IF NOT EXISTS idx_storico_date
     ON public.daily_logs_storico(date DESC, turno, versione DESC);
 
@@ -173,12 +223,14 @@ DECLARE
     prossima_versione INTEGER;
 BEGIN
     IF (OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
-        OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
-        OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture)
+        OLD.sisal_entrate, OLD.sisal_uscite, OLD.mooney, OLD.lis, OLD.printer,
+        OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture,
+        OLD.effettivo, OLD.b)
        IS DISTINCT FROM
        (NEW.contanti, NEW.tabacchi, NEW.bar, NEW.logista, NEW.gratta_e_vinci,
-        NEW.sisal, NEW.mooney, NEW.lis, NEW.printer,
-        NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture)
+        NEW.sisal_entrate, NEW.sisal_uscite, NEW.mooney, NEW.lis, NEW.printer,
+        NEW.lotto_entrate, NEW.lotto_uscite, NEW.fatture,
+        NEW.effettivo, NEW.b)
     THEN
         IF OLD.updated_at < now() - INTERVAL '2 hours' THEN
             SELECT COALESCE(MAX(versione), 1) + 1
@@ -189,13 +241,15 @@ BEGIN
             INSERT INTO public.daily_logs_storico (
                 date, turno, versione, ferma_dal,
                 contanti, tabacchi, bar, logista, gratta_e_vinci,
-                sisal, mooney, lis, printer,
-                lotto_entrate, lotto_uscite, fatture, totale_turno
+                sisal, sisal_entrate, sisal_uscite, mooney, lis, printer,
+                lotto_entrate, lotto_uscite, fatture,
+                effettivo, b, differenza_turno, totale_turno
             ) VALUES (
                 OLD.date, OLD.turno, prossima_versione, OLD.updated_at,
                 OLD.contanti, OLD.tabacchi, OLD.bar, OLD.logista, OLD.gratta_e_vinci,
-                OLD.sisal, OLD.mooney, OLD.lis, OLD.printer,
-                OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture, OLD.totale_turno
+                OLD.sisal, OLD.sisal_entrate, OLD.sisal_uscite, OLD.mooney, OLD.lis, OLD.printer,
+                OLD.lotto_entrate, OLD.lotto_uscite, OLD.fatture,
+                OLD.effettivo, OLD.b, OLD.differenza_turno, OLD.totale_turno
             );
         END IF;
 

@@ -4,11 +4,13 @@ import {
   calculateDayTotals,
   calculateLottoAggio,
   calculateLottoNet,
+  calculateNetMovement,
   emptyShiftValues,
   formatCurrency,
   formatDateItalian,
   formatDateLocalISO,
   formatInputValue,
+  formatSignedCurrency,
   getActiveShift,
   getMaxAllowedDateString,
   getMinAllowedDateString,
@@ -94,14 +96,18 @@ const inputLogista = document.getElementById('input-logista') as HTMLInputElemen
 const inputGrattaEVinci = document.getElementById('input-gratta-e-vinci') as HTMLInputElement;
 const inputBar = document.getElementById('input-bar') as HTMLInputElement;
 const inputTabacchi = document.getElementById('input-tabacchi') as HTMLInputElement;
-const inputSisal = document.getElementById('input-sisal') as HTMLInputElement;
+const inputSisalEntrate = document.getElementById('input-sisal-entrate') as HTMLInputElement;
+const inputSisalUscite = document.getElementById('input-sisal-uscite') as HTMLInputElement;
 const inputMooney = document.getElementById('input-mooney') as HTMLInputElement;
 const inputLis = document.getElementById('input-lis') as HTMLInputElement;
 const inputPrinter = document.getElementById('input-printer') as HTMLInputElement;
 const inputLottoEntrate = document.getElementById('input-lotto-entrate') as HTMLInputElement;
 const inputLottoUscite = document.getElementById('input-lotto-uscite') as HTMLInputElement;
 const inputFatture = document.getElementById('input-fatture') as HTMLInputElement;
-const btnToggleSisalSign = document.getElementById('btn-toggle-sisal-sign') as HTMLButtonElement;
+
+// Controllo di cassa: fuori dal totale del turno, dentro al conto dello scarto
+const inputEffettivo = document.getElementById('input-effettivo') as HTMLInputElement;
+const inputB = document.getElementById('input-b') as HTMLInputElement;
 const btnToggleMooneySign = document.getElementById('btn-toggle-mooney-sign') as HTMLButtonElement;
 
 // Campi che possono chiudere in negativo, con il rispettivo pulsante ±
@@ -112,10 +118,21 @@ const shiftTabs = Array.from(document.querySelectorAll('.shift-tab')) as HTMLBut
 const displayLottoAggio = document.getElementById('display-lotto-aggio') as HTMLSpanElement;
 const lottoAggioRow = document.getElementById('lotto-aggio-row') as HTMLDivElement;
 const displayLottoNetto = document.getElementById('display-lotto-netto') as HTMLSpanElement;
+const displaySisalNetto = document.getElementById('display-sisal-netto') as HTMLSpanElement;
 const displayTotaleTurnoMattina = document.getElementById('display-totale-turno-mattina') as HTMLSpanElement;
 const displayTotaleTurnoPomeriggio = document.getElementById('display-totale-turno-pomeriggio') as HTMLSpanElement;
 const rowTurnoPomeriggio = document.getElementById('row-turno-pomeriggio') as HTMLDivElement;
 const labelTurnoMattina = document.getElementById('label-turno-mattina') as HTMLSpanElement;
+
+// Controllo di cassa dei due turni
+const displayEffettivoMattina = document.getElementById('display-effettivo-mattina') as HTMLSpanElement;
+const displayBMattina = document.getElementById('display-b-mattina') as HTMLSpanElement;
+const displayDifferenzaMattina = document.getElementById('display-differenza-mattina') as HTMLSpanElement;
+const displayEffettivoPomeriggio = document.getElementById('display-effettivo-pomeriggio') as HTMLSpanElement;
+const displayBPomeriggio = document.getElementById('display-b-pomeriggio') as HTMLSpanElement;
+const displayDifferenzaPomeriggio = document.getElementById('display-differenza-pomeriggio') as HTMLSpanElement;
+const labelEffettivoMattina = document.getElementById('label-effettivo-mattina') as HTMLSpanElement;
+const labelDifferenzaMattina = document.getElementById('label-differenza-mattina') as HTMLSpanElement;
 const displayTotaleGiornata = document.getElementById('display-totale-giornata') as HTMLSpanElement;
 
 const autoSaveBadge = document.getElementById('auto-save-badge') as HTMLDivElement;
@@ -211,13 +228,16 @@ function toggleSign(campo: HTMLInputElement) {
 function getShiftValuesFromInputs(): ShiftValues {
   return {
     contanti: parseInputValue(inputContanti.value),
-    sisal: parseInputValue(inputSisal.value),
+    sisal_entrate: parseInputValue(inputSisalEntrate.value),
+    sisal_uscite: parseInputValue(inputSisalUscite.value),
     mooney: parseInputValue(inputMooney.value),
     lis: parseInputValue(inputLis.value),
     printer: parseInputValue(inputPrinter.value),
     lotto_entrate: parseInputValue(inputLottoEntrate.value),
     lotto_uscite: parseInputValue(inputLottoUscite.value),
     fatture: parseInputValue(inputFatture.value),
+    effettivo: parseInputValue(inputEffettivo.value),
+    b: parseInputValue(inputB.value),
     logista: parseInputValue(inputLogista.value),
     gratta_e_vinci: parseInputValue(inputGrattaEVinci.value),
     bar: parseInputValue(inputBar.value),
@@ -230,13 +250,16 @@ function getShiftValuesFromInputs(): ShiftValues {
  */
 function applyShiftValuesToInputs(values: ShiftValues) {
   inputContanti.value = formatInputValue(values.contanti);
-  inputSisal.value = formatInputValue(values.sisal);
+  inputSisalEntrate.value = formatInputValue(values.sisal_entrate);
+  inputSisalUscite.value = formatInputValue(values.sisal_uscite);
   inputMooney.value = formatInputValue(values.mooney);
   inputLis.value = formatInputValue(values.lis);
   inputPrinter.value = formatInputValue(values.printer);
   inputLottoEntrate.value = formatInputValue(values.lotto_entrate);
   inputLottoUscite.value = formatInputValue(values.lotto_uscite);
   inputFatture.value = formatInputValue(values.fatture);
+  inputEffettivo.value = formatInputValue(values.effettivo);
+  inputB.value = formatInputValue(values.b);
   inputLogista.value = formatInputValue(values.logista);
   inputGrattaEVinci.value = formatInputValue(values.gratta_e_vinci);
   inputBar.value = formatInputValue(values.bar);
@@ -292,6 +315,12 @@ function renderShiftSelector() {
   if (labelTurnoMattina) {
     labelTurnoMattina.textContent = soloMattina ? 'Totale Turno' : 'Totale Turno 1';
   }
+  if (labelEffettivoMattina) {
+    labelEffettivoMattina.textContent = soloMattina ? 'Effettivo Turno' : 'Effettivo Turno 1';
+  }
+  if (labelDifferenzaMattina) {
+    labelDifferenzaMattina.textContent = soloMattina ? 'Differenza Turno' : 'Differenza Turno 1';
+  }
 }
 
 /**
@@ -314,6 +343,11 @@ function updateCalculatedDisplays() {
       calculateLottoAggio(turnoCorrente.lotto_entrate)
     );
   }
+  if (displaySisalNetto) {
+    displaySisalNetto.textContent = formatCurrency(
+      calculateNetMovement(turnoCorrente.sisal_entrate, turnoCorrente.sisal_uscite)
+    );
+  }
   if (displayTotaleTurnoMattina) {
     displayTotaleTurnoMattina.textContent = formatCurrency(totals.totaleTurnoMattina);
   }
@@ -325,6 +359,54 @@ function updateCalculatedDisplays() {
   if (displayTotaleGiornata) {
     displayTotaleGiornata.textContent = formatCurrency(totals.totaleGiornata);
   }
+
+  mostraControlloCassa(
+    'mattina',
+    displayEffettivoMattina,
+    displayBMattina,
+    displayDifferenzaMattina,
+    totals.differenzaTurnoMattina,
+    true
+  );
+
+  mostraControlloCassa(
+    'pomeriggio',
+    displayEffettivoPomeriggio,
+    displayBPomeriggio,
+    displayDifferenzaPomeriggio,
+    totals.differenzaTurnoPomeriggio,
+    totals.pomeriggioCompilato
+  );
+}
+
+/**
+ * Riempie le righe del controllo di cassa di un turno.
+ *
+ * Lo scarto porta il segno e cambia colore: dice da che parte pende, e a
+ * colpo d'occhio si vede se la cassa torna.
+ */
+function mostraControlloCassa(
+  turno: ShiftKey,
+  campoEffettivo: HTMLSpanElement,
+  campoB: HTMLSpanElement,
+  campoDifferenza: HTMLSpanElement,
+  differenza: number,
+  compilato: boolean
+) {
+  const voci = shiftData[turno];
+
+  if (campoEffettivo) campoEffettivo.textContent = formatCurrency(voci.effettivo);
+  if (campoB) campoB.textContent = formatCurrency(voci.b);
+
+  if (!campoDifferenza) return;
+
+  // Senza la chiusura non c'è niente da confrontare: meglio una lineetta che
+  // uno scarto pari all'intero turno
+  campoDifferenza.textContent = compilato ? formatSignedCurrency(differenza) : '—';
+
+  // Positivo vuol dire che in cassa c'è meno di quello che dovrebbe esserci
+  campoDifferenza.classList.toggle('is-ammanco', compilato && differenza > 0);
+  campoDifferenza.classList.toggle('is-eccedenza', compilato && differenza < 0);
 }
 
 /**
@@ -358,13 +440,21 @@ function triggerAutoSave() {
   const turnoDaSalvare = currentShift;
   const vociDaSalvare = shiftData[currentShift];
 
+  // Lo scarto si calcola qui, dove ci sono tutti e due i turni: per il
+  // pomeriggio serve anche la mattina, perché il suo totale è una differenza
+  const totali = calculateDayTotals(shiftData.mattina, shiftData.pomeriggio);
+  const differenzaDaSalvare = turnoDaSalvare === 'mattina'
+    ? totali.differenzaTurnoMattina
+    : totali.differenzaTurnoPomeriggio;
+
   saveDebounceTimer = window.setTimeout(async () => {
     try {
       const result = await autoSaveDailyLog(
         dataDaSalvare,
         turnoDaSalvare,
         vociDaSalvare,
-        getDayExtras()
+        getDayExtras(),
+        differenzaDaSalvare
       );
       lastSaveError = result.error;
       updateSaveStatusBadge(result.storage === 'supabase' ? 'saved' : 'saved-local');
@@ -911,8 +1001,9 @@ function setupEventListeners() {
   });
 
   const allInputs = [
-    inputContanti, inputSisal, inputMooney, inputLis, inputPrinter,
+    inputContanti, inputSisalEntrate, inputSisalUscite, inputMooney, inputLis, inputPrinter,
     inputLottoEntrate, inputLottoUscite, inputFatture,
+    inputEffettivo, inputB,
     inputLogista, inputGrattaEVinci, inputBar, inputTabacchi
   ];
 
@@ -932,9 +1023,10 @@ function setupEventListeners() {
     });
   });
 
-  // Toggle segno ± sul campo Sisal (indispensabile da telefono: il tastierino
-  // decimale di iOS e Android non ha il tasto meno)
-  campiConSegno.push([inputSisal, btnToggleSisalSign], [inputMooney, btnToggleMooneySign]);
+  // Toggle segno ± su Mooney (indispensabile da telefono: il tastierino
+  // decimale di iOS e Android non ha il tasto meno). Il Sisal non ne ha più
+  // bisogno: adesso ha una voce apposta per le uscite.
+  campiConSegno.push([inputMooney, btnToggleMooneySign]);
 
   campiConSegno.forEach(([campo, pulsante]) => {
     pulsante?.addEventListener('click', () => toggleSign(campo));
@@ -999,6 +1091,14 @@ function fillPrintDocument() {
     'totale.turno2': totals.pomeriggioCompilato ? totals.totaleTurnoPomeriggio : null,
     'totale.giornata': totals.totaleGiornata,
 
+    'mattina.differenza': totals.differenzaTurnoMattina,
+    'pomeriggio.differenza': totals.pomeriggioCompilato ? totals.differenzaTurnoPomeriggio : null,
+
+    'mattina.sisal_netto': calculateNetMovement(mattina.sisal_entrate, mattina.sisal_uscite),
+    'pomeriggio.sisal_netto': totals.pomeriggioCompilato
+      ? calculateNetMovement(pomeriggio.sisal_entrate, pomeriggio.sisal_uscite)
+      : null,
+
     'mattina.lotto_netto': calculateLottoNet(mattina.lotto_entrate, mattina.lotto_uscite),
     'mattina.lotto_aggio': calculateLottoAggio(mattina.lotto_entrate),
     'pomeriggio.lotto_netto': totals.pomeriggioCompilato
@@ -1019,7 +1119,17 @@ function fillPrintDocument() {
     if (!chiave) return;
 
     const valore = valori[chiave];
-    cell.textContent = valore === null || valore === undefined ? '—' : formatCurrency(valore);
+
+    if (valore === null || valore === undefined) {
+      cell.textContent = '—';
+      return;
+    }
+
+    // Lo scarto si stampa con il segno: senza, sul foglio non si capisce se
+    // in cassa mancava o avanzava
+    cell.textContent = chiave.endsWith('.differenza')
+      ? formatSignedCurrency(valore)
+      : formatCurrency(valore);
   });
 }
 

@@ -798,6 +798,69 @@ body {
   display: none;
 }
 
+/* Ogni turno tiene insieme il suo totale e il controllo di cassa: nascondere
+   il secondo turno deve portarsi via anche le sue righe di dettaglio */
+.totale-turno-gruppo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.totale-turno-gruppo.is-hidden {
+  display: none;
+}
+
+/* Effettivo, B e scarto: stanno sotto al totale e pesano meno di lui */
+.totale-dettaglio-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 1.15rem;
+}
+
+.totale-dettaglio-row.is-differenza {
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-pearl);
+}
+
+.totale-dettaglio-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.totale-dettaglio-row.is-differenza .totale-dettaglio-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.totale-dettaglio-value {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.totale-differenza-value {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* Il segno si legge anche dal colore. Positivo vuol dire che in cassa c'è meno
+   di quello che il totale dice: è quello il caso da guardare, quindi rosso. */
+.totale-differenza-value.is-ammanco {
+  color: var(--ferrari-red);
+}
+
+.totale-differenza-value.is-eccedenza {
+  color: var(--accent-green-text);
+}
+
 .totale-turno-value {
   font-family: var(--font-mono);
   font-size: 1.15rem;
@@ -810,6 +873,7 @@ body {
    e blocco dei dati da statistiche, che ne ripete la forma: sono due gruppi di
    voci a sé stanti dentro allo stesso form, e si leggono meglio uguali. */
 .lotto-box-container,
+.sisal-box-container,
 .stat-box-container {
   background-color: #FFFFFF;
   border: 1.5px solid var(--border-pearl);
@@ -822,6 +886,7 @@ body {
 }
 
 .lotto-box-header,
+.sisal-box-header,
 .stat-box-header {
   font-size: 0.85rem;
   font-weight: 800;
@@ -856,49 +921,59 @@ body {
 }
 
 /* Lotto Entrate: Righino Verde Sottile Elegante */
-.lotto-field-entrate {
+.lotto-field-entrate,
+.sisal-field-entrate {
   border-left: 3.5px solid #10B981 !important;
   background-color: #FFFFFF !important;
 }
 
-.label-lotto-green {
+.label-lotto-green,
+.label-sisal-green {
   color: #047857 !important;
   font-weight: 800 !important;
 }
 
-.symbol-lotto-green {
+.symbol-lotto-green,
+.symbol-sisal-green {
   color: #10B981 !important;
 }
 
-.input-lotto-green {
+.input-lotto-green,
+.input-sisal-green {
   color: #047857 !important;
 }
 
-.input-lotto-green:focus {
+.input-lotto-green:focus,
+.input-sisal-green:focus {
   border-color: #10B981 !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15) !important;
 }
 
 /* Lotto Uscite: Righino Rosso Sottile Elegante */
-.lotto-field-uscite {
+.lotto-field-uscite,
+.sisal-field-uscite {
   border-left: 3.5px solid #EF4444 !important;
   background-color: #FFFFFF !important;
 }
 
-.label-lotto-red {
+.label-lotto-red,
+.label-sisal-red {
   color: #B91C1C !important;
   font-weight: 800 !important;
 }
 
-.symbol-lotto-red {
+.symbol-lotto-red,
+.symbol-sisal-red {
   color: #EF4444 !important;
 }
 
-.input-lotto-red {
+.input-lotto-red,
+.input-sisal-red {
   color: #B91C1C !important;
 }
 
-.input-lotto-red:focus {
+.input-lotto-red:focus,
+.input-sisal-red:focus {
   border-color: #EF4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
 }

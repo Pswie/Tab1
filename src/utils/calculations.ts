@@ -74,13 +74,16 @@ function italianDateShifted(days: number, instant: Date = new Date()): string {
 export function emptyShiftValues(): ShiftValues {
   return {
     contanti: 0,
-    sisal: 0,
+    sisal_entrate: 0,
+    sisal_uscite: 0,
     mooney: 0,
     lis: 0,
     printer: 0,
     lotto_entrate: 0,
     lotto_uscite: 0,
     fatture: 0,
+    effettivo: 0,
+    b: 0,
     logista: 0,
     gratta_e_vinci: 0,
     bar: 0,
@@ -96,11 +99,15 @@ export function emptyShiftValues(): ShiftValues {
  * Le voci da statistiche restano fuori: da sole non chiudono un turno, e un
  * incasso del bar segnato per primo farebbe passare per fatta una chiusura
  * che nessuno ha ancora compilato.
+ *
+ * Fuori anche l'effettivo contato e la voce B: sono un controllo su un totale
+ * che deve già esistere, e da soli non fanno una chiusura.
  */
 export function isShiftFilled(values: ShiftValues): boolean {
   return (
     values.contanti !== 0 ||
-    values.sisal !== 0 ||
+    values.sisal_entrate !== 0 ||
+    values.sisal_uscite !== 0 ||
     values.mooney !== 0 ||
     values.lis !== 0 ||
     values.printer !== 0 ||
@@ -119,17 +126,30 @@ export function calculateLottoAggio(entrate: number): number {
 }
 
 /**
- * Calcola il valore netto del Lotto: Entrate - Uscite
+ * Netto di un blocco entrate/uscite: Entrate - Uscite.
+ *
+ * Vale per il Lotto e per il Sisal allo stesso modo: quello che si è incassato
+ * meno quello che è stato pagato allo sportello, cioè quanto resta davvero.
  */
-export function calculateLottoNet(entrate: number, uscite: number): number {
+export function calculateNetMovement(entrate: number, uscite: number): number {
   const e = isNaN(entrate) ? 0 : entrate;
   const u = isNaN(uscite) ? 0 : uscite;
   return Number((e - u).toFixed(2));
 }
 
 /**
+ * Calcola il valore netto del Lotto: Entrate - Uscite
+ */
+export function calculateLottoNet(entrate: number, uscite: number): number {
+  return calculateNetMovement(entrate, uscite);
+}
+
+/**
  * Totale di una singola lettura:
- * Contanti + Sisal + Mooney + Lis + Printer + Lotto Netto - Fatture
+ * Contanti + Sisal Netto + Mooney + Lis + Printer + Lotto Netto - Fatture
+ *
+ * Sisal e Lotto entrano tutti e due col netto: le uscite sono soldi usciti
+ * davvero dalla cassa.
  *
  * Del Lotto entra il netto: le vincite pagate allo sportello escono davvero
  * dalla cassa, quindi vanno tolte. Il giocato, che è la cifra su cui si prende
@@ -143,7 +163,7 @@ export function calculateShiftReading(values: ShiftValues): number {
 
   const totale =
     safe(values.contanti) +
-    safe(values.sisal) +
+    (safe(values.sisal_entrate) - safe(values.sisal_uscite)) +
     safe(values.mooney) +
     safe(values.lis) +
     safe(values.printer) +
@@ -151,6 +171,21 @@ export function calculateShiftReading(values: ShiftValues): number {
     safe(values.fatture);
 
   return Number(totale.toFixed(2));
+}
+
+/**
+ * Lo scarto di un turno: B + Totale del turno - Effettivo contato.
+ *
+ * Dice se quello che si è contato davvero sta con quello che il totale dice
+ * che dovrebbe esserci. Positivo vuol dire che manca, negativo che c'è in più.
+ *
+ * Il totale del turno arriva da fuori perché per il pomeriggio non è la
+ * lettura della riga ma la differenza rispetto alla mattina.
+ */
+export function calculateShiftDifference(totaleTurno: number, values: ShiftValues): number {
+  const safe = (n: number) => (isNaN(n) ? 0 : n);
+
+  return Number((safe(values.b) + totaleTurno - safe(values.effettivo)).toFixed(2));
 }
 
 /**
@@ -182,7 +217,13 @@ export function calculateDayTotals(mattina: ShiftValues, pomeriggio: ShiftValues
     totaleGiornata,
     lottoAggio: calculateLottoAggio(lottoDelGiorno.lotto_entrate),
     lottoNetto: calculateLottoNet(lottoDelGiorno.lotto_entrate, lottoDelGiorno.lotto_uscite),
-    pomeriggioCompilato
+    pomeriggioCompilato,
+
+    differenzaTurnoMattina: calculateShiftDifference(totaleTurnoMattina, mattina),
+    // Senza la chiusura del pomeriggio non c'è un secondo turno da confrontare
+    differenzaTurnoPomeriggio: pomeriggioCompilato
+      ? calculateShiftDifference(totaleTurnoPomeriggio, pomeriggio)
+      : 0
   };
 }
 
@@ -229,6 +270,23 @@ export function formatCurrency(amount: number): string {
 /**
  * Converte stringhe input dell'utente (supporta sia punto che virgola) in float valido
  */
+/**
+ * Come formatCurrency, ma con il segno sempre davanti.
+ *
+ * Uno scarto va letto per quello che è: senza il + davanti un numero positivo
+ * si confonde con un importo qualsiasi, e la differenza serve proprio a dire
+ * da che parte pende.
+ */
+export function formatSignedCurrency(amount: number): string {
+  const val = isNaN(amount) ? 0 : amount;
+  const testo = formatCurrency(Math.abs(val));
+
+  if (val > 0) return `+${testo}`;
+  if (val < 0) return `-${testo}`;
+
+  return testo;
+}
+
 export function parseInputValue(val: string): number {
   if (!val || val.trim() === '') return 0;
   const sanitized = val.replace(/\s/g, '').replace(',', '.');

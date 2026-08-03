@@ -657,27 +657,6 @@
             </div>
           </div>
 
-          <!-- Sisal -->
-          <div class="field-item">
-            <div class="field-label-group">
-              <span class="field-label">Sisal</span>
-            </div>
-            <div class="input-with-sign">
-              <button
-                type="button"
-                id="btn-toggle-sisal-sign"
-                class="btn-sign-toggle"
-                aria-pressed="false"
-                aria-label="Inverti il segno del valore Sisal"
-                title="Inverti il segno (per registrare un valore negativo)"
-              >&plusmn;</button>
-              <div class="input-currency-wrapper">
-                <span class="currency-symbol">€</span>
-                <input type="text" id="input-sisal" class="currency-input" placeholder="0,00" inputmode="decimal" />
-              </div>
-            </div>
-          </div>
-
           <!-- Mooney -->
           <div class="field-item">
             <div class="field-label-group">
@@ -718,6 +697,42 @@
             <div class="input-currency-wrapper">
               <span class="currency-symbol">€</span>
               <input type="text" id="input-printer" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <!-- BLOCCO MOVIMENTI SISAL
+               Stessa forma del Lotto e stesso comportamento nel totale: entra
+               il netto, perché le uscite sono soldi usciti davvero dalla cassa.
+               Prima era una voce sola, e un'uscita si scriveva col meno davanti. -->
+          <div class="sisal-box-container">
+            <div class="sisal-box-header">
+              <span>Movimenti Sisal</span>
+            </div>
+
+            <div class="field-item sisal-field-entrate">
+              <div class="field-label-group">
+                <span class="field-label label-sisal-green">Sisal Entrate</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol symbol-sisal-green">€</span>
+                <input type="text" id="input-sisal-entrate" class="currency-input input-sisal-green" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="field-item sisal-field-uscite">
+              <div class="field-label-group">
+                <span class="field-label label-sisal-red">Sisal Uscite</span>
+                <span class="field-subtext">Sottratte dal totale</span>
+              </div>
+              <div class="input-currency-wrapper">
+                <span class="currency-symbol symbol-sisal-red">€</span>
+                <input type="text" id="input-sisal-uscite" class="currency-input input-sisal-red" placeholder="0,00" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="subtotal-calculated-row">
+              <span class="subtotal-label">Sisal Netto</span>
+              <span id="display-sisal-netto" class="subtotal-value">0,00 €</span>
             </div>
           </div>
 
@@ -776,17 +791,74 @@
             </div>
           </div>
 
+          <!-- CONTROLLO DI CASSA
+               Nessuna di queste due voci entra nel totale del turno: servono a
+               confrontarlo con quello che si è contato davvero. Lo scarto che
+               ne esce si legge sotto ai totali, con il suo segno. -->
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">Effettivo turno</span>
+              <span class="field-subtext">Quanto si è contato davvero</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-effettivo" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
+          <div class="field-item">
+            <div class="field-label-group">
+              <span class="field-label">B</span>
+            </div>
+            <div class="input-currency-wrapper">
+              <span class="currency-symbol">€</span>
+              <input type="text" id="input-b" class="currency-input" placeholder="0,00" inputmode="decimal" />
+            </div>
+          </div>
+
           <!-- TOTALI DEI TURNI
                Nel turno di pranzo il secondo turno non esiste ancora: si mostra
                una sola riga, senza numerazione. -->
           <div class="totali-turni-block">
-            <div class="totale-turno-row">
-              <span class="totale-turno-label" id="label-turno-mattina">Totale Turno 1</span>
-              <span id="display-totale-turno-mattina" class="totale-turno-value">0,00 €</span>
+            <div class="totale-turno-gruppo">
+              <div class="totale-turno-row">
+                <span class="totale-turno-label" id="label-turno-mattina">Totale Turno 1</span>
+                <span id="display-totale-turno-mattina" class="totale-turno-value">0,00 €</span>
+              </div>
+
+              <!-- Il confronto con quello che si è contato davvero: lo scarto
+                   in fondo porta il segno, perché serve a dire da che parte pende -->
+              <div class="totale-dettaglio-row">
+                <span class="totale-dettaglio-label" id="label-effettivo-mattina">Effettivo Turno 1</span>
+                <span id="display-effettivo-mattina" class="totale-dettaglio-value">0,00 €</span>
+              </div>
+              <div class="totale-dettaglio-row">
+                <span class="totale-dettaglio-label">B</span>
+                <span id="display-b-mattina" class="totale-dettaglio-value">0,00 €</span>
+              </div>
+              <div class="totale-dettaglio-row is-differenza">
+                <span class="totale-dettaglio-label" id="label-differenza-mattina">Differenza Turno 1</span>
+                <span id="display-differenza-mattina" class="totale-differenza-value">0,00 €</span>
+              </div>
             </div>
-            <div class="totale-turno-row" id="row-turno-pomeriggio">
-              <span class="totale-turno-label">Totale Turno 2</span>
-              <span id="display-totale-turno-pomeriggio" class="totale-turno-value">0,00 €</span>
+
+            <div class="totale-turno-gruppo" id="row-turno-pomeriggio">
+              <div class="totale-turno-row">
+                <span class="totale-turno-label">Totale Turno 2</span>
+                <span id="display-totale-turno-pomeriggio" class="totale-turno-value">0,00 €</span>
+              </div>
+              <div class="totale-dettaglio-row">
+                <span class="totale-dettaglio-label">Effettivo Turno 2</span>
+                <span id="display-effettivo-pomeriggio" class="totale-dettaglio-value">0,00 €</span>
+              </div>
+              <div class="totale-dettaglio-row">
+                <span class="totale-dettaglio-label">B</span>
+                <span id="display-b-pomeriggio" class="totale-dettaglio-value">0,00 €</span>
+              </div>
+              <div class="totale-dettaglio-row is-differenza">
+                <span class="totale-dettaglio-label">Differenza Turno 2</span>
+                <span id="display-differenza-pomeriggio" class="totale-differenza-value">0,00 €</span>
+              </div>
             </div>
           </div>
 
@@ -1091,8 +1163,16 @@
             <td class="doc-amount" data-doc="mattina.contanti">0,00</td>
           </tr>
           <tr>
-            <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
-            <td class="doc-amount" data-doc="mattina.sisal">0,00</td>
+            <td><span class="doc-symbol sym-plus">+</span> Sisal Entrate</td>
+            <td class="doc-amount" data-doc="mattina.sisal_entrate">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-minus">-</span> Sisal Uscite</td>
+            <td class="doc-amount" data-doc="mattina.sisal_uscite">0,00</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Sisal Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="mattina.sisal_netto"><strong>0,00</strong></td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Mooney</td>
@@ -1127,6 +1207,21 @@
           <tr>
             <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
             <td class="doc-amount" data-doc="mattina.fatture">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">CONTROLLO DI CASSA (FUORI DAL TOTALE)</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;">Effettivo contato</td>
+            <td class="doc-amount" data-doc="mattina.effettivo">0,00</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;">B</td>
+            <td class="doc-amount" data-doc="mattina.b">0,00</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Differenza (B + Totale - Effettivo)</strong></td>
+            <td class="doc-amount" data-doc="mattina.differenza"><strong>0,00</strong></td>
           </tr>
           <tr class="doc-section-divider">
             <td colspan="2">DATI PER LE STATISTICHE (NON SOMMATI)</td>
@@ -1174,8 +1269,16 @@
             <td class="doc-amount" data-doc="pomeriggio.contanti">0,00</td>
           </tr>
           <tr>
-            <td><span class="doc-symbol sym-plus">+</span> Sisal</td>
-            <td class="doc-amount" data-doc="pomeriggio.sisal">0,00</td>
+            <td><span class="doc-symbol sym-plus">+</span> Sisal Entrate</td>
+            <td class="doc-amount" data-doc="pomeriggio.sisal_entrate">0,00</td>
+          </tr>
+          <tr>
+            <td><span class="doc-symbol sym-minus">-</span> Sisal Uscite</td>
+            <td class="doc-amount" data-doc="pomeriggio.sisal_uscite">0,00</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Sisal Netto (Subtotale)</strong></td>
+            <td class="doc-amount" data-doc="pomeriggio.sisal_netto"><strong>0,00</strong></td>
           </tr>
           <tr>
             <td><span class="doc-symbol sym-plus">+</span> Mooney</td>
@@ -1216,6 +1319,21 @@
           <tr>
             <td><span class="doc-symbol sym-minus">-</span> Fatture</td>
             <td class="doc-amount" data-doc="pomeriggio.fatture">0,00</td>
+          </tr>
+          <tr class="doc-section-divider">
+            <td colspan="2">CONTROLLO DI CASSA (FUORI DAL TOTALE)</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;">Effettivo contato</td>
+            <td class="doc-amount" data-doc="pomeriggio.effettivo">0,00</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 1.25rem;">B</td>
+            <td class="doc-amount" data-doc="pomeriggio.b">0,00</td>
+          </tr>
+          <tr class="doc-subtotal-row">
+            <td><span class="doc-symbol sym-equal">=</span> <strong>Differenza (B + Totale - Effettivo)</strong></td>
+            <td class="doc-amount" data-doc="pomeriggio.differenza"><strong>0,00</strong></td>
           </tr>
           <tr class="doc-section-divider">
             <td colspan="2">DATI PER LE STATISTICHE (NON SOMMATI)</td>

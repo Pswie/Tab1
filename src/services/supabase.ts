@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { DayExtras, DayRecord, SaveResult, ShiftKey, ShiftRow, ShiftValues } from '../types';
-import { emptyShiftValues, getEmployeeAllowedDateRange } from '../utils/calculations';
+import {
+  calculateNetMovement,
+  emptyShiftValues,
+  getEmployeeAllowedDateRange
+} from '../utils/calculations';
 
 // Configurazione variabili d'ambiente Supabase
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
@@ -33,13 +37,16 @@ function toShiftValues(row: Partial<ShiftRow> | null | undefined): ShiftValues {
 
   return {
     contanti: Number(row.contanti) || 0,
-    sisal: Number(row.sisal) || 0,
+    sisal_entrate: Number(row.sisal_entrate) || 0,
+    sisal_uscite: Number(row.sisal_uscite) || 0,
     mooney: Number(row.mooney) || 0,
     lis: Number(row.lis) || 0,
     printer: Number(row.printer) || 0,
     lotto_entrate: Number(row.lotto_entrate) || 0,
     lotto_uscite: Number(row.lotto_uscite) || 0,
     fatture: Number(row.fatture) || 0,
+    effettivo: Number(row.effettivo) || 0,
+    b: Number(row.b) || 0,
     logista: Number(row.logista) || 0,
     gratta_e_vinci: Number(row.gratta_e_vinci) || 0,
     bar: Number(row.bar) || 0,
@@ -145,16 +152,41 @@ export async function fetchLogByDate(dateStr: string): Promise<DayRecord | null>
 }
 
 /**
+ * Colonne aggiunte con l'effettivo di cassa: finché lo schema sul database non
+ * viene aggiornato, PostgREST rifiuta l'intera scrittura perché non le conosce.
+ */
+const COLONNE_NUOVE = [
+  'effettivo',
+  'b',
+  'differenza_turno',
+  'sisal_entrate',
+  'sisal_uscite'
+] as const;
+
+function colonnaMancante(messaggio: string): boolean {
+  const m = messaggio.toLowerCase();
+
+  return COLONNE_NUOVE.some(
+    c => m.includes(`'${c}'`) || m.includes(`"${c}"`) || m.includes(` ${c} `)
+  ) && (m.includes('column') || m.includes('schema cache') || m.includes('colonna'));
+}
+
+/**
  * Salva la chiusura del turno indicato, più le note della giornata.
  *
  * Scrive solo la riga del turno che si sta compilando: le due chiusure sono
  * righe distinte e indipendenti, così modificarne una non tocca mai l'altra.
+ *
+ * `differenza` è lo scarto già calcolato (B + Totale turno - Effettivo): lo
+ * passa chi chiama perché per il pomeriggio serve anche la chiusura della
+ * mattina, che qui dentro non c'è.
  */
 export async function autoSaveDailyLog(
   dateStr: string,
   turno: ShiftKey,
   values: ShiftValues,
-  extras: DayExtras = {}
+  extras: DayExtras = {},
+  differenza = 0
 ): Promise<SaveResult> {
   // Copia locale aggiornata, usata come fallback e come valore di ritorno
   const localMap = getLocalLogs();
@@ -174,9 +206,39 @@ export async function autoSaveDailyLog(
 
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { error: erroreTurno } = await supabase
-        .from('daily_logs')
-        .upsert({ date: dateStr, turno, ...values }, { onConflict: 'date,turno' });
+      const scrivi = (riga: Record<string, unknown>) =>
+        supabase.from('daily_logs').upsert(riga, { onConflict: 'date,turno' });
+
+      // Lo scarto si salva insieme alla chiusura: è il numero che si guarda
+      // dopo, e ricalcolarlo richiederebbe di nuovo tutte e due le righe
+      let { error: erroreTurno } = await scrivi({
+        date: dateStr,
+        turno,
+        ...values,
+        differenza_turno: differenza
+      });
+
+      // Sul database ancora da aggiornare l'incasso della giornata è più
+      // importante delle voci nuove: si riscrive senza, invece di perdere tutto
+      if (erroreTurno && colonnaMancante(erroreTurno.message)) {
+        console.warn(
+          'Colonne nuove assenti su daily_logs: la chiusura viene salvata nel formato ' +
+          'vecchio. Esegui supabase_schema.sql per aggiornare lo schema.'
+        );
+
+        const { effettivo, b, sisal_entrate, sisal_uscite, ...vociVecchie } = values;
+        void effettivo;
+        void b;
+
+        ({ error: erroreTurno } = await scrivi({
+          date: dateStr,
+          turno,
+          ...vociVecchie,
+          // Sul vecchio schema il Sisal era una voce sola col segno: il netto
+          // è esattamente quello che ci si scriveva dentro
+          sisal: calculateNetMovement(sisal_entrate, sisal_uscite)
+        }));
+      }
 
       const { error: erroreNote } = await supabase
         .from('daily_notes')

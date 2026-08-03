@@ -3,6 +3,7 @@ import { ShiftRow, ShiftValues } from '../types';
 import {
   calculateDayTotals,
   calculateLottoAggio,
+  calculateNetMovement,
   emptyShiftValues,
   getTodayDateString,
   isShiftFilled
@@ -83,7 +84,10 @@ async function leggiChiusure(): Promise<ShiftRow[]> {
     const { data, error } = await supabase
       .from('daily_logs')
       // Solo le colonne che servono: su migliaia di righe il resto è peso inutile
-      .select('date, turno, contanti, tabacchi, sisal, mooney, lis, printer, lotto_entrate, lotto_uscite, fatture, bar, logista, gratta_e_vinci')
+      // Tutte le colonne invece dell'elenco: chiedere per nome una colonna che
+      // sul database non c'è ancora fa fallire l'intera lettura, e la dashboard
+      // resterebbe vuota fino a quando lo schema non viene aggiornato
+      .select('*')
       // L'ordinamento comprende il turno: due righe con la stessa data
       // potrebbero altrimenti cambiare posto fra una pagina e l'altra, e una
       // chiusura finirebbe letta due volte o mai
@@ -107,13 +111,16 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
 
   return {
     contanti: Number(riga.contanti) || 0,
-    sisal: Number(riga.sisal) || 0,
+    sisal_entrate: Number(riga.sisal_entrate) || 0,
+    sisal_uscite: Number(riga.sisal_uscite) || 0,
     mooney: Number(riga.mooney) || 0,
     lis: Number(riga.lis) || 0,
     printer: Number(riga.printer) || 0,
     lotto_entrate: Number(riga.lotto_entrate) || 0,
     lotto_uscite: Number(riga.lotto_uscite) || 0,
     fatture: Number(riga.fatture) || 0,
+    effettivo: Number(riga.effettivo) || 0,
+    b: Number(riga.b) || 0,
     logista: Number(riga.logista) || 0,
     gratta_e_vinci: Number(riga.gratta_e_vinci) || 0,
     bar: Number(riga.bar) || 0,
@@ -124,13 +131,16 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
 function sommaVoci(elenco: ShiftValues[]): ShiftValues {
   return elenco.reduce<ShiftValues>((somma, v) => ({
     contanti: somma.contanti + v.contanti,
-    sisal: somma.sisal + v.sisal,
+    sisal_entrate: somma.sisal_entrate + v.sisal_entrate,
+    sisal_uscite: somma.sisal_uscite + v.sisal_uscite,
     mooney: somma.mooney + v.mooney,
     lis: somma.lis + v.lis,
     printer: somma.printer + v.printer,
     lotto_entrate: somma.lotto_entrate + v.lotto_entrate,
     lotto_uscite: somma.lotto_uscite + v.lotto_uscite,
     fatture: somma.fatture + v.fatture,
+    effettivo: somma.effettivo + v.effettivo,
+    b: somma.b + v.b,
     logista: somma.logista + v.logista,
     gratta_e_vinci: somma.gratta_e_vinci + v.gratta_e_vinci,
     bar: somma.bar + v.bar,
@@ -334,7 +344,8 @@ export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizio
   const voci = sommaVoci(giornate.map(g => g.voci));
 
   const righe = [
-    { etichetta: 'Sisal', valore: voci.sisal },
+    // Del Sisal conta il netto, come per il Lotto conta il giocato
+    { etichetta: 'Sisal', valore: calculateNetMovement(voci.sisal_entrate, voci.sisal_uscite) },
     { etichetta: 'Mooney', valore: voci.mooney },
     { etichetta: 'Lis', valore: voci.lis },
     { etichetta: 'Printer', valore: voci.printer },
