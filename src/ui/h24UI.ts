@@ -171,6 +171,52 @@ function rigaProdotto(p: ProdottoH24): string {
   `;
 }
 
+/** Quanti pacchi mancano dentro a una macchina */
+function pacchiDaPortare(macchina: Distributore): number {
+  return prodotti
+    .filter(p => p.distributore === macchina)
+    .reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
+}
+
+/**
+ * La testa di una macchina: il conteggio e i comandi che ne dipendono.
+ *
+ * Sta in una funzione a parte perché cambiando i pacchi va rifatta da sola:
+ * ridisegnare tutto l'elenco toglierebbe il fuoco dal campo che si sta
+ * scrivendo, e lasciarla com'è la farebbe restare indietro.
+ */
+function testaMacchina(macchina: Distributore): string {
+  const dentro = prodotti.filter(p => p.distributore === macchina);
+  const daPortare = pacchiDaPortare(macchina);
+  const pezzi = dentro.reduce((s, p) => s + pezziDiUnProdotto(p), 0);
+
+  return `
+    <h3 class="h24-macchina-titolo">${escapeHtml(NOMI_DISTRIBUTORI[macchina])}</h3>
+    <span class="h24-macchina-meta">
+      ${daPortare > 0
+        ? `${numero(daPortare)} ${daPortare === 1 ? 'pacco' : 'pacchi'} &middot; ${numero(pezzi)} pezzi`
+        : dentro.length === 0 ? 'Nessun prodotto' : 'Piena'}
+    </span>
+    ${daPortare > 0 && NUMERI_ORDINE[macchina]
+      ? `<button type="button" class="h24-macchina-btn is-ordine" data-action="ordina">Invia lista</button>`
+      : ''}
+    ${daPortare > 0
+      ? `<button type="button" class="h24-macchina-btn" data-action="rifornita">Rifornita</button>`
+      : ''}
+  `;
+}
+
+/** Rifà la sola testa di una macchina, lasciando stare il resto dell'elenco */
+function aggiornaTestaMacchina(macchina: Distributore): void {
+  const sezione = listaProdotti?.querySelector(`.h24-macchina[data-macchina="${macchina}"]`);
+  if (!sezione) return;
+
+  sezione.classList.toggle('is-da-portare', pacchiDaPortare(macchina) > 0);
+
+  const testa = sezione.querySelector('.h24-macchina-testa');
+  if (testa) testa.innerHTML = testaMacchina(macchina);
+}
+
 function renderProdotti(): void {
   if (!listaProdotti) return;
 
@@ -191,26 +237,12 @@ function renderProdotti(): void {
   // riempire, e un unico riquadro "nessun prodotto" non lo farebbe capire
   listaProdotti.innerHTML = DISTRIBUTORI.map(macchina => {
     const dentro = prodotti.filter(p => p.distributore === macchina);
-    const daPortare = dentro.reduce((s, p) => s + Math.max(p.pacchiMancanti, 0), 0);
-    const pezziMacchina = dentro.reduce((s, p) => s + pezziDiUnProdotto(p), 0);
+    const daPortare = pacchiDaPortare(macchina);
 
     return `
       <section class="h24-macchina is-${macchina} ${daPortare > 0 ? 'is-da-portare' : ''}"
                data-macchina="${macchina}">
-        <header class="h24-macchina-testa">
-          <h3 class="h24-macchina-titolo">${escapeHtml(NOMI_DISTRIBUTORI[macchina])}</h3>
-          <span class="h24-macchina-meta">
-            ${daPortare > 0
-              ? `${numero(daPortare)} ${daPortare === 1 ? 'pacco' : 'pacchi'} &middot; ${numero(pezziMacchina)} pezzi`
-              : dentro.length === 0 ? 'Nessun prodotto' : 'Piena'}
-          </span>
-          ${daPortare > 0 && NUMERI_ORDINE[macchina]
-            ? `<button type="button" class="h24-macchina-btn is-ordine" data-action="ordina">Invia lista</button>`
-            : ''}
-          ${daPortare > 0
-            ? `<button type="button" class="h24-macchina-btn" data-action="rifornita">Rifornita</button>`
-            : ''}
-        </header>
+        <header class="h24-macchina-testa">${testaMacchina(macchina)}</header>
 
         ${dentro.length === 0
           ? `<p class="h24-macchina-vuota">Nessun prodotto in questa macchina.</p>`
@@ -426,6 +458,10 @@ function cambiaPacchi(prodotto: ProdottoH24, valore: number, riga: HTMLElement):
   }
   if (pulsanteRifornito) pulsanteRifornito.classList.toggle('is-hidden', totalePacchi === 0);
   segnala('h24', totalePacchi);
+
+  // Il conteggio della macchina e i suoi due pulsanti dipendono da quanto
+  // manca: senza questo comparivano solo riaprendo la scheda
+  aggiornaTestaMacchina(prodotto.distributore);
 
   impostaPacchiMancanti(prodotto.id, pacchi);
 }
