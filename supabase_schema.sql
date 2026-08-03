@@ -20,6 +20,8 @@
 -- La vista va tolta per prima: dipende da colonne calcolate che vengono
 -- rigenerate più avanti, e finché esiste ne impedisce la sostituzione.
 DROP VIEW IF EXISTS public.riepilogo_giornaliero;
+DROP VIEW IF EXISTS public.fatture_registrate;
+DROP VIEW IF EXISTS public.fatture_per_voce;
 
 
 -- =========================================================================
@@ -479,6 +481,55 @@ SELECT
     ) AS totale_giornata
 FROM public.daily_logs
 GROUP BY date;
+
+
+-- =========================================================================
+-- 10bis. FATTURE, UNA RIGA PER VOCE
+--
+-- Le fatture si scrivono nella chiusura del turno, dentro a fatture_voci.
+-- Li' dentro sono comode da salvare ma non da interrogare: queste due viste
+-- le srotolano in righe vere, cosi' si puo' chiedere al database dove se ne
+-- vanno i soldi senza aprire l'app.
+--
+-- Sono viste e non tabelle: si ricavano da quello che c'e' gia', quindi non
+-- possono raccontare qualcosa di diverso dalla chiusura da cui vengono.
+--
+-- ATTENZIONE alla giornata: la chiusura del pomeriggio e' cumulativa e si
+-- porta dentro anche le fatture della mattina. Per non contarle due volte si
+-- prende il pomeriggio quando c'e', e la mattina soltanto altrimenti.
+-- =========================================================================
+CREATE VIEW public.fatture_registrate
+WITH (security_invoker = on) AS
+WITH turno_buono AS (
+    SELECT DISTINCT ON (date)
+           date, turno, fatture_voci
+      FROM public.daily_logs
+     WHERE jsonb_array_length(fatture_voci) > 0
+     ORDER BY date, (turno = 'pomeriggio') DESC
+)
+SELECT
+    t.date,
+    t.turno,
+    TRIM(voce->>'nome') AS nome,
+    COALESCE((voce->>'importo')::NUMERIC, 0) AS importo
+FROM turno_buono t,
+     LATERAL jsonb_array_elements(t.fatture_voci) AS voce
+WHERE TRIM(COALESCE(voce->>'nome', '')) <> '';
+
+-- Quanto se n'e' andato per ogni voce, dalla piu' cara. I nomi si accorpano
+-- senza badare a maiuscole: "cartine" e "Cartine" sono la stessa spesa.
+CREATE VIEW public.fatture_per_voce
+WITH (security_invoker = on) AS
+SELECT
+    LOWER(nome) AS voce,
+    MIN(nome) AS nome,
+    COUNT(*) AS quante,
+    SUM(importo) AS totale,
+    MIN(date) AS dalla,
+    MAX(date) AS fino_a
+FROM public.fatture_registrate
+GROUP BY LOWER(nome)
+ORDER BY SUM(importo) DESC;
 
 
 -- =========================================================================

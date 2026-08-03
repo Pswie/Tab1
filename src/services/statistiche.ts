@@ -119,7 +119,7 @@ function vociDaRiga(riga: ShiftRow | undefined): ShiftValues {
     lotto_entrate: Number(riga.lotto_entrate) || 0,
     lotto_uscite: Number(riga.lotto_uscite) || 0,
     fatture: Number(riga.fatture) || 0,
-    fatture_voci: [],
+    fatture_voci: Array.isArray(riga.fatture_voci) ? riga.fatture_voci : [],
     effettivo: Number(riga.effettivo) || 0,
     b: Number(riga.b) || 0,
     logista: Number(riga.logista) || 0,
@@ -360,6 +360,47 @@ export function ripartizionePerVoce(giornate: GiornataIncasso[]): VoceRipartizio
   return righe
     .map(r => ({ ...r, quota: positivo === 0 ? 0 : (r.valore / positivo) * 100 }))
     .sort((a, b) => b.valore - a.valore);
+}
+
+/** Quanto se n'e' andato per ogni voce di fattura */
+export interface SpesaFattura {
+  nome: string;
+  totale: number;
+  /** Quante volte quella voce e' comparsa */
+  quante: number;
+}
+
+/**
+ * Dove vanno i soldi delle fatture: le voci sommate per nome, dalla piu' cara.
+ *
+ * Si guardano le fatture della giornata, che sono quelle del pomeriggio quando
+ * la chiusura c'e' (si porta dietro anche quelle della mattina) e quelle della
+ * mattina altrimenti: sommare i due turni conterebbe due volte le stesse.
+ *
+ * I nomi si accorpano senza badare a maiuscole e spazi: "cartine" e "Cartine"
+ * sono la stessa spesa, e chi scrive di fretta non deve rovinare il conto.
+ */
+export function speseFatture(giornate: GiornataIncasso[]): SpesaFattura[] {
+  const perNome = new Map<string, SpesaFattura>();
+
+  giornate.forEach(g => {
+    (g.voci.fatture_voci || []).forEach(v => {
+      const nome = (v.nome || '').trim();
+      if (!nome) return;
+
+      const chiave = nome.toLowerCase().replace(/\s+/g, ' ');
+      const gia = perNome.get(chiave);
+
+      if (gia) {
+        gia.totale = Number((gia.totale + (Number(v.importo) || 0)).toFixed(2));
+        gia.quante += 1;
+      } else {
+        perNome.set(chiave, { nome, totale: Number(v.importo) || 0, quante: 1 });
+      }
+    });
+  });
+
+  return [...perNome.values()].sort((a, b) => b.totale - a.totale);
 }
 
 /** Le altre voci della giornata, quelle che nel totale non entrano */

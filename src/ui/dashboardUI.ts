@@ -12,6 +12,7 @@ import {
   proiezioneMese,
   raggruppaPerMese,
   ripartizionePerVoce,
+  speseFatture,
   totaleFinoAlGiorno,
   vociFuoriTotale
 } from '../services/statistiche';
@@ -71,6 +72,7 @@ const tabellaMesi = document.getElementById('dash-tabella-mesi') as HTMLTableSec
 
 const riquadriStatistiche = document.getElementById('dash-riquadri-statistiche') as HTMLDivElement;
 const ripartizione = document.getElementById('dash-ripartizione') as HTMLDivElement;
+const spesePerFattura = document.getElementById('dash-fatture') as HTMLDivElement;
 const settimana = document.getElementById('dash-settimana') as HTMLDivElement;
 const riquadriExtra = document.getElementById('dash-riquadri-extra') as HTMLDivElement;
 const riquadriInsieme = document.getElementById('dash-riquadri-insieme') as HTMLDivElement;
@@ -398,6 +400,21 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
         serie: SERIE_DELLE_VOCI[v.etichetta]
       })),
       'Nessun incasso nel periodo scelto.'
+    );
+  }
+
+  if (spesePerFattura) {
+    const spese = speseFatture(elencoGiornate);
+
+    spesePerFattura.innerHTML = barreOrizzontali(
+      // Le prime dodici: sotto ci finisce la spesa da pochi euro fatta una
+      // volta sola, che allunga l'elenco senza dire niente
+      spese.slice(0, 12).map(v => ({
+        etichetta: v.nome,
+        valore: v.totale,
+        nota: v.quante === 1 ? 'una volta' : `${numero(v.quante)} volte`
+      })),
+      'Nessuna fattura registrata nel periodo scelto.'
     );
   }
 
