@@ -1078,12 +1078,59 @@ CREATE TABLE IF NOT EXISTS public.debiti_turno (
     persona TEXT NOT NULL,
     ammanco_totale NUMERIC(12,2) NOT NULL CHECK (ammanco_totale > 0),
     persone_nel_turno INTEGER NOT NULL CHECK (persone_nel_turno >= 0),
-    importo NUMERIC(12,2) NOT NULL CHECK (importo > 0),
+    importo_calcolato NUMERIC(12,2) NOT NULL CHECK (importo_calcolato > 0),
+    importo NUMERIC(12,2) NOT NULL CHECK (importo >= 0),
     assegnato BOOLEAN NOT NULL DEFAULT true,
     attivo BOOLEAN NOT NULL DEFAULT true,
+    modificato_manualmente BOOLEAN NOT NULL DEFAULT false,
+    nota_modifica TEXT NOT NULL DEFAULT '',
+    modificato_da TEXT NOT NULL DEFAULT '',
+    modificato_il TIMESTAMP WITH TIME ZONE,
+    azzerato BOOLEAN NOT NULL DEFAULT false,
+    azzerato_il TIMESTAMP WITH TIME ZONE,
     creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+
+-- Aggiornamento sicuro per chi ha gia' creato la prima versione della tabella.
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS importo_calcolato NUMERIC(12,2);
+UPDATE public.debiti_turno
+SET importo_calcolato = importo
+WHERE importo_calcolato IS NULL;
+ALTER TABLE public.debiti_turno
+    ALTER COLUMN importo_calcolato SET NOT NULL;
+
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS modificato_manualmente BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS nota_modifica TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS modificato_da TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS modificato_il TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS azzerato BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.debiti_turno
+    ADD COLUMN IF NOT EXISTS azzerato_il TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE public.debiti_turno
+    DROP CONSTRAINT IF EXISTS debiti_turno_importo_check;
+ALTER TABLE public.debiti_turno
+    ADD CONSTRAINT debiti_turno_importo_check CHECK (importo >= 0);
+
+ALTER TABLE public.debiti_turno
+    DROP CONSTRAINT IF EXISTS debiti_turno_importo_calcolato_check;
+ALTER TABLE public.debiti_turno
+    ADD CONSTRAINT debiti_turno_importo_calcolato_check CHECK (importo_calcolato > 0);
+
+ALTER TABLE public.debiti_turno
+    DROP CONSTRAINT IF EXISTS debiti_turno_azzeramento_coerente;
+ALTER TABLE public.debiti_turno
+    ADD CONSTRAINT debiti_turno_azzeramento_coerente CHECK (
+        (NOT azzerato AND azzerato_il IS NULL)
+        OR (azzerato AND azzerato_il IS NOT NULL AND importo = 0)
+    );
 
 -- Una sola posizione corrente per persona, giornata e turno. Il confronto
 -- senza maiuscole evita di addebitare due volte "Luigi" e "luigi".
@@ -1155,26 +1202,32 @@ BEGIN
     IF v_quante = 0 THEN
         INSERT INTO public.debiti_turno (
             data, turno, persona, ammanco_totale, persone_nel_turno,
-            importo, assegnato, attivo, aggiornato_il
+            importo_calcolato, importo, assegnato, attivo, aggiornato_il
         )
         VALUES (
             p_data, p_turno, 'Da assegnare',
             (v_ammanco_centesimi / 100.0)::NUMERIC(12,2), 0,
+            (v_ammanco_centesimi / 100.0)::NUMERIC(12,2),
             (v_ammanco_centesimi / 100.0)::NUMERIC(12,2), false, true, now()
         )
         ON CONFLICT (data, turno, lower(persona)) DO UPDATE SET
             ammanco_totale = EXCLUDED.ammanco_totale,
             persone_nel_turno = 0,
-            importo = EXCLUDED.importo,
+            importo_calcolato = EXCLUDED.importo_calcolato,
+            importo = CASE
+                WHEN public.debiti_turno.modificato_manualmente OR public.debiti_turno.azzerato
+                THEN public.debiti_turno.importo
+                ELSE EXCLUDED.importo
+            END,
             assegnato = false,
-            attivo = true,
+            attivo = NOT public.debiti_turno.azzerato,
             aggiornato_il = now();
         RETURN;
     END IF;
 
     INSERT INTO public.debiti_turno (
         data, turno, persona, ammanco_totale, persone_nel_turno,
-        importo, assegnato, attivo, aggiornato_il
+        importo_calcolato, importo, assegnato, attivo, aggiornato_il
     )
     SELECT
         p_data,
@@ -1182,6 +1235,9 @@ BEGIN
         persona,
         (v_ammanco_centesimi / 100.0)::NUMERIC(12,2),
         v_quante,
+        ((v_ammanco_centesimi / v_quante)
+          + CASE WHEN posizione <= (v_ammanco_centesimi % v_quante) THEN 1 ELSE 0 END
+        )::NUMERIC / 100,
         ((v_ammanco_centesimi / v_quante)
           + CASE WHEN posizione <= (v_ammanco_centesimi % v_quante) THEN 1 ELSE 0 END
         )::NUMERIC / 100,
@@ -1201,9 +1257,14 @@ BEGIN
     ON CONFLICT (data, turno, lower(persona)) DO UPDATE SET
         ammanco_totale = EXCLUDED.ammanco_totale,
         persone_nel_turno = EXCLUDED.persone_nel_turno,
-        importo = EXCLUDED.importo,
+        importo_calcolato = EXCLUDED.importo_calcolato,
+        importo = CASE
+            WHEN public.debiti_turno.modificato_manualmente OR public.debiti_turno.azzerato
+            THEN public.debiti_turno.importo
+            ELSE EXCLUDED.importo
+        END,
         assegnato = true,
-        attivo = true,
+        attivo = NOT public.debiti_turno.azzerato,
         aggiornato_il = now();
 END;
 $$;

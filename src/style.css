@@ -470,7 +470,7 @@
 }
 
 .debiti-riga {
-  grid-template-columns: 125px minmax(0, 1fr) auto;
+  grid-template-columns: 125px minmax(0, 1fr) auto auto;
 }
 
 .debiti-riga-data {
@@ -496,6 +496,62 @@
 
 .debiti-vuoto {
   min-height: 145px;
+}
+
+#debiti-avviso {
+  color: var(--accent-green-text);
+}
+
+#debiti-avviso.is-error {
+  color: var(--ferrari-red);
+}
+
+.debiti-riga-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.debiti-btn {
+  height: 34px;
+  padding: 0 0.65rem;
+  font-size: 0.72rem;
+}
+
+.debiti-modifica {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 145px minmax(220px, 1.2fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  background: var(--surface-subtle);
+  border: 1px solid rgba(225, 6, 0, 0.2);
+  border-radius: 11px;
+}
+
+.debiti-modifica-testa {
+  display: grid;
+  align-self: center;
+  gap: 0.15rem;
+}
+
+.debiti-modifica-testa strong {
+  font-size: 0.9rem;
+}
+
+.debiti-modifica-testa span {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.debiti-modifica-azioni {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.debiti-modifica-azioni .btn-secondary-action,
+.debiti-modifica-azioni .todo-add-btn {
+  white-space: nowrap;
 }
 
 @media (max-width: 820px) {
@@ -562,6 +618,34 @@
 
   .debiti-riga {
     grid-template-columns: 1fr auto;
+  }
+
+  .debiti-riga-azioni {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .debiti-modifica {
+    grid-template-columns: 1fr;
+  }
+
+  .debiti-modifica-azioni {
+    justify-content: flex-end;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 920px) {
+  .debiti-modifica {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .debiti-modifica-testa,
+  .debiti-modifica-azioni {
+    grid-column: 1 / -1;
+  }
+
+  .debiti-modifica-azioni {
+    justify-content: flex-end;
   }
 }
 

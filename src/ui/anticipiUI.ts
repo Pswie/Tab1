@@ -9,7 +9,12 @@ import {
   impostaBaristaAttivo,
   registraAnticipo
 } from '../services/anticipi';
-import { DebitoTurno, elencaDebitiTurno } from '../services/debiti';
+import {
+  DebitoTurno,
+  azzeraDebitoTurno,
+  elencaDebitiTurno,
+  modificaDebitoTurno
+} from '../services/debiti';
 
 const pannello = document.getElementById('tab-anticipi') as HTMLDivElement | null;
 const selettore = document.getElementById('anticipi-persone') as HTMLDivElement | null;
@@ -32,10 +37,12 @@ const btnMeseAvanti = document.getElementById('btn-anticipi-mese-avanti') as HTM
 const debitiTotaleMese = document.getElementById('debiti-totale-mese') as HTMLSpanElement | null;
 const debitiRiepilogo = document.getElementById('debiti-riepilogo') as HTMLDivElement | null;
 const debitiLista = document.getElementById('debiti-lista') as HTMLDivElement | null;
+const debitiAvviso = document.getElementById('debiti-avviso') as HTMLParagraphElement | null;
 
 let nomi: BaristaAnticipo[] = [];
 let anticipi: Anticipo[] = [];
 let debiti: DebitoTurno[] = [];
+let debitoInModifica = '';
 let baristaIdSelezionato = '';
 let mese = meseCorrente();
 let inizializzato = false;
@@ -90,6 +97,13 @@ function mostraAvviso(testo: string, errore = false): void {
   avviso.textContent = testo;
   avviso.classList.toggle('is-hidden', !testo);
   avviso.classList.toggle('is-error', errore);
+}
+
+function mostraAvvisoDebiti(testo: string, errore = false): void {
+  if (!debitiAvviso) return;
+  debitiAvviso.textContent = testo;
+  debitiAvviso.classList.toggle('is-hidden', !testo);
+  debitiAvviso.classList.toggle('is-error', errore);
 }
 
 function attivi(): BaristaAnticipo[] {
@@ -221,9 +235,39 @@ function renderDebiti(): void {
 
   debitiLista.innerHTML = debiti.map(d => {
     const turno = d.turno === 'mattina' ? 'Turno 1' : 'Turno 2';
-    const dettaglio = d.assegnato
+    const dettaglioCalcolato = d.assegnato
       ? `Ammanco di ${euro(d.ammancoTotale)} diviso tra ${d.personeNelTurno} ${d.personeNelTurno === 1 ? 'persona' : 'persone'}`
       : 'Nessun nome assegnato a questo turno';
+    const dettaglio = d.modificatoManualmente
+      ? `Corretto da ${euro(d.importoCalcolato)}${d.notaModifica ? ` · ${escapeHtml(d.notaModifica)}` : ''}`
+      : dettaglioCalcolato;
+
+    if (debitoInModifica === d.id) {
+      return `
+        <article class="debiti-modifica" data-debito-riga="${escapeHtml(d.id)}">
+          <div class="debiti-modifica-testa">
+            <strong>${escapeHtml(d.persona)}</strong>
+            <span>${dataItaliana(d.data)} · ${turno} · calcolato ${euro(d.importoCalcolato)}</span>
+          </div>
+          <label class="anticipi-campo">
+            <span>Debito residuo</span>
+            <span class="anticipi-input-euro">
+              <input type="text" class="todo-add-input" data-debito-campo="importo"
+                     inputmode="decimal" value="${String(d.importo).replace('.', ',')}" autocomplete="off" />
+              <span>&euro;</span>
+            </span>
+          </label>
+          <label class="anticipi-campo debiti-modifica-nota">
+            <span>Motivo della modifica</span>
+            <input type="text" class="todo-add-input" data-debito-campo="nota"
+                   value="${escapeHtml(d.notaModifica)}" placeholder="Es. restituiti 3 €" autocomplete="off" />
+          </label>
+          <div class="debiti-modifica-azioni">
+            <button type="button" class="btn-secondary-action" data-debito-action="annulla">Annulla</button>
+            <button type="button" class="todo-add-btn" data-debito-action="salva">Salva modifica</button>
+          </div>
+        </article>`;
+    }
 
     return `
       <article class="anticipi-riga debiti-riga${d.assegnato ? '' : ' is-da-assegnare'}">
@@ -236,8 +280,67 @@ function renderDebiti(): void {
           <span>${dettaglio}</span>
         </div>
         <strong class="anticipi-riga-importo debiti-riga-importo">${euro(d.importo)}</strong>
+        ${d.assegnato ? `
+          <div class="debiti-riga-azioni">
+            <button type="button" class="btn-secondary-action debiti-btn" data-debito-action="modifica"
+                    data-debito-id="${escapeHtml(d.id)}">Modifica</button>
+            <button type="button" class="anticipi-azzera" data-debito-action="azzera"
+                    data-debito-id="${escapeHtml(d.id)}">Azzera</button>
+          </div>` : ''}
       </article>`;
   }).join('');
+}
+
+async function salvaModificaDebito(riga: HTMLElement): Promise<void> {
+  const debito = debiti.find(d => d.id === debitoInModifica);
+  if (!debito) return;
+
+  const campoImporto = riga.querySelector('[data-debito-campo="importo"]') as HTMLInputElement | null;
+  const campoNota = riga.querySelector('[data-debito-campo="nota"]') as HTMLInputElement | null;
+  const importo = Number((campoImporto?.value || '').replace(',', '.'));
+
+  if (!Number.isFinite(importo) || importo < 0) {
+    mostraAvvisoDebiti('Scrivi un debito uguale o maggiore di zero.', true);
+    campoImporto?.focus();
+    return;
+  }
+
+  const esito = await modificaDebitoTurno(
+    debito.id,
+    Math.round(importo * 100) / 100,
+    campoNota?.value || '',
+    nomeUtente()
+  );
+
+  debitoInModifica = '';
+  const valoreAggiornato = esito.valore;
+  debiti = valoreAggiornato
+    ? debiti.map(d => d.id === debito.id ? valoreAggiornato : d)
+    : debiti.filter(d => d.id !== debito.id);
+  renderDebiti();
+  mostraAvvisoDebiti(
+    esito.suCloud
+      ? (importo === 0 ? 'Debito azzerato e conservato nello storico.' : 'Debito aggiornato.')
+      : 'Modifica salvata solo su questo dispositivo: controlla la connessione.'
+  );
+}
+
+async function azzeraDebito(id: string): Promise<void> {
+  const debito = debiti.find(d => d.id === id);
+  if (!debito) return;
+
+  if (!window.confirm(`Azzerare il debito di ${euro(debito.importo)} per ${debito.persona}? La riga resterà salvata nello storico amministrativo.`)) {
+    return;
+  }
+
+  const suCloud = await azzeraDebitoTurno(id, nomeUtente());
+  debiti = debiti.filter(d => d.id !== id);
+  renderDebiti();
+  mostraAvvisoDebiti(
+    suCloud
+      ? 'Debito azzerato. Il dato resta salvato in tabella.'
+      : 'Debito azzerato solo su questo dispositivo: controlla la connessione.'
+  );
 }
 
 async function caricaRegistro(): Promise<void> {
@@ -376,6 +479,37 @@ export function initAnticipi(): void {
     anticipi = anticipi.filter(a => a.id !== voce.id);
     renderRegistro();
     mostraAvviso(suCloud ? 'Anticipo azzerato. Il dato resta salvato in tabella.' : 'Azzerato solo su questo dispositivo: controlla la connessione.');
+  });
+
+  debitiLista?.addEventListener('click', e => {
+    const pulsante = (e.target as HTMLElement).closest('[data-debito-action]') as HTMLButtonElement | null;
+    if (!pulsante) return;
+
+    const azione = pulsante.dataset.debitoAction;
+    const id = pulsante.dataset.debitoId || pulsante.closest<HTMLElement>('[data-debito-riga]')?.dataset.debitoRiga || '';
+
+    if (azione === 'modifica') {
+      debitoInModifica = id;
+      mostraAvvisoDebiti('');
+      renderDebiti();
+      debitiLista.querySelector<HTMLInputElement>('[data-debito-campo="importo"]')?.focus();
+    } else if (azione === 'annulla') {
+      debitoInModifica = '';
+      renderDebiti();
+    } else if (azione === 'salva') {
+      const riga = pulsante.closest('[data-debito-riga]') as HTMLElement | null;
+      if (riga) salvaModificaDebito(riga);
+    } else if (azione === 'azzera') {
+      azzeraDebito(id);
+    }
+  });
+
+  debitiLista?.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const riga = (e.target as HTMLElement).closest('[data-debito-riga]') as HTMLElement | null;
+    if (!riga) return;
+    e.preventDefault();
+    salvaModificaDebito(riga);
   });
 
   btnMeseIndietro?.addEventListener('click', async () => {
