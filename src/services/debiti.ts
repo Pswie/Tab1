@@ -70,24 +70,24 @@ function ordina(voci: DebitoTurno[]): DebitoTurno[] {
   );
 }
 
-/** Quote attive comprese fra le due date. Le rettifiche restano nel database. */
-export async function elencaDebitiTurno(dal: string, al: string): Promise<DebitoTurno[]> {
+/**
+ * Tutte le quote ancora aperte, senza limiti di mese o anno.
+ * Le righe azzerate restano nel database ma hanno attivo=false e non compaiono.
+ */
+export async function elencaDebitiTurno(): Promise<DebitoTurno[]> {
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
         .from('debiti_turno')
         .select('id,data,turno,persona,ammanco_totale,persone_nel_turno,importo_calcolato,importo,assegnato,modificato_manualmente,nota_modifica')
         .eq('attivo', true)
-        .gte('data', dal)
-        .lte('data', al)
         .order('data', { ascending: false })
         .order('turno', { ascending: false })
         .order('persona');
 
       if (!error && data) {
         const voci = ordina(data.map(daRiga));
-        const fuoriPeriodo = leggiLocale().filter(v => v.data < dal || v.data > al);
-        scriviLocale(ordina([...fuoriPeriodo, ...voci]));
+        scriviLocale(voci);
         return voci;
       }
 
@@ -97,7 +97,7 @@ export async function elencaDebitiTurno(dal: string, al: string): Promise<Debito
     }
   }
 
-  return ordina(leggiLocale().filter(v => v.data >= dal && v.data <= al));
+  return ordina(leggiLocale());
 }
 
 /** Corregge il residuo lasciando intatto l'importo calcolato dal turno. */
