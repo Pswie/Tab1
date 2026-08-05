@@ -20,8 +20,8 @@
 -- La vista va tolta per prima: dipende da colonne calcolate che vengono
 -- rigenerate più avanti, e finché esiste ne impedisce la sostituzione.
 DROP VIEW IF EXISTS public.riepilogo_giornaliero;
-DROP VIEW IF EXISTS public.fatture_registrate;
 DROP VIEW IF EXISTS public.fatture_per_voce;
+DROP VIEW IF EXISTS public.fatture_registrate;
 
 
 -- =========================================================================
@@ -933,3 +933,365 @@ CREATE POLICY "Scrittura turni" ON public.turni_lavoro
     FOR ALL
     USING (public.e_amministratore())
     WITH CHECK (public.e_amministratore());
+
+
+-- =========================================================================
+-- 16. ANTICIPI AI BARISTI
+--
+-- Registro mensile riservato agli amministratori. Le righe azzerate non
+-- compaiono piu' nell'app, ma non vengono cancellate: restano in tabella con
+-- data e ora dell'azzeramento per conservare lo storico completo.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.baristi_anticipi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome TEXT NOT NULL,
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    ordine INTEGER NOT NULL DEFAULT 0 CHECK (ordine >= 0),
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Un nome non puo' comparire due volte solo per una differenza di maiuscole.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_baristi_anticipi_nome
+    ON public.baristi_anticipi (lower(nome));
+
+-- I tre nomi di partenza. ON CONFLICT senza bersaglio rispetta anche l'indice
+-- univoco su lower(nome), quindi il file resta rieseguibile.
+INSERT INTO public.baristi_anticipi (nome, ordine)
+VALUES ('Luigi', 0), ('Paolo', 1), ('Livio', 2)
+ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.anticipi_baristi (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Il riferimento aiuta le ricerche; il nome copiato conserva lo storico
+    -- anche se in seguito il barista viene nascosto o rinominato.
+    barista_id UUID REFERENCES public.baristi_anticipi(id) ON DELETE SET NULL,
+    barista_nome TEXT NOT NULL,
+
+    data DATE NOT NULL,
+    importo NUMERIC(12,2) NOT NULL CHECK (importo > 0),
+    nota TEXT NOT NULL DEFAULT '',
+    creato_da TEXT NOT NULL DEFAULT '',
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+
+    -- Azzera e' un'archiviazione, non una cancellazione.
+    azzerato BOOLEAN NOT NULL DEFAULT false,
+    azzerato_il TIMESTAMP WITH TIME ZONE,
+
+    CONSTRAINT anticipi_baristi_azzeramento_coerente CHECK (
+        (NOT azzerato AND azzerato_il IS NULL)
+        OR (azzerato AND azzerato_il IS NOT NULL)
+    )
+);
+
+-- Colonne aggiunte in modo sicuro anche se la tabella esiste da una versione
+-- intermedia della funzione.
+ALTER TABLE public.anticipi_baristi
+    ADD COLUMN IF NOT EXISTS azzerato BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.anticipi_baristi
+    ADD COLUMN IF NOT EXISTS azzerato_il TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE public.anticipi_baristi
+    DROP CONSTRAINT IF EXISTS anticipi_baristi_azzeramento_coerente;
+ALTER TABLE public.anticipi_baristi
+    ADD CONSTRAINT anticipi_baristi_azzeramento_coerente CHECK (
+        (NOT azzerato AND azzerato_il IS NULL)
+        OR (azzerato AND azzerato_il IS NOT NULL)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_anticipi_baristi_data
+    ON public.anticipi_baristi (data DESC);
+CREATE INDEX IF NOT EXISTS idx_anticipi_baristi_attivi_mese
+    ON public.anticipi_baristi (data DESC, barista_id)
+    WHERE NOT azzerato;
+
+ALTER TABLE public.baristi_anticipi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.anticipi_baristi ENABLE ROW LEVEL SECURITY;
+
+-- La verifica admin per questi dati sensibili vive in uno schema non esposto
+-- alla Data API. La funzione controlla auth.uid() e non accetta parametri che
+-- il client possa alterare.
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC;
+GRANT USAGE ON SCHEMA private TO authenticated;
+
+CREATE OR REPLACE FUNCTION private.e_amministratore()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.profili
+        WHERE id = (SELECT auth.uid())
+          AND accesso
+          AND admin
+    );
+$$;
+
+REVOKE ALL ON FUNCTION private.e_amministratore() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.e_amministratore() TO authenticated;
+
+-- Si irrobustisce anche la funzione storica usata dai turni: verifica gia'
+-- auth.uid() al suo interno, ma non deve essere eseguibile da PUBLIC.
+REVOKE ALL ON FUNCTION public.e_amministratore() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.e_amministratore() TO authenticated;
+
+-- Dal 2026 i nuovi progetti possono non esporre automaticamente le tabelle
+-- alla Data API: i grant sono espliciti e RLS resta la barriera di riga.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.baristi_anticipi TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.anticipi_baristi TO authenticated;
+
+DROP POLICY IF EXISTS "Solo admin gestiscono nomi anticipi" ON public.baristi_anticipi;
+CREATE POLICY "Solo admin gestiscono nomi anticipi"
+    ON public.baristi_anticipi
+    FOR ALL
+    TO authenticated
+    USING ((SELECT private.e_amministratore()))
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+DROP POLICY IF EXISTS "Solo admin gestiscono anticipi" ON public.anticipi_baristi;
+CREATE POLICY "Solo admin gestiscono anticipi"
+    ON public.anticipi_baristi
+    FOR ALL
+    TO authenticated
+    USING ((SELECT private.e_amministratore()))
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+
+-- =========================================================================
+-- 17. DEBITI PER AMMANCHI DI CASSA
+--
+-- Quando la differenza di un turno e' negativa, l'ammanco viene diviso fra
+-- tutte le persone assegnate alla stessa data e fascia nei turni di lavoro.
+-- La divisione avviene in centesimi: l'eventuale resto di uno o due centesimi
+-- viene distribuito alle prime persone in ordine alfabetico, senza perdere o
+-- inventare denaro.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.debiti_turno (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    data DATE NOT NULL,
+    turno TEXT NOT NULL CHECK (turno IN ('mattina', 'pomeriggio')),
+    persona TEXT NOT NULL,
+    ammanco_totale NUMERIC(12,2) NOT NULL CHECK (ammanco_totale > 0),
+    persone_nel_turno INTEGER NOT NULL CHECK (persone_nel_turno >= 0),
+    importo NUMERIC(12,2) NOT NULL CHECK (importo > 0),
+    assegnato BOOLEAN NOT NULL DEFAULT true,
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Una sola posizione corrente per persona, giornata e turno. Il confronto
+-- senza maiuscole evita di addebitare due volte "Luigi" e "luigi".
+CREATE UNIQUE INDEX IF NOT EXISTS uq_debiti_turno_persona
+    ON public.debiti_turno (data, turno, lower(persona));
+CREATE INDEX IF NOT EXISTS idx_debiti_turno_attivi_data
+    ON public.debiti_turno (data DESC)
+    WHERE attivo;
+
+ALTER TABLE public.debiti_turno ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.debiti_turno TO authenticated;
+
+DROP POLICY IF EXISTS "Solo admin gestiscono debiti turno" ON public.debiti_turno;
+CREATE POLICY "Solo admin gestiscono debiti turno"
+    ON public.debiti_turno
+    FOR ALL
+    TO authenticated
+    USING ((SELECT private.e_amministratore()))
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+-- Ricalcola la posizione corrente senza cancellare le assegnazioni precedenti:
+-- quelle superate vengono soltanto rese inattive e restano in tabella.
+CREATE OR REPLACE FUNCTION private.ricalcola_debiti_turno(
+    p_data DATE,
+    p_turno TEXT,
+    p_differenza NUMERIC
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_ammanco_centesimi BIGINT;
+    v_quante INTEGER;
+BEGIN
+    IF p_turno NOT IN ('mattina', 'pomeriggio') THEN
+        RETURN;
+    END IF;
+
+    -- Prima si chiude la posizione precedente. Se l'ammanco non c'e' piu',
+    -- queste righe inattive sono lo storico della rettifica.
+    UPDATE public.debiti_turno
+       SET attivo = false,
+           aggiornato_il = now()
+     WHERE data = p_data
+       AND turno = p_turno
+       AND attivo;
+
+    IF COALESCE(p_differenza, 0) >= 0 THEN
+        RETURN;
+    END IF;
+
+    v_ammanco_centesimi := round(abs(p_differenza) * 100)::BIGINT;
+
+    SELECT count(*)::INTEGER
+      INTO v_quante
+      FROM (
+          SELECT lower(trim(persona))
+          FROM public.turni_lavoro
+          WHERE data = p_data
+            AND turno = p_turno
+            AND trim(persona) <> ''
+          GROUP BY lower(trim(persona))
+      ) persone;
+
+    -- Nessun nome ancora assegnato: l'ammanco non si perde e si ricalcolera'
+    -- automaticamente quando l'amministratore compilerà i turni di lavoro.
+    IF v_quante = 0 THEN
+        INSERT INTO public.debiti_turno (
+            data, turno, persona, ammanco_totale, persone_nel_turno,
+            importo, assegnato, attivo, aggiornato_il
+        )
+        VALUES (
+            p_data, p_turno, 'Da assegnare',
+            (v_ammanco_centesimi / 100.0)::NUMERIC(12,2), 0,
+            (v_ammanco_centesimi / 100.0)::NUMERIC(12,2), false, true, now()
+        )
+        ON CONFLICT (data, turno, lower(persona)) DO UPDATE SET
+            ammanco_totale = EXCLUDED.ammanco_totale,
+            persone_nel_turno = 0,
+            importo = EXCLUDED.importo,
+            assegnato = false,
+            attivo = true,
+            aggiornato_il = now();
+        RETURN;
+    END IF;
+
+    INSERT INTO public.debiti_turno (
+        data, turno, persona, ammanco_totale, persone_nel_turno,
+        importo, assegnato, attivo, aggiornato_il
+    )
+    SELECT
+        p_data,
+        p_turno,
+        persona,
+        (v_ammanco_centesimi / 100.0)::NUMERIC(12,2),
+        v_quante,
+        ((v_ammanco_centesimi / v_quante)
+          + CASE WHEN posizione <= (v_ammanco_centesimi % v_quante) THEN 1 ELSE 0 END
+        )::NUMERIC / 100,
+        true,
+        true,
+        now()
+    FROM (
+        SELECT
+            min(trim(persona)) AS persona,
+            row_number() OVER (ORDER BY lower(trim(persona))) AS posizione
+        FROM public.turni_lavoro
+        WHERE data = p_data
+          AND turno = p_turno
+          AND trim(persona) <> ''
+        GROUP BY lower(trim(persona))
+    ) persone
+    ON CONFLICT (data, turno, lower(persona)) DO UPDATE SET
+        ammanco_totale = EXCLUDED.ammanco_totale,
+        persone_nel_turno = EXCLUDED.persone_nel_turno,
+        importo = EXCLUDED.importo,
+        assegnato = true,
+        attivo = true,
+        aggiornato_il = now();
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.ricalcola_debiti_turno(DATE, TEXT, NUMERIC) FROM PUBLIC;
+
+-- Ogni salvataggio della chiusura aggiorna immediatamente la divisione.
+CREATE OR REPLACE FUNCTION private.aggiorna_debiti_da_incasso()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+    PERFORM private.ricalcola_debiti_turno(NEW.date, NEW.turno, NEW.differenza_turno);
+    RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.aggiorna_debiti_da_incasso() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_aggiorna_debiti_da_incasso ON public.daily_logs;
+CREATE TRIGGER trg_aggiorna_debiti_da_incasso
+    AFTER INSERT OR UPDATE OF differenza_turno
+    ON public.daily_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION private.aggiorna_debiti_da_incasso();
+
+-- Se si correggono i nomi nel calendario, anche una chiusura gia' salvata
+-- viene ridistribuita. In UPDATE si ricalcolano sia la vecchia sia la nuova
+-- posizione quando data o fascia cambiano.
+CREATE OR REPLACE FUNCTION private.aggiorna_debiti_da_turni()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_riga public.daily_logs%ROWTYPE;
+BEGIN
+    IF TG_OP IN ('DELETE', 'UPDATE') AND OLD.turno IN ('mattina', 'pomeriggio') THEN
+        SELECT * INTO v_riga
+        FROM public.daily_logs
+        WHERE date = OLD.data AND turno = OLD.turno;
+
+        IF FOUND THEN
+            PERFORM private.ricalcola_debiti_turno(v_riga.date, v_riga.turno, v_riga.differenza_turno);
+        END IF;
+    END IF;
+
+    IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.turno IN ('mattina', 'pomeriggio') THEN
+        SELECT * INTO v_riga
+        FROM public.daily_logs
+        WHERE date = NEW.data AND turno = NEW.turno;
+
+        IF FOUND THEN
+            PERFORM private.ricalcola_debiti_turno(v_riga.date, v_riga.turno, v_riga.differenza_turno);
+        END IF;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.aggiorna_debiti_da_turni() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_aggiorna_debiti_da_turni ON public.turni_lavoro;
+CREATE TRIGGER trg_aggiorna_debiti_da_turni
+    AFTER INSERT OR UPDATE OR DELETE
+    ON public.turni_lavoro
+    FOR EACH ROW
+    EXECUTE FUNCTION private.aggiorna_debiti_da_turni();
+
+-- Porta nella nuova tabella anche gli ammanchi gia' presenti, se ci sono.
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN
+        SELECT date, turno, differenza_turno
+        FROM public.daily_logs
+        WHERE differenza_turno < 0
+    LOOP
+        PERFORM private.ricalcola_debiti_turno(r.date, r.turno, r.differenza_turno);
+    END LOOP;
+END;
+$$;

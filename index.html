@@ -143,6 +143,13 @@
           <span>Incassi medi mensili e statistiche</span>
         </div>
       </button>
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-anticipi" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Anticipi</strong>
+          <span>Registro anticipi dei baristi</span>
+        </div>
+      </button>
       <button type="button" class="hotdog-menu-item active" data-tab="tab-incassi">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span>
         <div class="hotdog-text">
@@ -222,6 +229,9 @@
     <div class="nav-tabs-container">
       <button type="button" class="nav-tab-item solo-admin" data-tab="tab-dashboard" hidden>
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span> Dashboard
+      </button>
+      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-anticipi" hidden>
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span> Anticipi
       </button>
       <button type="button" class="nav-tab-item active" data-tab="tab-incassi">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19H2"/></svg></span> Incassi Giornalieri
@@ -389,6 +399,109 @@
         </div>
 
         <div class="dash-riquadri" id="dash-riquadri-insieme"></div>
+      </section>
+    </div>
+
+    <!-- TAB RISERVATA: ANTICIPI AI BARISTI
+         Sono dati amministrativi: sia la voce sia il contenuto restano
+         nascosti a chi non ha admin nel profilo. -->
+    <div id="tab-anticipi" class="tab-pane">
+      <section class="card-section anticipi-inserimento">
+        <div class="section-header anticipi-testa">
+          <div class="section-title">
+            <span>Registra anticipo</span>
+          </div>
+
+          <button type="button" id="btn-anticipi-rotella" class="anticipi-rotella"
+                  aria-expanded="false" aria-controls="anticipi-gestione"
+                  title="Gestisci i nomi" aria-label="Gestisci i nomi dei baristi">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.25"/><path d="M19.1 14.1a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.82 2.82l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.46V20a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.82-2.82l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.46-.97H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.46-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.82-2.82l.06.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .97-1.46V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 .97 1.46 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.82 2.82l-.06.06a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.46.97H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.46.97Z"/></svg>
+          </button>
+        </div>
+
+        <p class="anticipi-hint">Scegli il barista, scrivi quanto hai consegnato e registra. Il totale riparte da zero ogni mese.</p>
+
+        <div id="anticipi-persone" class="anticipi-persone" role="group" aria-label="Barista"></div>
+
+        <div class="anticipi-form">
+          <label class="anticipi-campo">
+            <span>Data</span>
+            <input type="date" id="anticipi-data" class="todo-add-input" />
+          </label>
+          <label class="anticipi-campo anticipi-campo-importo">
+            <span>Importo</span>
+            <span class="anticipi-input-euro">
+              <input type="text" id="anticipi-importo" class="todo-add-input" inputmode="decimal"
+                     placeholder="0,00" autocomplete="off" aria-label="Importo dell'anticipo" />
+              <span>&euro;</span>
+            </span>
+          </label>
+          <label class="anticipi-campo anticipi-campo-nota">
+            <span>Nota <small>facoltativa</small></span>
+            <input type="text" id="anticipi-nota" class="todo-add-input"
+                   placeholder="Es. anticipo stipendio" autocomplete="off" />
+          </label>
+          <button type="button" id="btn-anticipi-registra" class="todo-add-btn anticipi-registra">Registra anticipo</button>
+        </div>
+
+        <div id="anticipi-gestione" class="anticipi-gestione">
+          <div class="anticipi-gestione-titolo">
+            <strong>Gestisci i nomi</strong>
+            <span>I nomi nascosti restano nello storico.</span>
+          </div>
+          <div class="anticipi-aggiungi-nome">
+            <input type="text" id="anticipi-nuovo-nome" class="todo-add-input"
+                   placeholder="Nuovo nome" autocomplete="off" />
+            <button type="button" id="btn-anticipi-aggiungi-nome" class="btn-secondary-action">Aggiungi</button>
+          </div>
+          <div id="anticipi-lista-nomi" class="anticipi-lista-nomi"></div>
+        </div>
+
+        <p id="anticipi-avviso" class="rub-avviso is-hidden" aria-live="polite"></p>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header anticipi-storico-testa">
+          <div class="section-title">
+            <span>Storico anticipi</span>
+          </div>
+          <div class="inv-total-box">
+            <span class="inv-total-label">Totale del mese</span>
+            <span id="anticipi-totale-mese" class="inv-total-value">0,00 &euro;</span>
+          </div>
+        </div>
+
+        <div class="anticipi-mese-nav">
+          <button type="button" class="date-arrow-btn" id="btn-anticipi-mese-indietro" aria-label="Mese precedente">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span id="anticipi-mese-nome">&mdash;</span>
+          <button type="button" class="date-arrow-btn" id="btn-anticipi-mese-avanti" aria-label="Mese successivo">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+        <div id="anticipi-riepilogo" class="anticipi-riepilogo is-hidden"></div>
+        <div id="anticipi-lista" class="anticipi-lista"></div>
+      </section>
+
+      <section class="card-section debiti-sezione">
+        <div class="section-header anticipi-storico-testa">
+          <div class="section-title">
+            <span>Debiti per ammanchi</span>
+          </div>
+          <div class="inv-total-box debiti-totale-box">
+            <span class="inv-total-label">Debiti del mese</span>
+            <span id="debiti-totale-mese" class="inv-total-value">0,00 &euro;</span>
+          </div>
+        </div>
+
+        <p class="anticipi-hint">
+          Se in un turno manca denaro, l&rsquo;ammanco viene diviso in parti uguali fra le persone assegnate a quel turno.
+        </p>
+
+        <div id="debiti-riepilogo" class="anticipi-riepilogo is-hidden"></div>
+        <div id="debiti-lista" class="anticipi-lista"></div>
       </section>
     </div>
 

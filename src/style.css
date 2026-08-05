@@ -58,6 +58,513 @@
   --transition-normal: 0.32s var(--ease-spring);
 }
 
+/* ==========================================================================
+   REGISTRO ANTICIPI — area amministrativa
+   ========================================================================== */
+
+.anticipi-testa,
+.anticipi-storico-testa {
+  align-items: center;
+}
+
+.anticipi-rotella {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast),
+              background var(--transition-fast), transform var(--transition-normal);
+}
+
+.anticipi-rotella:hover,
+.anticipi-rotella.is-active {
+  color: var(--ferrari-red);
+  border-color: rgba(225, 6, 0, 0.3);
+  background: var(--ferrari-red-glow);
+}
+
+.anticipi-rotella.is-active {
+  transform: rotate(35deg);
+}
+
+.anticipi-rotella .icon {
+  width: 21px;
+  height: 21px;
+}
+
+.anticipi-hint {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: -0.25rem 0 1.15rem;
+}
+
+.anticipi-persone {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1.2rem;
+}
+
+.anticipi-persona {
+  min-height: 58px;
+  padding: 0.55rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-primary);
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: 12px;
+  font: 700 0.92rem var(--font-sans);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.anticipi-persona:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.anticipi-persona.is-active {
+  color: #9f0804;
+  background: rgba(225, 6, 0, 0.055);
+  border-color: rgba(225, 6, 0, 0.42);
+  box-shadow: 0 0 0 2px rgba(225, 6, 0, 0.06);
+}
+
+.anticipi-persona-avatar {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.anticipi-persona.is-active .anticipi-persona-avatar {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+}
+
+.anticipi-vuoto-inline {
+  grid-column: 1 / -1;
+  padding: 1rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.anticipi-form {
+  display: grid;
+  grid-template-columns: 155px 150px minmax(220px, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.anticipi-campo {
+  display: grid;
+  gap: 0.38rem;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.anticipi-campo small {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.anticipi-campo .todo-add-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.anticipi-input-euro {
+  position: relative;
+  display: block;
+}
+
+.anticipi-input-euro .todo-add-input {
+  padding-right: 2.2rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.anticipi-input-euro > span {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.anticipi-registra {
+  height: 44px;
+  white-space: nowrap;
+}
+
+.anticipi-gestione {
+  display: none;
+  margin-top: 0;
+  padding: 0 1rem;
+  background: var(--surface-subtle);
+  border: 0 solid var(--border-pearl);
+  border-radius: 12px;
+}
+
+.anticipi-gestione.is-open {
+  display: block;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-width: 1px;
+}
+
+.anticipi-gestione-titolo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.anticipi-gestione-titolo span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.anticipi-aggiungi-nome {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.anticipi-lista-nomi {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.anticipi-nome-riga {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.75rem;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.anticipi-nome-riga.is-inactive > span {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.anticipi-nome-stato {
+  padding: 0.28rem 0.55rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: 700 0.74rem var(--font-sans);
+  cursor: pointer;
+}
+
+.anticipi-nome-stato:hover {
+  color: var(--ferrari-red);
+  background: var(--ferrari-red-glow);
+}
+
+.anticipi-mese-nav {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: 36px minmax(155px, auto) 36px;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+.anticipi-mese-nav > span {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.anticipi-riepilogo {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.anticipi-riepilogo-voce {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.72rem 0.85rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.anticipi-riepilogo-voce strong {
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+}
+
+.anticipi-lista {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.anticipi-riga {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 11px;
+}
+
+.anticipi-riga-data {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.anticipi-riga-persona {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.anticipi-riga-persona strong {
+  font-size: 0.9rem;
+}
+
+.anticipi-riga-persona span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anticipi-riga-importo {
+  color: var(--text-primary);
+  font: 800 0.92rem var(--font-mono);
+  white-space: nowrap;
+}
+
+.anticipi-azzera {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0 0.65rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-pearl);
+  border-radius: 8px;
+  font: 700 0.72rem var(--font-sans);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.anticipi-azzera:hover {
+  color: var(--ferrari-red);
+  border-color: rgba(225, 6, 0, 0.24);
+  background: var(--ferrari-red-glow);
+}
+
+.anticipi-azzera svg {
+  width: 15px;
+  height: 15px;
+}
+
+.anticipi-vuoto {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.anticipi-vuoto svg {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+}
+
+.anticipi-vuoto strong {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.anticipi-vuoto span {
+  font-size: 0.8rem;
+}
+
+#tab-anticipi.is-caricamento {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+#anticipi-avviso {
+  color: var(--accent-green-text);
+}
+
+#anticipi-avviso.is-error {
+  color: var(--ferrari-red);
+}
+
+.debiti-sezione {
+  border-top: 3px solid rgba(225, 6, 0, 0.72);
+}
+
+.debiti-totale-box .inv-total-value,
+.debiti-riga-importo {
+  color: var(--ferrari-red);
+}
+
+.debiti-riepilogo-voce {
+  background: rgba(225, 6, 0, 0.045);
+  border-color: rgba(225, 6, 0, 0.11);
+}
+
+.debiti-riepilogo-voce strong {
+  color: var(--ferrari-red);
+}
+
+.debiti-riga {
+  grid-template-columns: 125px minmax(0, 1fr) auto;
+}
+
+.debiti-riga-data {
+  display: grid;
+}
+
+.debiti-riga .anticipi-riga-data small {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.debiti-riga.is-da-assegnare {
+  background: #FFF8E8;
+  border-color: #F5D98A;
+}
+
+.debiti-riga.is-da-assegnare .anticipi-riga-importo {
+  color: #9A6700;
+}
+
+.debiti-vuoto {
+  min-height: 145px;
+}
+
+@media (max-width: 820px) {
+  .anticipi-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .anticipi-campo-nota {
+    grid-column: 1 / -1;
+  }
+
+  .anticipi-registra {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .anticipi-persone {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .anticipi-persona {
+    min-height: 52px;
+  }
+
+  .anticipi-form {
+    grid-template-columns: 1fr;
+  }
+
+  .anticipi-campo-nota,
+  .anticipi-registra {
+    grid-column: auto;
+  }
+
+  .anticipi-gestione-titolo {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .anticipi-riepilogo {
+    grid-template-columns: 1fr;
+  }
+
+  .anticipi-riga {
+    grid-template-columns: 1fr auto;
+    gap: 0.55rem;
+  }
+
+  .anticipi-riga-data {
+    grid-column: 1 / -1;
+    margin-bottom: -0.25rem;
+  }
+
+  .anticipi-riga-importo {
+    font-size: 0.86rem;
+  }
+
+  .anticipi-azzera {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .debiti-riga {
+    grid-template-columns: 1fr auto;
+  }
+}
+
 /* CSS Reset & Base */
 *, *::before, *::after {
   box-sizing: border-box;
