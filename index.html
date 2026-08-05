@@ -496,20 +496,25 @@
         <div id="anticipi-riepilogo" class="anticipi-riepilogo is-hidden"></div>
         <div id="anticipi-lista" class="anticipi-lista"></div>
       </section>
+    </div>
 
+    <!-- TAB RISERVATA: AMMANCHI
+         Non segue i mesi: ogni debito resta aperto e si somma ai successivi
+         finche' il suo residuo non viene portato a zero. -->
+    <div id="tab-ammanchi" class="tab-pane">
       <section class="card-section debiti-sezione">
         <div class="section-header anticipi-storico-testa">
           <div class="section-title">
-            <span>Debiti per ammanchi</span>
+            <span>Ammanchi da recuperare</span>
           </div>
           <div class="inv-total-box debiti-totale-box">
-            <span class="inv-total-label">Debiti del mese</span>
+            <span class="inv-total-label">Totale ancora dovuto</span>
             <span id="debiti-totale-mese" class="inv-total-value">0,00 &euro;</span>
           </div>
         </div>
 
         <p class="anticipi-hint">
-          Se in un turno manca denaro, l&rsquo;ammanco viene diviso in parti uguali fra le persone assegnate a quel turno.
+          Gli ammanchi non si azzerano a fine mese: si sommano nel tempo e restano qui finch&eacute; il residuo non arriva a zero.
         </p>
 
         <p id="debiti-avviso" class="rub-avviso is-hidden" aria-live="polite"></p>
