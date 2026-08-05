@@ -187,22 +187,6 @@
           <span>Nomi e numeri di telefono</span>
         </div>
       </button>
-      <!-- Le due voci amministrative restano in fondo alla Tabaccheria:
-           Anticipi penultima, Ammanchi ultima. -->
-      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-anticipi" hidden>
-        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span>
-        <div class="hotdog-text">
-          <strong>Anticipi</strong>
-          <span>Registro mensile dei baristi</span>
-        </div>
-      </button>
-      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-ammanchi" hidden>
-        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M17 7.5c0-1.7-2-3-5-3s-5 1.3-5 3 1.4 2.6 5 3.5 5 1.8 5 3.5-2 3-5 3-5-1.3-5-3"/></svg></span>
-        <div class="hotdog-text">
-          <strong>Ammanchi</strong>
-          <span>Debiti aperti fino al saldo</span>
-        </div>
-      </button>
     </div>
 
     <p class="hotdog-gruppo solo-admin" hidden>H24</p>
@@ -227,6 +211,26 @@
         <div class="hotdog-text">
           <strong>Incassi mensili</strong>
           <span>Totali del mese e dichiarazione</span>
+        </div>
+      </button>
+    </div>
+
+    <p class="hotdog-gruppo solo-admin" hidden>Amministrazione</p>
+
+    <div class="hotdog-menu-items">
+      <!-- Ultime due voci dell'intero menu, entrambe solo amministrative. -->
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-anticipi" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Anticipi</strong>
+          <span>Registro mensile dei baristi</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item solo-admin" data-tab="tab-ammanchi" hidden>
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M17 7.5c0-1.7-2-3-5-3s-5 1.3-5 3 1.4 2.6 5 3.5 5 1.8 5 3.5-2 3-5 3-5-1.3-5-3"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Ammanchi</strong>
+          <span>Debiti aperti fino al saldo</span>
         </div>
       </button>
     </div>
@@ -257,12 +261,6 @@
       <button type="button" class="nav-tab-item" data-tab="tab-rubrica">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7Z"/><circle cx="13.5" cy="10" r="2.4"/><path d="M10 17a3.5 3.5 0 0 1 7 0"/><path d="M7 7H4"/><path d="M7 12H4"/><path d="M7 17H4"/></svg></span> Registro numeri
       </button>
-      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-anticipi" hidden>
-        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span> Anticipi
-      </button>
-      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-ammanchi" hidden>
-        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M17 7.5c0-1.7-2-3-5-3s-5 1.3-5 3 1.4 2.6 5 3.5 5 1.8 5 3.5-2 3-5 3-5-1.3-5-3"/></svg></span> Ammanchi
-      </button>
 
       <!-- Da qui in poi si parla di distributori, non più di tabaccheria -->
       <span class="nav-gruppo solo-admin" hidden aria-hidden="true">H24</span>
@@ -275,6 +273,13 @@
       </button>
       <button type="button" class="nav-tab-item solo-admin" data-tab="tab-h24-incassi" hidden>
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9.5a3.5 3.5 0 0 0-5.5 2.5 3.5 3.5 0 0 0 5.5 2.5"/><path d="M8 11h4"/><path d="M8 13h4"/></svg></span> Incassi mensili
+      </button>
+      <span class="nav-gruppo solo-admin" hidden aria-hidden="true">Admin</span>
+      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-anticipi" hidden>
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/><path d="M16 15h5M16 18h3"/></svg></span> Anticipi
+      </button>
+      <button type="button" class="nav-tab-item solo-admin" data-tab="tab-ammanchi" hidden>
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M17 7.5c0-1.7-2-3-5-3s-5 1.3-5 3 1.4 2.6 5 3.5 5 1.8 5 3.5-2 3-5 3-5-1.3-5-3"/></svg></span> Ammanchi
       </button>
     </div>
   </nav>
@@ -509,7 +514,7 @@
           </div>
           <div class="inv-total-box debiti-totale-box">
             <span class="inv-total-label">Totale ancora dovuto</span>
-            <span id="debiti-totale-mese" class="inv-total-value">0,00 &euro;</span>
+            <span id="debiti-totale-aperto" class="inv-total-value">0,00 &euro;</span>
           </div>
         </div>
 

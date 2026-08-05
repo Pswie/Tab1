@@ -17,6 +17,7 @@ import {
 } from '../services/debiti';
 
 const pannello = document.getElementById('tab-anticipi') as HTMLDivElement | null;
+const pannelloAmmanchi = document.getElementById('tab-ammanchi') as HTMLDivElement | null;
 const selettore = document.getElementById('anticipi-persone') as HTMLDivElement | null;
 const inputData = document.getElementById('anticipi-data') as HTMLInputElement | null;
 const inputImporto = document.getElementById('anticipi-importo') as HTMLInputElement | null;
@@ -34,7 +35,7 @@ const riepilogo = document.getElementById('anticipi-riepilogo') as HTMLDivElemen
 const meseNome = document.getElementById('anticipi-mese-nome') as HTMLSpanElement | null;
 const btnMeseIndietro = document.getElementById('btn-anticipi-mese-indietro') as HTMLButtonElement | null;
 const btnMeseAvanti = document.getElementById('btn-anticipi-mese-avanti') as HTMLButtonElement | null;
-const debitiTotaleMese = document.getElementById('debiti-totale-mese') as HTMLSpanElement | null;
+const debitiTotaleAperto = document.getElementById('debiti-totale-aperto') as HTMLSpanElement | null;
 const debitiRiepilogo = document.getElementById('debiti-riepilogo') as HTMLDivElement | null;
 const debitiLista = document.getElementById('debiti-lista') as HTMLDivElement | null;
 const debitiAvviso = document.getElementById('debiti-avviso') as HTMLParagraphElement | null;
@@ -47,6 +48,7 @@ let baristaIdSelezionato = '';
 let mese = meseCorrente();
 let inizializzato = false;
 let versioneCaricamento = 0;
+let versioneCaricamentoAmmanchi = 0;
 
 function oggi(): string {
   const d = new Date();
@@ -202,7 +204,7 @@ function renderRegistro(): void {
 
 function renderDebiti(): void {
   const totale = debiti.reduce((somma, d) => somma + d.importo, 0);
-  if (debitiTotaleMese) debitiTotaleMese.textContent = euro(totale);
+  if (debitiTotaleAperto) debitiTotaleAperto.textContent = euro(totale);
 
   const perPersona = new Map<string, number>();
   debiti.filter(d => d.assegnato).forEach(d => {
@@ -227,8 +229,8 @@ function renderDebiti(): void {
     debitiLista.innerHTML = `
       <div class="anticipi-vuoto debiti-vuoto">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M12 3v18M17 7.5c0-1.7-2-3-5-3s-5 1.3-5 3 1.4 2.6 5 3.5 5 1.8 5 3.5-2 3-5 3-5-1.3-5-3"/></svg>
-        <strong>Nessun ammanco nel mese</strong>
-        <span>I debiti compaiono automaticamente quando una cassa chiude in negativo.</span>
+        <strong>Nessun ammanco aperto</strong>
+        <span>I debiti compaiono automaticamente quando una cassa chiude in negativo e spariscono solo a saldo zero.</span>
       </div>`;
     return;
   }
@@ -349,21 +351,31 @@ async function caricaRegistro(): Promise<void> {
   pannello.classList.add('is-caricamento');
 
   const [dal, al] = estremiMese(mese);
-  const [nomiLetti, anticipiLetti, debitiLetti] = await Promise.all([
+  const [nomiLetti, anticipiLetti] = await Promise.all([
     elencaBaristiAnticipi(),
-    elencaAnticipi(dal, al),
-    elencaDebitiTurno(dal, al)
+    elencaAnticipi(dal, al)
   ]);
 
   if (versione !== versioneCaricamento) return;
   nomi = nomiLetti;
   anticipi = anticipiLetti;
-  debiti = debitiLetti;
   renderPersone();
   renderGestione();
   renderRegistro();
-  renderDebiti();
   pannello.classList.remove('is-caricamento');
+}
+
+async function caricaRegistroAmmanchi(): Promise<void> {
+  if (!pannelloAmmanchi || !amministratore()) return;
+  const versione = ++versioneCaricamentoAmmanchi;
+  pannelloAmmanchi.classList.add('is-caricamento');
+
+  const letti = await elencaDebitiTurno();
+  if (versione !== versioneCaricamentoAmmanchi) return;
+
+  debiti = letti;
+  renderDebiti();
+  pannelloAmmanchi.classList.remove('is-caricamento');
 }
 
 async function salvaAnticipo(): Promise<void> {
@@ -420,6 +432,11 @@ async function aggiungiNome(): Promise<void> {
 /** Rilegge i dati quando si apre la scheda. */
 export async function caricaAnticipi(): Promise<void> {
   await caricaRegistro();
+}
+
+/** Gli ammanchi sono cumulativi: rilegge tutte le posizioni ancora aperte. */
+export async function caricaAmmanchi(): Promise<void> {
+  await caricaRegistroAmmanchi();
 }
 
 export function initAnticipi(): void {

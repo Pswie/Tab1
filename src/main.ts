@@ -34,7 +34,7 @@ import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { caricaDashboard, initDashboard } from './ui/dashboardUI';
 import { caricaRubrica, initRubrica } from './ui/rubricaUI';
 import { caricaTurni, initTurni } from './ui/turniUI';
-import { caricaAnticipi, initAnticipi } from './ui/anticipiUI';
+import { caricaAmmanchi, caricaAnticipi, initAnticipi } from './ui/anticipiUI';
 import {
   caricaIncassiH24,
   caricaProdottiH24,
@@ -1134,6 +1134,7 @@ function setupEventListeners() {
     // I turni li scrive qualcun altro: a ogni apertura si rilegge la settimana
     if (targetTabId === 'tab-turni') caricaTurni();
     if (targetTabId === 'tab-anticipi') caricaAnticipi();
+    if (targetTabId === 'tab-ammanchi') caricaAmmanchi();
     if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
     if (targetTabId === 'tab-rubrica') caricaRubrica();
     if (targetTabId === 'tab-dashboard') caricaDashboard();

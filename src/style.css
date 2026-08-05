@@ -438,7 +438,8 @@
   font-size: 0.8rem;
 }
 
-#tab-anticipi.is-caricamento {
+#tab-anticipi.is-caricamento,
+#tab-ammanchi.is-caricamento {
   opacity: 0.72;
   pointer-events: none;
 }
