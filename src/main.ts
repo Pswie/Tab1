@@ -277,6 +277,51 @@ function toggleSign(campo: HTMLInputElement) {
 let fattureDelTurno: VoceFattura[] = [];
 
 /**
+ * Il Lotto serale viene riscritto come totale cumulativo della giornata.
+ * Per questo la sua fattura di pranzo non deve essere copiata nel Turno 2:
+ * 10 a pranzo e 20 la sera significano 20 in tutto, non 30.
+ */
+function distanzaDaLotto(parola: string): number {
+  const riferimento = 'lotto';
+  const precedente = Array.from({ length: riferimento.length + 1 }, (_, i) => i);
+
+  for (let riga = 1; riga <= parola.length; riga++) {
+    const corrente = [riga];
+
+    for (let colonna = 1; colonna <= riferimento.length; colonna++) {
+      const costo = parola[riga - 1] === riferimento[colonna - 1] ? 0 : 1;
+      corrente[colonna] = Math.min(
+        corrente[colonna - 1] + 1,
+        precedente[colonna] + 1,
+        precedente[colonna - 1] + costo
+      );
+    }
+
+    precedente.splice(0, precedente.length, ...corrente);
+  }
+
+  return precedente[riferimento.length];
+}
+
+function eFatturaLotto(nome: string): boolean {
+  const parole = nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('it')
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+
+  return parole.some(parola =>
+    parola.length >= 3
+    && parola.length <= 7
+    && parola.startsWith('l')
+    && parola.includes('o')
+    && parola.includes('t')
+    && distanzaDaLotto(parola) <= 2
+  );
+}
+
+/**
  * Porta nel pomeriggio le fatture della mattina.
  *
  * Il pomeriggio è una lettura cumulativa dell'intera giornata: se le fatture
@@ -292,7 +337,10 @@ function ereditaFattureDallaMattina(): void {
 
   if (pomeriggio.fatture_voci.length > 0 || pomeriggio.fatture !== 0) return;
 
-  pomeriggio.fatture_voci = vociFattura(shiftData.mattina).map(v => ({ ...v }));
+  // Tutto passa al serale tranne il Lotto, che viene riscritto gia' cumulativo.
+  pomeriggio.fatture_voci = vociFattura(shiftData.mattina)
+    .filter(v => !eFatturaLotto(v.nome))
+    .map(v => ({ ...v }));
   pomeriggio.fatture = totaleFatture(pomeriggio.fatture_voci);
 }
 
