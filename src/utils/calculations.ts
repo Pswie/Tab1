@@ -3,8 +3,11 @@ import { DayTotals, ShiftKey, ShiftValues, VoceFattura } from '../types';
 /** Ora in cui si passa dal turno pomeriggio del giorno prima a quello mattina */
 const ORA_INIZIO_MATTINA = 10;
 
-/** Ora in cui si passa dal turno mattina a quello pomeriggio */
-const ORA_INIZIO_POMERIGGIO = 16;
+/** Minuto della giornata in cui si apre direttamente il turno pomeriggio */
+const MINUTO_INIZIO_POMERIGGIO = 14 * 60 + 30;
+
+/** Dopo le 15 le operazioni sulle fatture del mattino vanno confermate */
+const MINUTO_CONFERMA_FATTURE = 15 * 60;
 
 /**
  * Gli orari dei turni e le date sono sempre quelli italiani: il fuso del
@@ -18,6 +21,7 @@ interface RomeParts {
   month: number;
   day: number;
   hour: number;
+  minute: number;
 }
 
 /**
@@ -30,6 +34,7 @@ function getRomeParts(instant: Date): RomeParts {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
+    minute: '2-digit',
     hourCycle: 'h23'
   }).formatToParts(instant);
 
@@ -39,7 +44,8 @@ function getRomeParts(instant: Date): RomeParts {
     year: get('year'),
     month: get('month'),
     day: get('day'),
-    hour: get('hour')
+    hour: get('hour'),
+    minute: get('minute')
   };
 }
 
@@ -48,6 +54,12 @@ function getRomeParts(instant: Date): RomeParts {
  */
 export function getItalianHour(instant: Date = new Date()): number {
   return getRomeParts(instant).hour;
+}
+
+/** Minuti trascorsi dalla mezzanotte, sempre secondo l'ora italiana */
+export function getItalianMinuteOfDay(instant: Date = new Date()): number {
+  const { hour, minute } = getRomeParts(instant);
+  return hour * 60 + minute;
 }
 
 /**
@@ -251,12 +263,23 @@ export function calculateDayTotals(mattina: ShiftValues, pomeriggio: ShiftValues
 
 /**
  * Turno attivo in base all'orario:
- * - dalle 10:00 alle 16:00 si compila la chiusura di pranzo
- * - dalle 16:00 alle 10:00 del giorno dopo si compila quella serale
+ * - dalle 10:00 alle 14:29 si compila la chiusura di pranzo
+ * - dalle 14:30 alle 10:00 del giorno dopo si compila quella serale
  */
 export function getActiveShift(now: Date = new Date()): ShiftKey {
-  const hour = getItalianHour(now);
-  return hour >= ORA_INIZIO_MATTINA && hour < ORA_INIZIO_POMERIGGIO ? 'mattina' : 'pomeriggio';
+  const minuto = getItalianMinuteOfDay(now);
+  return minuto >= ORA_INIZIO_MATTINA * 60 && minuto < MINUTO_INIZIO_POMERIGGIO
+    ? 'mattina'
+    : 'pomeriggio';
+}
+
+/**
+ * Indica quando una fattura operata sul turno mattina richiede conferma.
+ * La finestra finisce a mezzanotte: prima delle 10 si sta ancora lavorando
+ * sul pomeriggio del giorno precedente e non avrebbe senso proporre il mattino.
+ */
+export function shouldConfirmMorningInvoiceShift(now: Date = new Date()): boolean {
+  return getItalianMinuteOfDay(now) >= MINUTO_CONFERMA_FATTURE;
 }
 
 /**

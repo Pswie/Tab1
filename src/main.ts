@@ -17,6 +17,7 @@ import {
   getTomorrowDateString,
   getWorkingDateString,
   parseInputValue,
+  shouldConfirmMorningInvoiceShift,
   totaleFatture,
   vociFattura
 } from './utils/calculations';
@@ -62,6 +63,15 @@ let selectedDate: string = getWorkingDateString();
 let currentShift: ShiftKey = getActiveShift();
 let saveDebounceTimer: number | null = null;
 let lastSaveError: string | undefined;
+
+interface SalvataggioTurnoPendente {
+  data: string;
+  turno: ShiftKey;
+  voci: ShiftValues;
+  differenza: number;
+}
+
+const salvataggiTurniPendenti = new Map<string, SalvataggioTurnoPendente>();
 
 // Voci dei due turni della giornata caricata
 let shiftData: Record<ShiftKey, ShiftValues> = {
@@ -112,6 +122,10 @@ const btnFatturaAggiungi = document.getElementById('btn-fattura-aggiungi') as HT
 const listaFatture = document.getElementById('fatture-lista') as HTMLDivElement;
 const avvisoFatture = document.getElementById('fatture-avviso') as HTMLParagraphElement;
 const displayFattureTotale = document.getElementById('display-fatture-totale') as HTMLSpanElement;
+const dialogTurnoFattura = document.getElementById('fattura-turno-dialog') as HTMLDivElement;
+const testoDialogTurnoFattura = document.getElementById('fattura-turno-testo') as HTMLParagraphElement;
+const btnTurnoFatturaSi = document.getElementById('btn-fattura-turno-si') as HTMLButtonElement;
+const btnTurnoFatturaNo = document.getElementById('btn-fattura-turno-no') as HTMLButtonElement;
 
 // Controllo di cassa: fuori dal totale del turno, dentro al conto dello scarto
 const inputEffettivo = document.getElementById('input-effettivo') as HTMLInputElement;
@@ -344,6 +358,128 @@ function ereditaFattureDallaMattina(): void {
   pomeriggio.fatture = totaleFatture(pomeriggio.fatture_voci);
 }
 
+type AzioneFattura = 'inserire' | 'eliminare';
+
+let dialogTurnoFatturaAperto = false;
+
+/**
+ * Dopo le 15 chiede esplicitamente se l'operazione appartiene davvero al
+ * mattino. "No" significa che la stessa operazione va eseguita nel pomeriggio.
+ */
+function scegliTurnoFattura(azione: AzioneFattura, nome: string): Promise<ShiftKey> {
+  if (currentShift !== 'mattina' || !shouldConfirmMorningInvoiceShift()) {
+    return Promise.resolve(currentShift);
+  }
+
+  dialogTurnoFatturaAperto = true;
+  testoDialogTurnoFattura.textContent =
+    `Vuoi davvero ${azione} la fattura “${nome}” nel turno del mattino?`;
+  dialogTurnoFattura.removeAttribute('inert');
+  dialogTurnoFattura.classList.add('is-active');
+  dialogTurnoFattura.setAttribute('aria-hidden', 'false');
+
+  const elementoPrimaDelDialog = document.activeElement as HTMLElement | null;
+  window.setTimeout(() => btnTurnoFatturaSi.focus(), 0);
+
+  return new Promise(resolve => {
+    const chiudi = (turno: ShiftKey) => {
+      dialogTurnoFattura.classList.remove('is-active');
+      dialogTurnoFattura.setAttribute('aria-hidden', 'true');
+      dialogTurnoFattura.setAttribute('inert', '');
+      btnTurnoFatturaSi.removeEventListener('click', scegliMattino);
+      btnTurnoFatturaNo.removeEventListener('click', scegliPomeriggio);
+      dialogTurnoFattura.removeEventListener('keydown', gestisciTastiera);
+      dialogTurnoFatturaAperto = false;
+      elementoPrimaDelDialog?.focus();
+      resolve(turno);
+    };
+    const scegliMattino = () => chiudi('mattina');
+    const scegliPomeriggio = () => chiudi('pomeriggio');
+    const gestisciTastiera = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') {
+        evento.preventDefault();
+        btnTurnoFatturaNo.focus();
+        return;
+      }
+
+      if (evento.key !== 'Tab') return;
+      if (evento.shiftKey && document.activeElement === btnTurnoFatturaSi) {
+        evento.preventDefault();
+        btnTurnoFatturaNo.focus();
+      } else if (!evento.shiftKey && document.activeElement === btnTurnoFatturaNo) {
+        evento.preventDefault();
+        btnTurnoFatturaSi.focus();
+      }
+    };
+
+    btnTurnoFatturaSi.addEventListener('click', scegliMattino);
+    btnTurnoFatturaNo.addEventListener('click', scegliPomeriggio);
+    dialogTurnoFattura.addEventListener('keydown', gestisciTastiera);
+  });
+}
+
+function stessaFattura(a: VoceFattura, b: VoceFattura): boolean {
+  return a.nome === b.nome && a.importo === b.importo;
+}
+
+/** Trova la stessa occorrenza anche quando due fatture hanno nome/importo uguali. */
+function indiceFatturaCorrispondente(
+  voci: VoceFattura[],
+  fattura: VoceFattura,
+  occorrenza: number
+): number {
+  let viste = 0;
+
+  for (let i = 0; i < voci.length; i++) {
+    if (!stessaFattura(voci[i], fattura)) continue;
+    if (viste === occorrenza) return i;
+    viste++;
+  }
+
+  // Se il pomeriggio e' gia' stato corretto a mano, e' comunque piu' sicuro
+  // togliere una riga identica che lasciare una fattura certamente duplicata.
+  return voci.findIndex(v => stessaFattura(v, fattura));
+}
+
+function impostaFattureDelTurno(turno: ShiftKey, voci: VoceFattura[]): void {
+  shiftData[turno].fatture_voci = voci.map(v => ({ ...v }));
+  shiftData[turno].fatture = totaleFatture(voci);
+}
+
+/** Propaga una nuova fattura del mattino nella lettura cumulativa pomeridiana. */
+function propagaAggiuntaFatturaNelPomeriggio(fattura: VoceFattura): boolean {
+  if (eFatturaLotto(fattura.nome)) return false;
+
+  const pomeriggioEraVuoto =
+    shiftData.pomeriggio.fatture_voci.length === 0 && shiftData.pomeriggio.fatture === 0;
+
+  if (pomeriggioEraVuoto) {
+    ereditaFattureDallaMattina();
+  } else {
+    const voci = vociFattura(shiftData.pomeriggio).map(v => ({ ...v }));
+    voci.push({ ...fattura });
+    impostaFattureDelTurno('pomeriggio', voci);
+  }
+
+  return true;
+}
+
+/** Propaga nel pomeriggio la rimozione confermata nel turno del mattino. */
+function propagaRimozioneFatturaNelPomeriggio(
+  fattura: VoceFattura,
+  occorrenza: number
+): boolean {
+  if (eFatturaLotto(fattura.nome)) return false;
+
+  const voci = vociFattura(shiftData.pomeriggio).map(v => ({ ...v }));
+  const indice = indiceFatturaCorrispondente(voci, fattura, occorrenza);
+  if (indice < 0) return false;
+
+  voci.splice(indice, 1);
+  impostaFattureDelTurno('pomeriggio', voci);
+  return true;
+}
+
 function mostraAvvisoFatture(testo: string): void {
   if (!avvisoFatture) return;
 
@@ -379,7 +515,9 @@ function renderFatture(): void {
  * Il nome è obbligatorio: una riga senza nome vale quanto l'importo unico di
  * prima, cioè non dice niente a chi la rilegge.
  */
-function aggiungiFattura(): void {
+async function aggiungiFattura(): Promise<void> {
+  if (dialogTurnoFatturaAperto) return;
+
   const nome = inputFatturaNome?.value?.trim() || '';
   const importo = parseInputValue(inputFatturaImporto?.value || '');
 
@@ -395,32 +533,68 @@ function aggiungiFattura(): void {
     return;
   }
 
+  const turnoScelto = await scegliTurnoFattura('inserire', nome);
+  if (turnoScelto !== currentShift) switchShift(turnoScelto);
+
   mostraAvvisoFatture('');
-  fattureDelTurno.push({ nome, importo });
+  const fattura = { nome, importo };
+  fattureDelTurno.push(fattura);
+  syncCurrentShiftFromInputs();
+
+  const propagata = turnoScelto === 'mattina'
+    ? propagaAggiuntaFatturaNelPomeriggio(fattura)
+    : false;
 
   inputFatturaNome.value = '';
   inputFatturaImporto.value = '';
   inputFatturaNome.focus();
 
   renderFatture();
-  triggerAutoSave();
+  programmaAutoSalvataggio(propagata ? ['mattina', 'pomeriggio'] : [turnoScelto]);
 }
 
 function setupFattureDelegation(): void {
   if (!listaFatture) return;
 
-  listaFatture.addEventListener('click', e => {
+  listaFatture.addEventListener('click', async e => {
     const pulsante = (e.target as HTMLElement).closest('[data-action="togli"]');
-    if (!pulsante) return;
+    if (!pulsante || dialogTurnoFatturaAperto) return;
 
     const riga = pulsante.closest('.fatture-riga') as HTMLElement | null;
     const indice = Number(riga?.getAttribute('data-indice'));
     if (isNaN(indice)) return;
 
-    fattureDelTurno.splice(indice, 1);
+    const fattura = fattureDelTurno[indice];
+    if (!fattura) return;
 
+    const occorrenza = fattureDelTurno
+      .slice(0, indice + 1)
+      .filter(v => stessaFattura(v, fattura)).length - 1;
+    const turnoScelto = await scegliTurnoFattura('eliminare', fattura.nome);
+
+    if (turnoScelto !== currentShift) {
+      switchShift(turnoScelto);
+    }
+
+    const indiceDaTogliere = turnoScelto === 'pomeriggio'
+      ? indiceFatturaCorrispondente(fattureDelTurno, fattura, occorrenza)
+      : indice;
+
+    if (indiceDaTogliere < 0) {
+      mostraAvvisoFatture(`La fattura “${fattura.nome}” non è presente nel turno pomeriggio.`);
+      return;
+    }
+
+    fattureDelTurno.splice(indiceDaTogliere, 1);
+    syncCurrentShiftFromInputs();
+
+    const propagata = turnoScelto === 'mattina'
+      ? propagaRimozioneFatturaNelPomeriggio(fattura, occorrenza)
+      : false;
+
+    mostraAvvisoFatture('');
     renderFatture();
-    triggerAutoSave();
+    programmaAutoSalvataggio(propagata ? ['mattina', 'pomeriggio'] : [turnoScelto]);
   });
 }
 
@@ -633,10 +807,16 @@ function switchShift(shift: ShiftKey) {
   updateCalculatedDisplays();
 }
 
-/**
- * Avvia l'auto-salvataggio con Debounce
- */
-function triggerAutoSave() {
+/** Copia stabile dei dati da salvare dopo il debounce. */
+function copiaShiftValues(values: ShiftValues): ShiftValues {
+  return {
+    ...values,
+    fatture_voci: values.fatture_voci.map(v => ({ ...v }))
+  };
+}
+
+/** Accoda uno o entrambi i turni nello stesso autosalvataggio. */
+function programmaAutoSalvataggio(turni: ShiftKey[]): void {
   updateCalculatedDisplays();
   updateSaveStatusBadge('saving');
 
@@ -644,36 +824,54 @@ function triggerAutoSave() {
     window.clearTimeout(saveDebounceTimer);
   }
 
-  // Giornata, turno e valori si fissano adesso: se nel frattempo si cambia
-  // data o turno, quanto è stato digitato deve finire dov'è stato scritto
-  const dataDaSalvare = selectedDate;
-  const turnoDaSalvare = currentShift;
-  const vociDaSalvare = shiftData[currentShift];
-
   // Lo scarto si calcola qui, dove ci sono tutti e due i turni: per il
   // pomeriggio serve anche la mattina, perché il suo totale è una differenza
   const totali = calculateDayTotals(shiftData.mattina, shiftData.pomeriggio);
-  const differenzaDaSalvare = turnoDaSalvare === 'mattina'
-    ? totali.differenzaTurnoMattina
-    : totali.differenzaTurnoPomeriggio;
+  [...new Set(turni)].forEach(turno => {
+    salvataggiTurniPendenti.set(`${selectedDate}:${turno}`, {
+      data: selectedDate,
+      turno,
+      voci: copiaShiftValues(shiftData[turno]),
+      differenza: turno === 'mattina'
+        ? totali.differenzaTurnoMattina
+        : totali.differenzaTurnoPomeriggio
+    });
+  });
 
   saveDebounceTimer = window.setTimeout(async () => {
+    const salvataggi = [...salvataggiTurniPendenti.values()];
+    salvataggiTurniPendenti.clear();
+    saveDebounceTimer = null;
+
     try {
-      const result = await autoSaveDailyLog(
-        dataDaSalvare,
-        turnoDaSalvare,
-        vociDaSalvare,
-        getDayExtras(),
-        differenzaDaSalvare
-      );
-      lastSaveError = result.error;
-      updateSaveStatusBadge(result.storage === 'supabase' ? 'saved' : 'saved-local');
+      let salvatoSoloInLocale = false;
+      let errore: string | undefined;
+
+      for (const salvataggio of salvataggi) {
+        const result = await autoSaveDailyLog(
+          salvataggio.data,
+          salvataggio.turno,
+          salvataggio.voci,
+          getDayExtras(),
+          salvataggio.differenza
+        );
+        salvatoSoloInLocale ||= result.storage === 'local';
+        errore ||= result.error;
+      }
+
+      lastSaveError = errore;
+      updateSaveStatusBadge(salvatoSoloInLocale ? 'saved-local' : 'saved');
       await renderHistorySidebar();
     } catch (err) {
       console.error('Errore durante l\'auto-salvataggio:', err);
       updateSaveStatusBadge('error');
     }
   }, 450);
+}
+
+/** Avvia l'autosalvataggio del solo turno che si sta compilando. */
+function triggerAutoSave(): void {
+  programmaAutoSalvataggio([currentShift]);
 }
 
 /**
@@ -1396,6 +1594,11 @@ function fillPrintDocument() {
  * Inizializzazione dell'Applicazione Web
  */
 async function initApp() {
+  // L'orario va letto quando l'accesso e' davvero concluso: la schermata di
+  // login potrebbe essere rimasta aperta proprio mentre scattavano le 14:30.
+  selectedDate = getWorkingDateString();
+  currentShift = getActiveShift();
+
   setupEventListeners();
   ripristinaIscrizione();
   aggiornaPulsanteNotifiche();

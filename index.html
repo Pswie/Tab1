@@ -1319,6 +1319,30 @@
     </div>
   </main>
 
+  <!-- Dopo le 15 una fattura toccata nel turno mattina e' probabilmente del
+       pomeriggio: la scelta esplicita evita di correggere il turno sbagliato. -->
+  <div id="fattura-turno-dialog" class="modal-overlay fattura-turno-dialog"
+       role="dialog" aria-modal="true" aria-hidden="true" inert
+       aria-labelledby="fattura-turno-titolo" aria-describedby="fattura-turno-testo">
+    <div class="modal-container fattura-turno-dialog-box" role="document">
+      <div class="modal-header">
+        <h2 id="fattura-turno-titolo" class="modal-title">Controlla il turno</h2>
+      </div>
+      <div class="modal-body">
+        <p id="fattura-turno-testo" class="fattura-turno-testo"></p>
+        <p class="fattura-turno-nota">Sono passate le 15: scegli dove registrare l'operazione.</p>
+        <div class="fattura-turno-azioni">
+          <button type="button" id="btn-fattura-turno-si" class="todo-add-btn">
+            Sì, mattino
+          </button>
+          <button type="button" id="btn-fattura-turno-no" class="btn-secondary-action">
+            No, pomeriggio
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- FOGLIO DOCUMENTO CONTABILE
        Non viene mai mostrato a schermo: esiste solo per essere stampato,
        occupa esattamente una pagina A4 e viene compilato al click su Stampa. -->

@@ -5685,6 +5685,40 @@ body {
    Una per una col nome di cosa e' stato pagato: il totale e' la somma.
    ========================================================================== */
 
+.fattura-turno-dialog-box {
+  max-width: 460px;
+}
+
+.fattura-turno-dialog .modal-title {
+  margin: 0;
+}
+
+.fattura-turno-testo {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.fattura-turno-nota {
+  margin: 0.65rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.fattura-turno-azioni {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.fattura-turno-azioni button {
+  min-height: 46px;
+}
+
 .fatture-aggiungi {
   display: grid;
   grid-template-columns: 1fr 9rem auto;
@@ -5775,6 +5809,10 @@ body {
 }
 
 @media (max-width: 640px) {
+  .fattura-turno-azioni {
+    grid-template-columns: 1fr;
+  }
+
   /* Il nome si prende tutta la riga, importo e pulsante sotto */
   .fatture-aggiungi {
     grid-template-columns: 1fr auto;
