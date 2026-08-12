@@ -370,6 +370,288 @@ CREATE INDEX IF NOT EXISTS idx_attivita_stato
 
 
 -- =========================================================================
+-- 7bis. PULIZIE
+--
+-- Ogni riga è una voce di una checklist settimanale o mensile. Il cambio di
+-- periodo non cancella niente: crea nuove righe e lascia quelle scadute come
+-- storico, così la dashboard può dire cosa non è stato fatto e da chi era
+-- previsto. I responsabili sono una fotografia del periodo, non un calcolo
+-- retroattivo sui turni che potrebbero essere corretti in seguito.
+-- =========================================================================
+DROP VIEW IF EXISTS public.pulizie_non_fatte;
+
+CREATE TABLE IF NOT EXISTS public.pulizie_registro (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tipo TEXT NOT NULL CHECK (tipo IN ('bagno', 'settimanale', 'mensile')),
+    voce TEXT NOT NULL,
+    ordine INTEGER NOT NULL DEFAULT 0,
+    periodo_inizio DATE NOT NULL,
+    periodo_fine DATE NOT NULL,
+    -- Giorno assegnato: per il bagno informa chi era prevista quel giorno,
+    -- mentre la X resta consentita fino alla fine della settimana.
+    prevista_il DATE,
+    turno TEXT CHECK (turno IS NULL OR turno IN ('mattina', 'pomeriggio')),
+    gruppo TEXT CHECK (gruppo IS NULL OR gruppo IN ('gruppo-1', 'gruppo-2')),
+    responsabili JSONB NOT NULL DEFAULT '[]'::JSONB
+        CHECK (jsonb_typeof(responsabili) = 'array'),
+    completata_il TIMESTAMP WITH TIME ZONE,
+    completata_da UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    completata_da_nome TEXT NOT NULL DEFAULT '',
+    non_fatta_il TIMESTAMP WITH TIME ZONE,
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CHECK (periodo_fine >= periodo_inizio),
+    CHECK (prevista_il IS NULL OR prevista_il BETWEEN periodo_inizio AND periodo_fine),
+    UNIQUE (tipo, voce, periodo_inizio)
+);
+
+ALTER TABLE public.pulizie_registro
+    ADD COLUMN IF NOT EXISTS prevista_il DATE;
+
+CREATE INDEX IF NOT EXISTS idx_pulizie_periodo
+    ON public.pulizie_registro(periodo_inizio DESC, tipo, ordine);
+DROP INDEX IF EXISTS public.idx_pulizie_scadute;
+CREATE INDEX idx_pulizie_scadute
+    ON public.pulizie_registro(periodo_fine DESC)
+    WHERE non_fatta_il IS NOT NULL;
+
+-- Data da cui parte il registro. Permette di ricostruire periodi interamente
+-- trascorsi anche se in quei giorni nessun telefono ha aperto l'app.
+CREATE TABLE IF NOT EXISTS public.pulizie_configurazione (
+    id BOOLEAN PRIMARY KEY DEFAULT true CHECK (id),
+    prima_settimana DATE NOT NULL,
+    primo_mese DATE NOT NULL,
+    CHECK (EXTRACT(ISODOW FROM prima_settimana) = 1),
+    CHECK (EXTRACT(DAY FROM primo_mese) = 1)
+);
+
+INSERT INTO public.pulizie_configurazione (id, prima_settimana, primo_mese)
+VALUES (true, '2026-08-10'::DATE, '2026-08-01'::DATE)
+ON CONFLICT (id) DO NOTHING;
+
+-- Congela le omissioni già maturate prima di preparare il nuovo periodo. Dopo
+-- la scadenza la RPC delle X rifiuta ogni modifica: il periodo resta storico.
+CREATE OR REPLACE FUNCTION public.aggiorna_pulizie_non_fatte()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+    v_aggiornate INTEGER;
+    v_oggi_italiano DATE := (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Rome')::DATE;
+BEGIN
+    IF (SELECT auth.uid()) IS NULL OR NOT EXISTS (
+        SELECT 1
+          FROM public.profili
+         WHERE id = (SELECT auth.uid())
+           AND accesso
+    ) THEN
+        RAISE EXCEPTION 'Accesso alle pulizie non consentito' USING ERRCODE = '42501';
+    END IF;
+
+    UPDATE public.pulizie_registro
+       SET non_fatta_il = COALESCE(
+           non_fatta_il,
+           ((periodo_fine + 1)::TIMESTAMP AT TIME ZONE 'Europe/Rome')
+       )
+     WHERE periodo_fine < v_oggi_italiano
+       AND (
+           completata_il IS NULL
+           OR completata_il >= ((periodo_fine + 1)::TIMESTAMP AT TIME ZONE 'Europe/Rome')
+       )
+       AND non_fatta_il IS NULL;
+
+    GET DIAGNOSTICS v_aggiornate = ROW_COUNT;
+    RETURN v_aggiornate;
+END;
+$$;
+
+-- Prepara le checklist richieste senza duplicarle. La settimana deve arrivare
+-- come lunedì e il mese come primo giorno: l'app usa esattamente queste chiavi.
+CREATE OR REPLACE FUNCTION public.prepara_pulizie(p_settimana DATE, p_mese DATE)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+    v_oggi_italiano DATE := (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Rome')::DATE;
+    v_richiesta_consentita BOOLEAN;
+    v_settimana_corrente DATE;
+    v_mese_corrente DATE;
+    v_fine_settimana DATE := p_settimana + 6;
+    v_fine_mese DATE := (p_mese + INTERVAL '1 month - 1 day')::DATE;
+    v_gruppo_uno_prima BOOLEAN := MOD(
+        (EXTRACT(YEAR FROM p_mese)::INTEGER * 12 + EXTRACT(MONTH FROM p_mese)::INTEGER)
+        - (2026 * 12 + 8),
+        2
+    ) = 0;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1
+          FROM public.profili
+         WHERE id = (SELECT auth.uid())
+           AND accesso
+    ) INTO v_richiesta_consentita;
+
+    IF NOT v_richiesta_consentita THEN
+        RAISE EXCEPTION 'Accesso alle pulizie non consentito' USING ERRCODE = '42501';
+    END IF;
+
+    v_settimana_corrente := v_oggi_italiano - (EXTRACT(ISODOW FROM v_oggi_italiano)::INTEGER - 1);
+    v_mese_corrente := DATE_TRUNC('month', v_oggi_italiano)::DATE;
+
+    IF p_settimana IS NULL OR EXTRACT(ISODOW FROM p_settimana) <> 1 THEN
+        RAISE EXCEPTION 'La settimana deve iniziare di lunedì' USING ERRCODE = '22023';
+    END IF;
+
+    IF p_mese IS NULL OR EXTRACT(DAY FROM p_mese) <> 1 THEN
+        RAISE EXCEPTION 'Il mese deve iniziare il giorno 1' USING ERRCODE = '22023';
+    END IF;
+
+    -- Niente righe future o anteriori al registro; i periodi saltati possono
+    -- però essere ricostruiti al primo accesso successivo.
+    IF p_settimana BETWEEN (
+        SELECT prima_settimana FROM public.pulizie_configurazione WHERE id
+    ) AND v_settimana_corrente THEN
+    INSERT INTO public.pulizie_registro (
+        tipo, voce, ordine, periodo_inizio, periodo_fine, prevista_il, responsabili
+    ) VALUES
+        ('bagno', 'Lunedì', 1, p_settimana, v_fine_settimana, p_settimana, '["Maria Rosaria"]'::JSONB),
+        ('bagno', 'Martedì', 2, p_settimana, v_fine_settimana, p_settimana + 1, '["Anita"]'::JSONB),
+        ('bagno', 'Mercoledì', 3, p_settimana, v_fine_settimana, p_settimana + 2, '["Mery"]'::JSONB),
+        ('bagno', 'Giovedì', 4, p_settimana, v_fine_settimana, p_settimana + 3, '["Cinzia"]'::JSONB),
+        ('bagno', 'Venerdì', 5, p_settimana, v_fine_settimana, p_settimana + 4, '["Francesca Imparato"]'::JSONB)
+    ON CONFLICT (tipo, voce, periodo_inizio) DO UPDATE
+       SET periodo_fine = EXCLUDED.periodo_fine,
+           prevista_il = EXCLUDED.prevista_il,
+           responsabili = EXCLUDED.responsabili
+     WHERE public.pulizie_registro.completata_il IS NULL
+       AND public.pulizie_registro.non_fatta_il IS NULL;
+
+    -- Per le settimanali il responsabile è il turno: si conserva anche la
+    -- fotografia dei nomi presenti in quella fascia durante la settimana.
+    WITH turnisti AS (
+        SELECT turno,
+               TO_JSONB(ARRAY_AGG(persona ORDER BY persona)) AS nomi
+          FROM (
+              SELECT DISTINCT turno, persona
+                FROM public.turni_lavoro
+               WHERE data BETWEEN p_settimana AND v_fine_settimana
+                 AND turno IN ('mattina', 'pomeriggio')
+                 AND TRIM(persona) <> ''
+          ) persone
+         GROUP BY turno
+    ), voci(tipo, voce, ordine, turno) AS (
+        VALUES
+            ('settimanale', 'Mensole', 1, 'mattina'),
+            ('settimanale', 'Staffe', 2, 'mattina'),
+            ('settimanale', 'Marmo (pulizia completa)', 3, 'mattina'),
+            ('settimanale', 'Terminali', 4, 'mattina'),
+            ('settimanale', 'Vetri (pulizia completa)', 5, 'mattina'),
+            ('settimanale', 'Vetrine', 6, 'pomeriggio'),
+            ('settimanale', 'Patatine', 7, 'pomeriggio'),
+            ('settimanale', 'TV', 8, 'pomeriggio'),
+            ('settimanale', 'Tavolo', 9, 'pomeriggio'),
+            ('settimanale', 'Sedie', 10, 'pomeriggio')
+    )
+    INSERT INTO public.pulizie_registro (
+        tipo, voce, ordine, periodo_inizio, periodo_fine, turno, responsabili
+    )
+    SELECT v.tipo,
+           v.voce,
+           v.ordine,
+           p_settimana,
+           v_fine_settimana,
+           v.turno,
+           COALESCE(t.nomi, '[]'::JSONB)
+      FROM voci v
+      LEFT JOIN turnisti t ON t.turno = v.turno
+    ON CONFLICT (tipo, voce, periodo_inizio) DO UPDATE
+       SET responsabili = EXCLUDED.responsabili
+     WHERE public.pulizie_registro.completata_il IS NULL
+       AND public.pulizie_registro.non_fatta_il IS NULL;
+    END IF;
+
+    IF p_mese BETWEEN (
+        SELECT primo_mese FROM public.pulizie_configurazione WHERE id
+    ) AND v_mese_corrente THEN
+    WITH gruppi AS (
+        SELECT 'gruppo-1'::TEXT AS gruppo,
+               '["Mery", "Francesca Imparato", "Cinzia"]'::JSONB AS nomi
+        UNION ALL
+        SELECT 'gruppo-2', '["Anita", "Maria Rosaria"]'::JSONB
+    ), voci(tipo, voce, ordine, elenco) AS (
+        VALUES
+            ('mensile', 'Deposito', 1, 1),
+            ('mensile', 'Legno', 2, 1),
+            ('mensile', 'Porta', 3, 1),
+            ('mensile', 'Pedana', 4, 2),
+            ('mensile', 'Sottobanco', 5, 2),
+            ('mensile', 'Cassetti', 6, 2),
+            ('mensile', 'Souvenir', 7, 2)
+    )
+    INSERT INTO public.pulizie_registro (
+        tipo, voce, ordine, periodo_inizio, periodo_fine, gruppo, responsabili
+    )
+    SELECT v.tipo,
+           v.voce,
+           v.ordine,
+           p_mese,
+           v_fine_mese,
+           CASE
+               WHEN (v.elenco = 1) = v_gruppo_uno_prima THEN 'gruppo-1'
+               ELSE 'gruppo-2'
+           END,
+           g.nomi
+      FROM voci v
+      JOIN gruppi g ON g.gruppo = CASE
+          WHEN (v.elenco = 1) = v_gruppo_uno_prima THEN 'gruppo-1'
+          ELSE 'gruppo-2'
+      END
+    ON CONFLICT (tipo, voce, periodo_inizio) DO UPDATE
+       SET ordine = EXCLUDED.ordine,
+           periodo_fine = EXCLUDED.periodo_fine,
+           gruppo = EXCLUDED.gruppo,
+           responsabili = EXCLUDED.responsabili
+     WHERE public.pulizie_registro.completata_il IS NULL
+       AND public.pulizie_registro.non_fatta_il IS NULL;
+    END IF;
+
+    PERFORM public.aggiorna_pulizie_non_fatte();
+    RETURN NULL;
+END;
+$$;
+
+-- La scadenza è inclusiva: una voce diventa "non fatta" soltanto dal giorno
+-- successivo e da quel momento non può più essere modificata.
+CREATE OR REPLACE VIEW public.pulizie_non_fatte
+WITH (security_invoker = on) AS
+SELECT
+    id,
+    tipo,
+    voce,
+    periodo_inizio,
+    -- Il giorno assegnato resta separato: per ogni tipo la vera scadenza è la
+    -- fine del periodo, cioè anche per il bagno la domenica della settimana.
+    periodo_fine AS scadenza,
+    prevista_il,
+    turno,
+    gruppo,
+    responsabili,
+    non_fatta_il,
+    completata_il,
+    completata_da_nome
+FROM public.pulizie_registro
+WHERE non_fatta_il IS NOT NULL;
+
+-- Finché non vengono concessi i permessi alla fine dello schema, nessuna di
+-- queste funzioni SECURITY DEFINER deve essere invocabile dall'esterno.
+REVOKE ALL ON FUNCTION public.prepara_pulizie(DATE, DATE) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.aggiorna_pulizie_non_fatte() FROM PUBLIC, anon, authenticated;
+
+
+-- =========================================================================
 -- 8. TASSA DI SOGGIORNO
 --
 -- I soggiorni non si inseriscono a mano: arrivano dai calendari iCal delle
@@ -545,6 +827,8 @@ ALTER TABLE public.inventario_sigarette ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.catalogo_gratta_e_vinci ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.catalogo_tabacchi ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attivita ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pulizie_registro ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pulizie_configurazione ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendari_ical ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tassa_soggiorno ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_iscrizioni ENABLE ROW LEVEL SECURITY;
@@ -598,6 +882,10 @@ CREATE POLICY "Lettura attivita" ON public.attivita FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Scrittura attivita" ON public.attivita;
 CREATE POLICY "Scrittura attivita" ON public.attivita FOR ALL USING (true) WITH CHECK (true);
 
+-- Policy e RPC delle pulizie vengono definite dopo profili e turni: su una
+-- installazione vuota devono già esistere entrambi per poter controllare
+-- accesso e fotografare le persone assegnate.
+
 DROP POLICY IF EXISTS "Lettura calendari" ON public.calendari_ical;
 CREATE POLICY "Lettura calendari" ON public.calendari_ical FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Scrittura calendari" ON public.calendari_ical;
@@ -643,6 +931,22 @@ CREATE TABLE IF NOT EXISTS public.profili (
 ALTER TABLE public.profili
     ADD COLUMN IF NOT EXISTS admin BOOLEAN NOT NULL DEFAULT false;
 
+-- Permessi e preferenze molto circoscritti: non rendono amministratore chi li
+-- riceve e non aprono dashboard, H24 o altre sezioni riservate.
+ALTER TABLE public.profili
+    ADD COLUMN IF NOT EXISTS gestione_turni BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.profili
+    ADD COLUMN IF NOT EXISTS correzione_importi_virgole BOOLEAN NOT NULL DEFAULT false;
+
+-- Per ora queste due eccezioni appartengono soltanto agli account indicati.
+UPDATE public.profili
+   SET gestione_turni = true
+ WHERE id = '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID;
+
+UPDATE public.profili
+   SET correzione_importi_virgole = true
+ WHERE id = 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID;
+
 CREATE OR REPLACE FUNCTION public.crea_profilo()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -650,8 +954,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    INSERT INTO public.profili (id, email, nome)
-    VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'nome', ''))
+    INSERT INTO public.profili (
+        id, email, nome, gestione_turni, correzione_importi_virgole
+    ) VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'nome', ''),
+        NEW.id = '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID,
+        NEW.id = 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID
+    )
     ON CONFLICT (id) DO NOTHING;
 
     RETURN NEW;
@@ -885,6 +1196,28 @@ AS $$
     );
 $$;
 
+-- Il permesso del calendario è separato dall'amministrazione generale. La
+-- funzione resta SECURITY INVOKER: legge soltanto il profilo del chiamante,
+-- rispettando la sua policy RLS, e non aggira altri permessi.
+CREATE OR REPLACE FUNCTION public.puo_gestire_turni()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.profili
+        WHERE id = (SELECT auth.uid())
+          AND accesso
+          AND (admin OR gestione_turni)
+    );
+$$;
+
+REVOKE ALL ON FUNCTION public.puo_gestire_turni() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.puo_gestire_turni() TO authenticated;
+
 CREATE TABLE IF NOT EXISTS public.turni_lavoro (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -931,8 +1264,9 @@ CREATE POLICY "Lettura turni" ON public.turni_lavoro FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Scrittura turni" ON public.turni_lavoro;
 CREATE POLICY "Scrittura turni" ON public.turni_lavoro
     FOR ALL
-    USING (public.e_amministratore())
-    WITH CHECK (public.e_amministratore());
+    TO authenticated
+    USING ((SELECT public.puo_gestire_turni()))
+    WITH CHECK ((SELECT public.puo_gestire_turni()));
 
 
 -- =========================================================================
@@ -1356,3 +1690,103 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+
+-- =========================================================================
+-- 18. ACCESSO CONDIVISO E SCRITTURE FIRMATE DELLE PULIZIE
+--
+-- Tutto il personale approvato vede l'intero registro. Le tabelle non sono
+-- pero' scrivibili direttamente: generazione, scadenze e X passano da funzioni
+-- che controllano il profilo e firmano lato database identita' e orario.
+-- =========================================================================
+DROP POLICY IF EXISTS "Lettura pulizie" ON public.pulizie_registro;
+DROP POLICY IF EXISTS "Creazione pulizie" ON public.pulizie_registro;
+DROP POLICY IF EXISTS "Aggiornamento pulizie" ON public.pulizie_registro;
+
+CREATE POLICY "Lettura pulizie" ON public.pulizie_registro
+    FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+              FROM public.profili
+             WHERE id = (SELECT auth.uid())
+               AND accesso
+        )
+    );
+
+CREATE OR REPLACE FUNCTION public.imposta_pulizia_completata(
+    p_id UUID,
+    p_completata BOOLEAN
+)
+RETURNS SETOF public.pulizie_registro
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_oggi_italiano DATE := (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Rome')::DATE;
+    v_nome TEXT;
+BEGIN
+    IF p_id IS NULL OR p_completata IS NULL THEN
+        RAISE EXCEPTION 'Parametri pulizia non validi' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT COALESCE(
+               NULLIF(BTRIM(nome), ''),
+               NULLIF(BTRIM(email), ''),
+               'Dipendente'
+           )
+      INTO v_nome
+      FROM public.profili
+     WHERE id = (SELECT auth.uid())
+       AND accesso;
+
+    IF (SELECT auth.uid()) IS NULL OR v_nome IS NULL THEN
+        RAISE EXCEPTION 'Accesso alle pulizie non consentito' USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    UPDATE public.pulizie_registro
+       SET completata_il = CASE WHEN p_completata THEN CURRENT_TIMESTAMP ELSE NULL END,
+           completata_da = CASE WHEN p_completata THEN (SELECT auth.uid()) ELSE NULL END,
+           completata_da_nome = CASE WHEN p_completata THEN v_nome ELSE '' END
+     WHERE id = p_id
+       -- Nessuna X, neppure rimossa, prima o dopo il periodo operativo.
+       AND v_oggi_italiano BETWEEN periodo_inizio AND periodo_fine
+       AND non_fatta_il IS NULL
+    RETURNING public.pulizie_registro.*;
+
+    IF NOT FOUND THEN
+        IF EXISTS (SELECT 1 FROM public.pulizie_registro WHERE id = p_id) THEN
+            RAISE EXCEPTION 'Il periodo di questa pulizia è concluso' USING ERRCODE = '22023';
+        END IF;
+
+        RAISE EXCEPTION 'Pulizia non trovata' USING ERRCODE = 'P0002';
+    END IF;
+END;
+$$;
+
+-- Le due funzioni create insieme alla tabella vengono rese SECURITY DEFINER
+-- soltanto ora che profili e turni esistono. Il corpo resta quello già
+-- definito sopra; accesso e firma sono controllati dalle RPC pubbliche.
+ALTER FUNCTION public.prepara_pulizie(DATE, DATE) SECURITY DEFINER;
+ALTER FUNCTION public.aggiorna_pulizie_non_fatte() SECURITY DEFINER;
+
+REVOKE ALL ON public.pulizie_registro FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.pulizie_non_fatte FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.pulizie_configurazione FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.pulizie_registro TO authenticated;
+GRANT SELECT ON public.pulizie_non_fatte TO authenticated;
+GRANT SELECT ON public.profili TO authenticated;
+
+REVOKE ALL ON FUNCTION public.prepara_pulizie(DATE, DATE) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.aggiorna_pulizie_non_fatte() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.imposta_pulizia_completata(UUID, BOOLEAN) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.prepara_pulizie(DATE, DATE) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.aggiorna_pulizie_non_fatte() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.imposta_pulizia_completata(UUID, BOOLEAN) TO authenticated;
+
+-- Privilegi Data API espliciti; le policy RLS continuano a decidere chi può
+-- scrivere, quindi questo grant non allarga il permesso oltre admin/Marianna.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.turni_lavoro TO authenticated;

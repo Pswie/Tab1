@@ -10,9 +10,9 @@ import { isSupabaseConfigured, supabase } from './supabase';
  * Non ha niente a che vedere con le chiusure di cassa, che pure si chiamano
  * turni: qui non ci sono importi, solo nomi.
  *
- * Lo leggono tutti, lo scrive soltanto chi amministra. Il divieto non sta solo
- * nell'interfaccia: le policy su Supabase rifiutano la scrittura a chi non ha
- * admin nel profilo.
+ * Lo leggono tutti; lo scrive chi amministra o possiede il permesso dedicato.
+ * Il divieto non sta solo nell'interfaccia: le policy Supabase controllano il
+ * profilo anche quando una richiesta non arriva dai pulsanti dell'app.
  */
 
 /** Le fasce di una giornata, nell'ordine in cui si leggono sul foglio */

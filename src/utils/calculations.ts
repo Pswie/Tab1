@@ -332,9 +332,20 @@ export function formatSignedCurrency(amount: number): string {
   return testo;
 }
 
-export function parseInputValue(val: string): number {
+export function parseInputValue(val: string, correggiVirgoleMultiple = false): number {
   if (!val || val.trim() === '') return 0;
-  const sanitized = val.replace(/\s/g, '').replace(',', '.');
+
+  let sanitized = val.replace(/\s/g, '');
+
+  // Alcuni tastierini vengono usati mettendo una virgola anche dopo le
+  // migliaia: "1,500,45" intende 1500,45. La correzione è opzionale perché
+  // quel testo, per tutti gli altri profili, continua a valere come prima.
+  if (correggiVirgoleMultiple) {
+    const parti = sanitized.match(/^([+-]?)(\d{1,3}(?:,\d{3})+),(\d{1,2})$/);
+    if (parti) sanitized = `${parti[1]}${parti[2].replace(/,/g, '')},${parti[3]}`;
+  }
+
+  sanitized = sanitized.replace(',', '.');
   const num = parseFloat(sanitized);
   return isNaN(num) ? 0 : num;
 }

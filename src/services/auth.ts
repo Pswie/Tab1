@@ -25,6 +25,12 @@ export interface Profilo {
 
   /** Chi amministra vede in più la dashboard di incassi e statistiche */
   admin: boolean;
+
+  /** Può aggiungere, aggiornare e togliere i turni di lavoro */
+  gestioneTurni: boolean;
+
+  /** Corregge il formato abituale "1,500,45" negli importi della chiusura */
+  correzioneImportiVirgole: boolean;
 }
 
 /** Copia locale del profilo: se la rete manca non si resta chiusi fuori */
@@ -65,7 +71,9 @@ async function leggiProfilo(id: string): Promise<Profilo | null> {
       email: String(data.email || ''),
       nome: String(data.nome || ''),
       accesso: Boolean(data.accesso),
-      admin: Boolean(data.admin)
+      admin: Boolean(data.admin),
+      gestioneTurni: Boolean(data.gestione_turni),
+      correzioneImportiVirgole: Boolean(data.correzione_importi_virgole)
     };
 
     ricordaProfilo(profilo);
@@ -135,6 +143,21 @@ export function nomeUtente(): string {
 export function amministratore(): boolean {
   const p = profiloRicordato();
   return Boolean(p && p.accesso && p.admin);
+}
+
+/**
+ * Il calendario dei turni ha un permesso proprio: chi lo riceve non diventa
+ * amministratore e non vede dashboard, H24 o giornate storiche della cassa.
+ */
+export function puoGestireTurni(): boolean {
+  const p = profiloRicordato();
+  return Boolean(p && p.accesso && (p.admin || p.gestioneTurni));
+}
+
+/** Attiva la correzione del formato importi soltanto sul profilo previsto */
+export function correggiImportiConVirgole(): boolean {
+  const p = profiloRicordato();
+  return Boolean(p && p.accesso && p.correzioneImportiVirgole);
 }
 
 export async function registrati(email: string, password: string, nome: string): Promise<string | null> {

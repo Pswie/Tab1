@@ -9,7 +9,7 @@ import {
   personeConosciute,
   rimuoviTurno
 } from '../services/turni';
-import { amministratore, nomeUtente } from '../services/auth';
+import { nomeUtente, puoGestireTurni } from '../services/auth';
 import {
   formatDateLocalISO,
   getInizioSettimanaString,
@@ -138,10 +138,10 @@ function mostraAvviso(testo: string): void {
   avviso.classList.toggle('is-hidden', !testo);
 }
 
-function chipHtml(t: TurnoLavoro, admin: boolean): string {
+function chipHtml(t: TurnoLavoro, puoGestire: boolean): string {
   const mio = eIlMio(t.persona);
 
-  const rimuovi = admin
+  const rimuovi = puoGestire
     ? `<button type="button" class="turni-chip-x" data-action="rimuovi" data-id="${escapeHtml(t.id)}"
          aria-label="Togli ${escapeHtml(t.persona)}">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -152,7 +152,7 @@ function chipHtml(t: TurnoLavoro, admin: boolean): string {
   const nota = t.nota ? `<span class="turni-chip-nota">${escapeHtml(t.nota)}</span>` : '';
 
   return `
-    <span class="turni-chip${mio ? ' is-mio' : ''}${admin ? ' con-comando' : ''}">
+    <span class="turni-chip${mio ? ' is-mio' : ''}${puoGestire ? ' con-comando' : ''}">
       <span class="turni-chip-nome">${escapeHtml(t.persona)}</span>
       ${nota}
       ${rimuovi}
@@ -182,7 +182,13 @@ function formHtml(): string {
  * stessa marcatura, in colonna per giornata, da telefono si legge come un
  * elenco e da schermo largo come la tabella del foglio.
  */
-function cellaHtml(data: string, fascia: FasciaTurno, riga: number, colonna: number, admin: boolean): string {
+function cellaHtml(
+  data: string,
+  fascia: FasciaTurno,
+  riga: number,
+  colonna: number,
+  puoGestire: boolean
+): string {
   const voci = assegnati(data, fascia);
   const aperta = cellaAperta?.data === data && cellaAperta.fascia === fascia;
   const oggi = data === getTodayDateString();
@@ -193,7 +199,7 @@ function cellaHtml(data: string, fascia: FasciaTurno, riga: number, colonna: num
   if (oggi) classi.push('is-oggi');
   if (voci.some(t => eIlMio(t.persona))) classi.push('ha-me');
 
-  const comando = admin && !aperta
+  const comando = puoGestire && !aperta
     ? `<button type="button" class="turni-piu" data-action="apri"
          aria-label="Assegna ${NOMI_FASCIA[fascia]} di ${nomeGiorno(data)} ${comeData(data).getDate()}">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -206,7 +212,7 @@ function cellaHtml(data: string, fascia: FasciaTurno, riga: number, colonna: num
          style="grid-row:${riga};grid-column:${colonna}">
       <span class="turni-cella-etichetta">${NOMI_FASCIA[fascia]}</span>
       <div class="turni-persone">
-        ${voci.map(t => chipHtml(t, admin)).join('')}
+        ${voci.map(t => chipHtml(t, puoGestire)).join('')}
         ${voci.length === 0 && !aperta ? '<span class="turni-nessuno">—</span>' : ''}
       </div>
       ${comando}
@@ -216,7 +222,7 @@ function cellaHtml(data: string, fascia: FasciaTurno, riga: number, colonna: num
 }
 
 /** Le ferie della settimana, una riga per persona con il periodo accorpato */
-function renderFerie(admin: boolean): void {
+function renderFerie(puoGestire: boolean): void {
   if (!fasciaFerie) return;
 
   const voci = turni.filter(t => t.fascia === 'ferie');
@@ -228,7 +234,7 @@ function renderFerie(admin: boolean): void {
     perPersona.set(v.persona, elenco);
   });
 
-  const moduloFerie = admin && ferieAperte
+  const moduloFerie = puoGestire && ferieAperte
     ? `<div class="turni-form turni-form-ferie">
          <input type="text" class="turni-campo" data-campo="persona" list="turni-nomi"
                 placeholder="Nome" autocomplete="off" aria-label="Chi è in ferie" />
@@ -260,7 +266,7 @@ function renderFerie(admin: boolean): void {
       ? `${dal.getDate()}–${al.getDate()} ${mese(al)}`
       : `${dal.getDate()} ${mese(dal)} – ${al.getDate()} ${mese(al)}`;
 
-    const togli = admin
+    const togli = puoGestire
       ? `<button type="button" class="turni-chip-x" data-action="rimuovi-ferie"
            data-persona="${escapeHtml(persona)}" aria-label="Togli le ferie di ${escapeHtml(persona)}">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -269,7 +275,7 @@ function renderFerie(admin: boolean): void {
       : '';
 
     return `
-      <span class="turni-chip is-ferie${eIlMio(persona) ? ' is-mio' : ''}${admin ? ' con-comando' : ''}">
+      <span class="turni-chip is-ferie${eIlMio(persona) ? ' is-mio' : ''}${puoGestire ? ' con-comando' : ''}">
         <span class="turni-chip-nome">${escapeHtml(persona)}</span>
         <span class="turni-chip-nota">${escapeHtml(periodo)}</span>
         ${togli}
@@ -321,17 +327,17 @@ function renderOggi(): void {
 function render(): void {
   if (!griglia) return;
 
-  const admin = amministratore();
+  const puoGestire = puoGestireTurni();
 
   if (etichettaSettimana) etichettaSettimana.textContent = titoloSettimana();
   if (btnOggi) btnOggi.disabled = settimana === getInizioSettimanaString();
-  if (btnFerie) btnFerie.hidden = !admin;
+  if (btnFerie) btnFerie.hidden = !puoGestire;
 
   if (elencoNomi) {
     elencoNomi.innerHTML = persone.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
   }
 
-  griglia.classList.toggle('is-admin', admin);
+  griglia.classList.toggle('is-admin', puoGestire);
 
   const giorni = giornateSettimana();
   const oggi = getTodayDateString();
@@ -353,7 +359,7 @@ function render(): void {
     `;
 
     const celle = FASCE_GIORNATA
-      .map((fascia, f) => cellaHtml(data, fascia, f + 2, g + 2, admin))
+      .map((fascia, f) => cellaHtml(data, fascia, f + 2, g + 2, puoGestire))
       .join('');
 
     return testa + celle;
@@ -361,7 +367,7 @@ function render(): void {
 
   griglia.innerHTML = etichette + colonne;
 
-  renderFerie(admin);
+  renderFerie(puoGestire);
   renderOggi();
 
   // Il nome si scrive appena la cella si apre, senza doverci tornare sopra
@@ -500,7 +506,7 @@ export async function caricaTurni(): Promise<void> {
   turni = await elencaTurni(settimana, spostaGiorni(settimana, 6));
 
   // I nomi già usati servono solo a chi assegna
-  if (amministratore() && persone.length === 0) {
+  if (puoGestireTurni() && persone.length === 0) {
     persone = await personeConosciute();
   }
 
