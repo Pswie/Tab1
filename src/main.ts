@@ -36,6 +36,7 @@ import { caricaDashboard, initDashboard } from './ui/dashboardUI';
 import { caricaRubrica, initRubrica } from './ui/rubricaUI';
 import { caricaTurni, initTurni } from './ui/turniUI';
 import { caricaAmmanchi, caricaAnticipi, initAnticipi } from './ui/anticipiUI';
+import { caricaPulizie, initPulizie } from './ui/pulizieUI';
 import {
   caricaIncassiH24,
   caricaProdottiH24,
@@ -46,7 +47,7 @@ import {
 import { caricaDashboardH24, initDashboardH24 } from './ui/h24DashboardUI';
 import { segnala } from './ui/segnalazioni';
 import { initAccesso } from './ui/accessoUI';
-import { amministratore, nomeUtente } from './services/auth';
+import { amministratore, correggiImportiConVirgole, nomeUtente } from './services/auth';
 import {
   attivaNotifiche,
   avvisaGliAltri,
@@ -519,7 +520,7 @@ async function aggiungiFattura(): Promise<void> {
   if (dialogTurnoFatturaAperto) return;
 
   const nome = inputFatturaNome?.value?.trim() || '';
-  const importo = parseInputValue(inputFatturaImporto?.value || '');
+  const importo = parseImportoTurno(inputFatturaImporto?.value || '');
 
   if (!nome) {
     mostraAvvisoFatture('Scrivi cosa è stato pagato.');
@@ -551,6 +552,14 @@ async function aggiungiFattura(): Promise<void> {
 
   renderFatture();
   programmaAutoSalvataggio(propagata ? ['mattina', 'pomeriggio'] : [turnoScelto]);
+}
+
+/**
+ * Gli importi della chiusura usano il parser normale; soltanto il profilo con
+ * l'apposita preferenza corregge anche la doppia virgola usata per le migliaia.
+ */
+function parseImportoTurno(valore: string): number {
+  return parseInputValue(valore, correggiImportiConVirgole());
 }
 
 function setupFattureDelegation(): void {
@@ -603,21 +612,21 @@ function setupFattureDelegation(): void {
  */
 function getShiftValuesFromInputs(): ShiftValues {
   return {
-    contanti: parseInputValue(inputContanti.value),
-    sisal_entrate: parseInputValue(inputSisalEntrate.value),
-    sisal_uscite: parseInputValue(inputSisalUscite.value),
-    mooney: parseInputValue(inputMooney.value),
-    lis: parseInputValue(inputLis.value),
-    printer: parseInputValue(inputPrinter.value),
-    lotto_entrate: parseInputValue(inputLottoEntrate.value),
-    lotto_uscite: parseInputValue(inputLottoUscite.value),
+    contanti: parseImportoTurno(inputContanti.value),
+    sisal_entrate: parseImportoTurno(inputSisalEntrate.value),
+    sisal_uscite: parseImportoTurno(inputSisalUscite.value),
+    mooney: parseImportoTurno(inputMooney.value),
+    lis: parseImportoTurno(inputLis.value),
+    printer: parseImportoTurno(inputPrinter.value),
+    lotto_entrate: parseImportoTurno(inputLottoEntrate.value),
+    lotto_uscite: parseImportoTurno(inputLottoUscite.value),
     fatture: totaleFatture(fattureDelTurno),
     fatture_voci: fattureDelTurno.map(v => ({ ...v })),
-    effettivo: parseInputValue(inputEffettivo.value),
-    b: parseInputValue(inputB.value),
-    logista: parseInputValue(inputLogista.value),
-    gratta_e_vinci: parseInputValue(inputGrattaEVinci.value),
-    bar: parseInputValue(inputBar.value)
+    effettivo: parseImportoTurno(inputEffettivo.value),
+    b: parseImportoTurno(inputB.value),
+    logista: parseImportoTurno(inputLogista.value),
+    gratta_e_vinci: parseImportoTurno(inputGrattaEVinci.value),
+    bar: parseImportoTurno(inputBar.value)
   };
 }
 
@@ -1381,6 +1390,7 @@ function setupEventListeners() {
     if (targetTabId === 'tab-turni') caricaTurni();
     if (targetTabId === 'tab-anticipi') caricaAnticipi();
     if (targetTabId === 'tab-ammanchi') caricaAmmanchi();
+    if (targetTabId === 'tab-pulizie') caricaPulizie();
     if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
     if (targetTabId === 'tab-rubrica') caricaRubrica();
     if (targetTabId === 'tab-dashboard') caricaDashboard();
@@ -1607,6 +1617,7 @@ async function initApp() {
   initRubrica();
   initTurni();
   initAnticipi();
+  initPulizie();
 
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();
@@ -1629,6 +1640,7 @@ async function initApp() {
   await caricaSoggiorni();
   await caricaRubrica();
   await caricaTurni();
+  await caricaPulizie();
 
   // Promemoria della dichiarazione e pallino delle scorte si fanno vivi qui:
   // è il modo per accorgersene senza dover aprire le schede
@@ -1650,4 +1662,3 @@ async function initApp() {
 // L'app parte solo a accesso concesso: prima di allora la schermata di
 // accesso copre tutto e nessuna pagina viene popolata.
 initAccesso(() => { initApp(); });
-

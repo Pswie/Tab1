@@ -5822,3 +5822,533 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* ==========================================================================
+   PULIZIE
+   Un registro da spuntare in pochi secondi: la X resta affiancata alla firma,
+   mentre colori e riquadri servono soltanto a distinguere turno e stato.
+   ========================================================================== */
+
+#tab-pulizie {
+  --pulizie-marca: var(--text-muted);
+  --pulizie-successo: var(--accent-green-line);
+  --pulizie-successo-scuro: var(--accent-green-text);
+  --pulizie-errore-bg: #FEF2F2;
+  --pulizie-errore-testo: #991B1B;
+}
+
+/* Durante il cambio di settimana o mese i dati precedenti restano al loro
+   posto, ma non si possono mettere due X mentre arriva la nuova checklist. */
+#tab-pulizie.is-caricamento {
+  opacity: 0.58;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+}
+
+.pulizie-testa {
+  flex-wrap: wrap;
+  gap: 0.85rem 1rem;
+}
+
+.pulizie-sottotitolo {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pulizie-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.pulizie-periodo {
+  min-width: 10.5rem;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+#tab-pulizie .date-arrow-btn:focus-visible,
+#tab-pulizie .date-oggi-btn:focus-visible,
+.pulizie-vista:focus-visible,
+.pulizia-check:focus-visible {
+  outline: 2px solid var(--ferrari-red);
+  outline-offset: 2px;
+}
+
+.pulizie-avviso {
+  margin: -0.55rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--pulizie-errore-testo);
+  background: var(--pulizie-errore-bg);
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-inner);
+}
+
+.pulizie-avviso.is-hidden {
+  display: none;
+}
+
+/* Le tre frequenze sono un unico selettore, non tre schede concorrenti. */
+.pulizie-viste {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+  background: var(--bg-pearl-warm);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-inner);
+}
+
+.pulizie-vista {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pulizie-vista > span {
+  flex-shrink: 0;
+  padding: 0.13rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+}
+
+.pulizie-vista:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pulizie-vista.is-active {
+  color: var(--text-primary);
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.09);
+}
+
+.pulizie-vista.is-active > span {
+  color: var(--ferrari-red);
+  background: #FFF5F5;
+  border-color: var(--ferrari-red-glow);
+}
+
+.pulizie-pane[hidden] {
+  display: none;
+}
+
+.pulizie-nota {
+  margin-bottom: 0.8rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.pulizie-griglia {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+/* Ogni turno o gruppo ha un solo perimetro e righe interne: ricorda il foglio
+   appeso in negozio e resta piu' leggibile di una pila di piccole card. */
+.pulizie-blocco,
+.pulizie-pane > .pulizie-lista {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.pulizie-blocco {
+  --pulizie-marca: var(--text-muted);
+}
+
+.pulizie-blocco.is-mattina,
+.pulizie-blocco.is-gruppo-1 {
+  --pulizie-marca: var(--serie-1);
+}
+
+.pulizie-blocco.is-pomeriggio,
+.pulizie-blocco.is-gruppo-2 {
+  --pulizie-marca: var(--serie-2);
+}
+
+.pulizie-blocco-testa {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  min-height: 46px;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.pulizie-blocco-testa::before {
+  content: '';
+  flex: 0 0 auto;
+  align-self: center;
+  width: 4px;
+  height: 1rem;
+  border-radius: 2px;
+  background: var(--pulizie-marca);
+}
+
+.pulizie-blocco-testa small {
+  min-width: 0;
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: right;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.pulizie-lista {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pulizia-riga {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  background: var(--surface-card-inner);
+  border-bottom: 1px solid var(--border-pearl);
+  transition: background-color var(--transition-fast), opacity var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pulizia-riga:last-child {
+  border-bottom: none;
+}
+
+/* Oggi si trova subito anche senza affidarsi al colore del testo. */
+.pulizia-riga.is-oggi {
+  background: #FFF8F7;
+  box-shadow: inset 3px 0 0 var(--ferrari-red);
+}
+
+.pulizia-riga.is-missed {
+  background: var(--pulizie-errore-bg);
+}
+
+.pulizia-riga.is-saving {
+  opacity: 0.58;
+}
+
+/* Fuori dal proprio periodo la riga e' uno storico: resta completamente
+   leggibile, ma superficie e controllo non suggeriscono piu' un'azione. */
+.pulizia-riga.is-locked {
+  background: var(--surface-subtle);
+}
+
+.pulizia-riga.is-locked.is-missed {
+  background: var(--pulizie-errore-bg);
+}
+
+.pulizia-riga.is-locked .pulizia-check {
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pulizia-riga.is-locked.is-pending:not(.is-missed) .pulizia-check {
+  color: var(--text-muted);
+  background: var(--bg-pearl-warm);
+  border-color: var(--border-pearl);
+}
+
+.pulizia-riga.is-locked.is-done .pulizia-check {
+  opacity: 0.72;
+}
+
+.pulizia-riga.is-locked .pulizia-responsabili,
+.pulizia-riga.is-locked .pulizia-firma {
+  color: var(--text-secondary);
+}
+
+/* Il controllo e' grande quanto un bersaglio touch e non dipende dal checkbox
+   nativo, che cambia forma e contrasto fra iOS, Android e browser desktop. */
+.pulizia-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--pulizie-successo);
+  background: #FFFFFF;
+  border: 2px solid var(--border-strong);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pulizia-check svg {
+  width: 21px;
+  height: 21px;
+  opacity: 0;
+  transform: scale(0.62);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.pulizia-riga.is-pending:not(.is-locked) .pulizia-check:hover {
+  border-color: var(--pulizie-successo);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.pulizia-riga.is-pending:not(.is-locked) .pulizia-check:hover svg {
+  opacity: 0.2;
+  transform: scale(0.82);
+}
+
+.pulizia-riga.is-done .pulizia-check {
+  color: #FFFFFF;
+  background: var(--pulizie-successo);
+  border-color: var(--pulizie-successo);
+}
+
+.pulizia-riga.is-done .pulizia-check svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pulizia-riga.is-done:not(.is-locked) .pulizia-check:hover {
+  background: var(--pulizie-successo-scuro);
+  border-color: var(--pulizie-successo-scuro);
+}
+
+.pulizia-riga.is-missed .pulizia-check {
+  color: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+}
+
+.pulizia-check:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.pulizia-check:disabled {
+  cursor: wait;
+}
+
+.pulizia-riga.is-saving .pulizia-check {
+  animation: pulizia-salvataggio 0.85s ease-in-out infinite alternate;
+}
+
+@keyframes pulizia-salvataggio {
+  from { transform: scale(0.94); }
+  to { transform: scale(1); }
+}
+
+.pulizia-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  padding-top: 0.05rem;
+}
+
+.pulizia-riga-testa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.pulizia-nome {
+  min-width: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.pulizia-stato {
+  flex-shrink: 0;
+  padding: 0.16rem 0.48rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+}
+
+.pulizia-riga.is-done .pulizia-stato {
+  color: var(--pulizie-successo-scuro);
+  background: var(--accent-green-bg);
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+.pulizia-riga.is-missed .pulizia-stato {
+  color: var(--pulizie-errore-testo);
+  background: #FFFFFF;
+  border-color: #FECACA;
+}
+
+.pulizia-responsabili,
+.pulizia-firma {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pulizia-responsabili {
+  color: var(--text-secondary);
+}
+
+.pulizia-firma {
+  color: var(--pulizie-successo-scuro);
+}
+
+.pulizie-vuoto {
+  padding: 1.25rem 1rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+
+@media (max-width: 768px) {
+  .pulizie-testa {
+    gap: 0.75rem;
+  }
+
+  /* Le frecce incorniciano il periodo; il ritorno al presente prende una riga
+     sua e rimane un bersaglio comodo anche sui telefoni piu' stretti. */
+  .pulizie-nav {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 0.45rem;
+    width: 100%;
+  }
+
+  .pulizie-periodo {
+    min-width: 0;
+    font-size: 0.84rem;
+  }
+
+  #btn-pulizie-corrente {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .pulizie-griglia {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .pulizie-riga {
+    gap: 0.65rem;
+    padding: 0.75rem;
+  }
+
+  .pulizie-blocco-testa small {
+    flex-basis: 100%;
+    margin-left: 0.75rem;
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .pulizie-vista {
+    flex-direction: column;
+    gap: 0.12rem;
+    padding: 0.45rem 0.2rem;
+    font-size: 0.76rem;
+  }
+
+  .pulizie-vista > span {
+    padding: 0.08rem 0.32rem;
+    font-size: 0.62rem;
+  }
+
+  .pulizia-riga-testa {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tab-pulizie.is-caricamento,
+  .pulizie-vista,
+  .pulizia-riga,
+  .pulizia-check,
+  .pulizia-check svg {
+    transition: none;
+  }
+
+  .pulizia-riga.is-saving .pulizia-check {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .pulizie-vista.is-active {
+    outline: 2px solid Highlight;
+  }
+
+  .pulizia-riga.is-oggi {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  .pulizia-riga.is-done .pulizia-check {
+    color: HighlightText;
+    background: Highlight;
+    border-color: Highlight;
+  }
+}

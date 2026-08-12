@@ -17,6 +17,7 @@ import {
   vociFuoriTotale
 } from '../services/statistiche';
 import { IncassoH24, elencaIncassi } from '../services/h24';
+import { PuliziaNonFatta, elencaPulizieNonFatte } from '../services/pulizie';
 import {
   barreOrizzontali,
   escapeHtml,
@@ -45,6 +46,9 @@ type Periodo = '12' | 'anno' | 'tutto';
 let giornate: GiornataIncasso[] = [];
 let mesi: MeseIncasso[] = [];
 let incassiH24: IncassoH24[] = [];
+let pulizieNonFatte: PuliziaNonFatta[] = [];
+let pulizieCaricate = false;
+let errorePulizie = '';
 let periodo: Periodo = '12';
 
 /** Il mese aperto nella scheda in alto: si parte da quello in corso */
@@ -76,6 +80,9 @@ const spesePerFattura = document.getElementById('dash-fatture') as HTMLDivElemen
 const settimana = document.getElementById('dash-settimana') as HTMLDivElement;
 const riquadriExtra = document.getElementById('dash-riquadri-extra') as HTMLDivElement;
 const riquadriInsieme = document.getElementById('dash-riquadri-insieme') as HTMLDivElement;
+const statoPulizie = document.getElementById('dash-pulizie-stato') as HTMLParagraphElement;
+const riquadriPulizie = document.getElementById('dash-riquadri-pulizie') as HTMLDivElement;
+const tabellaPulizie = document.getElementById('dash-tabella-pulizie') as HTMLTableSectionElement;
 
 const pulsantiPeriodo = Array.from(
   document.querySelectorAll('#tab-dashboard .dash-periodo')
@@ -118,6 +125,128 @@ function mesiDelPeriodo(): MeseIncasso[] {
 function giornateDelPeriodo(elenco: MeseIncasso[]): GiornataIncasso[] {
   const dentro = new Set(elenco.map(m => m.mese));
   return giornate.filter(g => dentro.has(g.data.slice(0, 7)));
+}
+
+/**
+ * Primo giorno compreso dal filtro della dashboard.
+ *
+ * Le pulizie non passano dai mesi degli incassi: una scadenza saltata deve
+ * restare visibile anche se in quel mese non c'e' stata alcuna chiusura.
+ */
+function inizioPeriodoPulizie(): string | null {
+  const oggi = getTodayDateString();
+
+  if (periodo === 'tutto') return null;
+  if (periodo === 'anno') return `${oggi.slice(0, 4)}-01-01`;
+
+  const [anno, mese] = oggi.split('-').map(Number);
+  const indiceMese = anno * 12 + mese - 1 - 11;
+  const annoInizio = Math.floor(indiceMese / 12);
+  const meseInizio = indiceMese - annoInizio * 12 + 1;
+
+  return `${annoInizio}-${String(meseInizio).padStart(2, '0')}-01`;
+}
+
+function pulizieDelPeriodo(): PuliziaNonFatta[] {
+  const dal = inizioPeriodoPulizie();
+  const oggi = getTodayDateString();
+
+  return pulizieNonFatte
+    .filter(p => p.scadenza && p.scadenza <= oggi && (!dal || p.scadenza >= dal))
+    .sort((a, b) => {
+      if (a.scadenza !== b.scadenza) return b.scadenza.localeCompare(a.scadenza);
+      if (a.tipo !== b.tipo) return a.tipo.localeCompare(b.tipo, 'it');
+      return a.voce.localeCompare(b.voce, 'it');
+    });
+}
+
+function dataPulizia(iso: string): string {
+  const [anno, mese, giorno] = iso.split('-').map(Number);
+  if (!anno || !mese || !giorno) return iso;
+
+  return new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(Date.UTC(anno, mese - 1, giorno, 12)));
+}
+
+const NOMI_TIPO_PULIZIA: Record<PuliziaNonFatta['tipo'], string> = {
+  bagno: 'Bagno',
+  settimanale: 'Settimanale',
+  mensile: 'Mensile'
+};
+
+/** Omissioni chiuse e conservate dal database alla fine del loro periodo. */
+function renderPulizieNonFatte(): void {
+  const elenco = pulizieDelPeriodo();
+  const senzaDatiAttendibili = Boolean(errorePulizie) && !pulizieCaricate;
+
+  if (statoPulizie) {
+    statoPulizie.textContent = errorePulizie;
+    statoPulizie.classList.toggle('is-hidden', !errorePulizie);
+    statoPulizie.classList.toggle('is-errore', Boolean(errorePulizie));
+  }
+
+  if (riquadriPulizie) {
+    riquadriPulizie.innerHTML = senzaDatiAttendibili ? '' : riquadriHtml([
+      {
+        etichetta: 'Scadenze saltate',
+        valore: numero(elenco.length),
+        nota: 'Restano nello storico e non sono più modificabili',
+        forte: elenco.length > 0
+      },
+      {
+        etichetta: 'Bagno',
+        valore: numero(elenco.filter(p => p.tipo === 'bagno').length),
+        nota: 'Giorni rimasti senza X a fine settimana'
+      },
+      {
+        etichetta: 'Settimanali',
+        valore: numero(elenco.filter(p => p.tipo === 'settimanale').length),
+        nota: 'Attività di turno saltate'
+      },
+      {
+        etichetta: 'Mensili',
+        valore: numero(elenco.filter(p => p.tipo === 'mensile').length),
+        nota: 'Attività di gruppo saltate'
+      }
+    ]);
+  }
+
+  if (!tabellaPulizie) return;
+
+  if (senzaDatiAttendibili) {
+    tabellaPulizie.innerHTML = `
+      <tr><td colspan="5" class="dash-tabella-vuota">Dati delle pulizie non disponibili.</td></tr>
+    `;
+    return;
+  }
+
+  if (elenco.length === 0) {
+    tabellaPulizie.innerHTML = `
+      <tr><td colspan="5" class="dash-tabella-vuota">Nessuna pulizia saltata nel periodo scelto.</td></tr>
+    `;
+    return;
+  }
+
+  tabellaPulizie.innerHTML = elenco.map(p => {
+    const responsabili = p.responsabili.length > 0
+      ? p.responsabili.join(', ')
+      : 'Nessun responsabile registrato';
+    return `
+      <tr>
+        <td>${escapeHtml(dataPulizia(p.scadenza))}</td>
+        <th scope="row">${escapeHtml(p.voce)}</th>
+        <td>${escapeHtml(NOMI_TIPO_PULIZIA[p.tipo])}</td>
+        <td>${escapeHtml(responsabili)}</td>
+        <td>
+          <span class="dash-tag">non fatta</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 /**
@@ -494,6 +623,7 @@ function render(): void {
   renderIncassiMensili(elencoMesi);
   renderInsieme(elencoMesi);
   renderStatistiche(giornateDelPeriodo(elencoMesi));
+  renderPulizieNonFatte();
 }
 
 function mostraStato(messaggio: string, errore = false): void {
@@ -517,12 +647,34 @@ export async function caricaDashboard(): Promise<void> {
   pannello.classList.add('is-caricamento');
 
   try {
-    // I distributori si leggono insieme al resto: nella dashboard entrano
-    // come dato, accanto a quello che fa il negozio
-    const [lette, h24] = await Promise.all([caricaGiornate(), elencaIncassi()]);
+    // Le pulizie hanno uno stato proprio: un loro errore non deve nascondere
+    // incassi e statistiche, e viceversa una lettura finanziaria fallita non
+    // deve impedire di mostrare le omissioni appena lette.
+    const [finanze, pulizie] = await Promise.allSettled([
+      Promise.all([caricaGiornate(), elencaIncassi()]),
+      elencaPulizieNonFatte()
+    ]);
 
     if (versione !== versioneCaricamento) return;
 
+    if (pulizie.status === 'fulfilled') {
+      pulizieNonFatte = pulizie.value;
+      pulizieCaricate = true;
+      errorePulizie = '';
+    } else {
+      console.error('Errore lettura pulizie non fatte:', pulizie.reason);
+      errorePulizie = pulizieCaricate
+        ? 'Non è stato possibile aggiornare le pulizie. Restano visibili gli ultimi dati letti.'
+        : 'Non è stato possibile leggere le pulizie. Controlla la connessione e riprova.';
+    }
+
+    // Anche se i registri finanziari falliscono, la sezione pulizie conserva
+    // il proprio esito e non viene confusa con un rassicurante elenco vuoto.
+    renderPulizieNonFatte();
+
+    if (finanze.status === 'rejected') throw finanze.reason;
+
+    const [lette, h24] = finanze.value;
     giornate = lette;
     mesi = raggruppaPerMese(lette);
     incassiH24 = h24;

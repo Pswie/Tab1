@@ -159,6 +159,13 @@
           <span>Chi lavora, giorno per giorno</span>
         </div>
       </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-pulizie">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6"/><path d="m12 6 6 6"/><path d="M4 20h8l6-8-6-6-8 8Z"/><path d="m4 14 6 6"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Pulizie</strong>
+          <span>Bagno, settimanali e mensili</span>
+        </div>
+      </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span>
         <div class="hotdog-text">
@@ -248,6 +255,9 @@
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-turni">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Turni
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-pulizie">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6"/><path d="m12 6 6 6"/><path d="M4 20h8l6-8-6-6-8 8Z"/><path d="m4 14 6 6"/></svg></span> Pulizie
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-inventario">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario <span class="nav-badge" id="badge-nav-inventario" hidden></span>
@@ -404,6 +414,33 @@
         </figure>
 
         <div class="dash-riquadri" id="dash-riquadri-extra"></div>
+      </section>
+
+      <section class="card-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span>Pulizie non fatte</span>
+          </div>
+        </div>
+
+        <p class="dash-stato is-hidden" id="dash-pulizie-stato"></p>
+        <div class="dash-riquadri" id="dash-riquadri-pulizie"></div>
+
+        <div class="dash-tabella-guscio">
+          <table class="dash-tabella">
+            <caption class="dash-tabella-titolo">Scadenze saltate nel periodo</caption>
+            <thead>
+              <tr>
+                <th scope="col">Scadenza</th>
+                <th scope="col">Attività</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Doveva farla</th>
+                <th scope="col">Esito</th>
+              </tr>
+            </thead>
+            <tbody id="dash-tabella-pulizie"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- Negozio e distributori uno accanto all'altro: i due totali restano
@@ -1056,8 +1093,8 @@
          ci sono importi, solo nomi.
 
          La scheda la aprono tutti. I comandi per assegnare compaiono soltanto
-         a chi amministra, ed è anche l'unico che le policy su Supabase
-         lasciano scrivere. -->
+         a chi ha il permesso di gestione, come verificano anche le policy su
+         Supabase. -->
     <div id="tab-turni" class="tab-pane">
       <section class="card-section">
         <div class="section-header turni-testa">
@@ -1104,6 +1141,75 @@
         <!-- Sono le stesse persone tutte le settimane: il nome si sceglie
              invece di riscriverlo, così non finisce scritto in due modi -->
         <datalist id="turni-nomi"></datalist>
+      </section>
+    </div>
+
+    <!-- TAB: PULIZIE
+         Un registro condiviso: ogni periodo crea nuove righe e conserva quelle
+         precedenti, così una scadenza saltata non sparisce al reset. -->
+    <div id="tab-pulizie" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header pulizie-testa">
+          <div>
+            <div class="section-title"><span>Pulizie</span></div>
+            <p class="pulizie-sottotitolo">Metti la X: resteranno nome, giorno e ora.</p>
+          </div>
+
+          <div class="pulizie-nav">
+            <button type="button" class="date-arrow-btn" id="btn-pulizie-indietro" aria-label="Periodo precedente">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <span class="pulizie-periodo" id="pulizie-periodo">&mdash;</span>
+            <button type="button" class="date-arrow-btn" id="btn-pulizie-avanti" aria-label="Periodo successivo">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button type="button" class="date-oggi-btn" id="btn-pulizie-corrente">Questa settimana</button>
+          </div>
+        </div>
+
+        <p id="pulizie-avviso" class="pulizie-avviso is-hidden" role="status" aria-live="polite"></p>
+
+        <div class="pulizie-viste" role="tablist" aria-label="Tipo di pulizia">
+          <button type="button" id="pulizie-tab-bagno" class="pulizie-vista is-active"
+                  data-vista="bagno" role="tab" aria-selected="true" aria-controls="pulizie-pane-bagno">
+            Bagno <span data-conteggio="bagno">0 / 5</span>
+          </button>
+          <button type="button" id="pulizie-tab-settimanali" class="pulizie-vista"
+                  data-vista="settimanali" role="tab" aria-selected="false" aria-controls="pulizie-pane-settimanali">
+            Settimanali <span data-conteggio="settimanali">0 / 10</span>
+          </button>
+          <button type="button" id="pulizie-tab-mensili" class="pulizie-vista"
+                  data-vista="mensili" role="tab" aria-selected="false" aria-controls="pulizie-pane-mensili">
+            Mensili <span data-conteggio="mensili">0 / 7</span>
+          </button>
+        </div>
+
+        <section id="pulizie-pane-bagno" class="pulizie-pane" data-pulizie-pane="bagno"
+                 role="tabpanel" aria-labelledby="pulizie-tab-bagno">
+          <p class="pulizie-nota">La lista riparte ogni lunedì. Ogni giorno ha la sua responsabile.</p>
+          <div id="pulizie-bagno-lista" class="pulizie-lista"></div>
+        </section>
+
+        <section id="pulizie-pane-settimanali" class="pulizie-pane" data-pulizie-pane="settimanali"
+                 role="tabpanel" aria-labelledby="pulizie-tab-settimanali" hidden>
+          <p class="pulizie-nota">Da completare entro domenica dalle persone presenti nel relativo turno.</p>
+          <div class="pulizie-griglia">
+            <section class="pulizie-blocco is-mattina">
+              <header class="pulizie-blocco-testa"><span>Turno mattina</span></header>
+              <div id="pulizie-settimanali-mattina" class="pulizie-lista"></div>
+            </section>
+            <section class="pulizie-blocco is-pomeriggio">
+              <header class="pulizie-blocco-testa"><span>Turno pomeriggio</span></header>
+              <div id="pulizie-settimanali-pomeriggio" class="pulizie-lista"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="pulizie-pane-mensili" class="pulizie-pane" data-pulizie-pane="mensili"
+                 role="tabpanel" aria-labelledby="pulizie-tab-mensili" hidden>
+          <p class="pulizie-nota">I due gruppi si scambiano gli elenchi ogni mese.</p>
+          <div id="pulizie-mensili-gruppi" class="pulizie-griglia"></div>
+        </section>
       </section>
     </div>
 
