@@ -1,4 +1,11 @@
-import { Contatto, aggiungiContatto, elencaContatti, eliminaContatto, modificaContatto } from '../services/rubrica';
+import {
+  Contatto,
+  aggiungiContatto,
+  elencaContatti,
+  eliminaContatto,
+  modificaContatto,
+  ordinaContatti
+} from '../services/rubrica';
 import { nomeUtente } from '../services/auth';
 
 /**
@@ -93,8 +100,6 @@ function rigaHtml(c: Contatto): string {
     `;
   }
 
-  const firma = c.scrittoDa ? `Scritto da ${escapeHtml(c.scrittoDa)}` : '';
-
   return `
     <div class="rub-riga" data-id="${escapeHtml(c.id)}">
       <span class="rub-iniziali" aria-hidden="true">${escapeHtml(iniziali(c.nome))}</span>
@@ -102,7 +107,6 @@ function rigaHtml(c: Contatto): string {
       <div class="rub-dati">
         <span class="rub-nome">${escapeHtml(c.nome)}</span>
         <a class="rub-numero" href="tel:${escapeHtml(numeroDaChiamare(c.telefono))}">${escapeHtml(c.telefono)}</a>
-        ${firma ? `<span class="rub-firma">${firma}</span>` : ''}
       </div>
 
       <div class="rub-azioni">
@@ -154,7 +158,7 @@ function avviaModifica(riga: HTMLElement, contatto: Contatto): void {
     if (salva && nome && telefono && (nome !== contatto.nome || telefono !== contatto.telefono)) {
       contatto.nome = nome;
       contatto.telefono = telefono;
-      contatti.sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+      contatti = ordinaContatti(contatti);
       modificaContatto(contatto.id, nome, telefono);
     }
 
@@ -204,7 +208,7 @@ async function aggiungi(): Promise<void> {
   const voce = await aggiungiContatto(nome, telefono, nomeUtente());
 
   contatti.push(voce);
-  contatti.sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+  contatti = ordinaContatti(contatti);
 
   // Un nome appena scritto deve vedersi, anche se la ricerca lo escluderebbe
   if (cerca && !corrisponde(voce, cerca)) {

@@ -2589,3 +2589,345 @@ $$;
 -- La prima applicazione garantisce il tratto del mese corrente. Se viene
 -- applicata dal giorno 15 in poi prepara naturalmente anche il mese seguente.
 SELECT private.genera_turni_cron(NULL);
+
+
+-- =========================================================================
+-- 20. ORDINI SETTIMANALI E NOTIFICHE DELLE 07:00
+--
+-- Il programma e' ricorrente: il giorno e la voce possono essere cambiati
+-- dall'amministratore, mentre l'orario resta fisso alle 07:00 italiane.
+-- Le righe iniziali hanno una chiave stabile e vengono inserite una sola volta:
+-- rieseguire questo file non rimette un ordine disattivato e non sovrascrive le
+-- correzioni fatte dall'app.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.ordini_settimanali (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chiave_seed TEXT UNIQUE,
+    voce TEXT NOT NULL CHECK (char_length(BTRIM(voce)) BETWEEN 1 AND 120),
+    -- Numerazione ISO: lunedi' = 1, domenica = 7.
+    giorno_settimana SMALLINT NOT NULL CHECK (giorno_settimana BETWEEN 1 AND 7),
+    ordine SMALLINT NOT NULL DEFAULT 0 CHECK (ordine >= 0),
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    creato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ordini_settimanali_giorno
+    ON public.ordini_settimanali (giorno_settimana, ordine, voce)
+    WHERE attivo;
+
+INSERT INTO public.ordini_settimanali (
+    chiave_seed, voce, giorno_settimana, ordine
+)
+VALUES
+    ('lunedi-nicola-cartinee', 'Nicola Cartinee', 1, 10),
+    ('lunedi-gratta-e-vinci', 'Gratta e vinci', 1, 20),
+    ('martedi-sigarette', 'Sigarette', 2, 10),
+    ('giovedi-detersivo', 'Detersivo', 4, 10),
+    ('giovedi-gratta-e-vinci', 'Gratta e vinci', 4, 20)
+ON CONFLICT (chiave_seed) DO NOTHING;
+
+ALTER TABLE public.ordini_settimanali ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Gli approvati leggono gli ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli approvati leggono gli ordini settimanali"
+    ON public.ordini_settimanali
+    FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+              FROM public.profili
+             WHERE id = (SELECT auth.uid())
+               AND accesso
+        )
+    );
+
+DROP POLICY IF EXISTS "Gli admin aggiungono ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli admin aggiungono ordini settimanali"
+    ON public.ordini_settimanali
+    FOR INSERT
+    TO authenticated
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+DROP POLICY IF EXISTS "Gli admin aggiornano ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli admin aggiornano ordini settimanali"
+    ON public.ordini_settimanali
+    FOR UPDATE
+    TO authenticated
+    USING ((SELECT private.e_amministratore()))
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+-- La cancellazione e' intenzionalmente assente: un ordine si disattiva e resta
+-- recuperabile. I grant espliciti coprono i progetti che dal 2026 non espongono
+-- automaticamente le nuove tabelle alla Data API.
+REVOKE ALL ON public.ordini_settimanali FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.ordini_settimanali TO authenticated;
+
+
+-- Selettore interno testabile per il mittente server. Converte sempre l'istante
+-- in Europe/Rome, quindi le 07:00 restano corrette sia con l'ora legale sia con
+-- quella solare. Fuori da quell'ora non espone alcun ordine.
+CREATE OR REPLACE FUNCTION private.ordini_da_notificare(
+    p_istante TIMESTAMP WITH TIME ZONE
+)
+RETURNS TABLE (
+    ordine_id UUID,
+    voce TEXT,
+    data_locale DATE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    WITH istante AS (
+        SELECT p_istante AT TIME ZONE 'Europe/Rome' AS locale
+    )
+    SELECT o.id,
+           BTRIM(o.voce),
+           i.locale::DATE
+      FROM public.ordini_settimanali o
+      CROSS JOIN istante i
+     WHERE EXTRACT(HOUR FROM i.locale)::INTEGER = 7
+       AND o.attivo
+       AND o.giorno_settimana = EXTRACT(ISODOW FROM i.locale)::SMALLINT
+     ORDER BY o.ordine, o.voce, o.id;
+$$;
+
+REVOKE ALL ON FUNCTION private.ordini_da_notificare(TIMESTAMP WITH TIME ZONE)
+    FROM PUBLIC, anon, authenticated;
+
+-- RPC volutamente senza parametri: Vercel usa la chiave anon ma non puo'
+-- scegliere una data o un'ora arbitraria. E' una sola lettura, non crea claim e
+-- non puo' impedire i tentativi successivi del cron.
+CREATE OR REPLACE FUNCTION public.ordini_da_notificare_ora()
+RETURNS TABLE (
+    ordine_id UUID,
+    voce TEXT,
+    data_locale DATE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT *
+      FROM private.ordini_da_notificare(CURRENT_TIMESTAMP);
+$$;
+
+REVOKE ALL ON FUNCTION public.ordini_da_notificare_ora()
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ordini_da_notificare_ora()
+    TO anon, authenticated, service_role;
+
+
+-- =========================================================================
+-- 21. STATO NOTIFICHE PER DIPENDENTE
+--
+-- Le iscrizioni storiche restano valide: il collegamento al profilo e'
+-- volutamente nullable, quindi gli endpoint gia' presenti non vengono persi.
+-- Quando il dispositivo rinnova l'iscrizione, il client compila questi campi
+-- e l'amministratore puo' vedere chi ha effettivamente le notifiche attive.
+-- =========================================================================
+ALTER TABLE public.push_iscrizioni
+    ADD COLUMN IF NOT EXISTS profilo_id UUID;
+
+ALTER TABLE public.push_iscrizioni
+    ADD COLUMN IF NOT EXISTS aggiornata_il TIMESTAMP WITH TIME ZONE
+        NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- Il vincolo viene aggiunto separatamente dalla colonna: in questo modo anche
+-- un'applicazione interrotta fra i due passaggi si completa alla riesecuzione.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conname = 'push_iscrizioni_profilo_id_fkey'
+           AND conrelid = 'public.push_iscrizioni'::regclass
+    ) THEN
+        ALTER TABLE public.push_iscrizioni
+            ADD CONSTRAINT push_iscrizioni_profilo_id_fkey
+            FOREIGN KEY (profilo_id)
+            REFERENCES public.profili(id)
+            ON DELETE CASCADE;
+    END IF;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_push_iscrizioni_profilo_aggiornamento
+    ON public.push_iscrizioni (profilo_id, aggiornata_il DESC)
+    WHERE profilo_id IS NOT NULL;
+
+
+-- L'aggregazione vive nello schema non esposto e scavalca RLS soltanto per
+-- leggere profili e iscrizioni. Non contiene il controllo del chiamante perche'
+-- non e' eseguibile dai ruoli dell'app; il wrapper pubblico lo verifica prima.
+CREATE OR REPLACE FUNCTION private.stato_notifiche_dipendenti()
+RETURNS TABLE (
+    profilo_id UUID,
+    nome TEXT,
+    attive BOOLEAN,
+    numero_dispositivi INTEGER,
+    ultimo_aggiornamento TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT p.id,
+           COALESCE(
+               NULLIF(BTRIM(p.nome), ''),
+               NULLIF(BTRIM(p.email), ''),
+               'Dipendente'
+           ),
+           COUNT(i.id) > 0,
+           COUNT(i.id)::INTEGER,
+           MAX(i.aggiornata_il)
+      FROM public.profili p
+      LEFT JOIN public.push_iscrizioni i ON i.profilo_id = p.id
+     WHERE p.accesso
+       AND NOT p.admin
+     GROUP BY p.id, p.nome, p.email
+     ORDER BY COALESCE(
+                  NULLIF(BTRIM(p.nome), ''),
+                  NULLIF(BTRIM(p.email), ''),
+                  'Dipendente'
+              ),
+              p.id;
+$$;
+
+REVOKE ALL ON FUNCTION private.stato_notifiche_dipendenti()
+    FROM PUBLIC, anon, authenticated;
+
+
+-- Il riepilogo espone soltanto stato e conteggi, mai endpoint o chiavi push.
+-- Il controllo usa auth.uid() tramite la funzione privata gia' adottata dagli
+-- altri registri amministrativi.
+CREATE OR REPLACE FUNCTION public.stato_notifiche_dipendenti()
+RETURNS TABLE (
+    profilo_id UUID,
+    nome TEXT,
+    attive BOOLEAN,
+    numero_dispositivi INTEGER,
+    ultimo_aggiornamento TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+    IF NOT private.e_amministratore() THEN
+        RAISE EXCEPTION 'Solo un amministratore puo vedere lo stato delle notifiche'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    SELECT s.profilo_id,
+           s.nome,
+           s.attive,
+           s.numero_dispositivi,
+           s.ultimo_aggiornamento
+      FROM private.stato_notifiche_dipendenti() s;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.stato_notifiche_dipendenti()
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.stato_notifiche_dipendenti()
+    TO authenticated;
+
+
+-- La registrazione non passa piu' da INSERT/UPSERT diretto. Il profilo viene
+-- ricavato esclusivamente dal JWT: neppure un client modificato puo' attribuire
+-- il proprio dispositivo a un'altra persona.
+CREATE OR REPLACE FUNCTION public.registra_iscrizione_push(
+    p_endpoint TEXT,
+    p_p256dh TEXT,
+    p_auth TEXT,
+    p_dispositivo TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+    v_endpoint TEXT := BTRIM(COALESCE(p_endpoint, ''));
+    v_p256dh TEXT := BTRIM(COALESCE(p_p256dh, ''));
+    v_auth TEXT := BTRIM(COALESCE(p_auth, ''));
+    v_dispositivo TEXT := BTRIM(COALESCE(p_dispositivo, ''));
+BEGIN
+    IF v_utente IS NULL OR NOT EXISTS (
+        SELECT 1
+          FROM public.profili
+         WHERE id = v_utente
+           AND accesso
+    ) THEN
+        RAISE EXCEPTION 'Profilo non autorizzato alle notifiche'
+            USING ERRCODE = '42501';
+    END IF;
+
+    IF char_length(v_endpoint) NOT BETWEEN 10 AND 4096
+       OR v_endpoint !~ '^https://'
+       OR char_length(v_p256dh) NOT BETWEEN 20 AND 512
+       OR char_length(v_auth) NOT BETWEEN 8 AND 256
+       OR char_length(v_dispositivo) NOT BETWEEN 1 AND 200 THEN
+        RAISE EXCEPTION 'Dati iscrizione push non validi'
+            USING ERRCODE = '22023';
+    END IF;
+
+    INSERT INTO public.push_iscrizioni (
+        endpoint,
+        p256dh,
+        auth,
+        dispositivo,
+        profilo_id,
+        aggiornata_il
+    ) VALUES (
+        v_endpoint,
+        v_p256dh,
+        v_auth,
+        v_dispositivo,
+        v_utente,
+        CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (endpoint) DO UPDATE
+       SET p256dh = EXCLUDED.p256dh,
+           auth = EXCLUDED.auth,
+           dispositivo = EXCLUDED.dispositivo,
+           profilo_id = v_utente,
+           aggiornata_il = CURRENT_TIMESTAMP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.registra_iscrizione_push(TEXT, TEXT, TEXT, TEXT)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.registra_iscrizione_push(TEXT, TEXT, TEXT, TEXT)
+    TO authenticated;
+
+
+-- Gli endpoint e le chiavi dei dispositivi non vengono esposti da alcuna RPC
+-- pubblica. Soltanto le funzioni server Vercel, configurate con service role,
+-- possono leggerli e ripulire quelli scaduti.
+DROP FUNCTION IF EXISTS public.elenca_iscrizioni_push();
+
+
+-- Le vecchie policy permettevano a chiunque di leggere, creare e cancellare
+-- recapiti. Questo blocco e' volutamente in fondo allo schema: dopo ogni
+-- riesecuzione prevale sulle definizioni storiche senza toccare i dati.
+DROP POLICY IF EXISTS "Lettura iscrizioni push" ON public.push_iscrizioni;
+DROP POLICY IF EXISTS "Scrittura iscrizioni push" ON public.push_iscrizioni;
+
+REVOKE ALL ON public.push_iscrizioni FROM PUBLIC, anon, authenticated;
+-- Il server configurato con service role continua a leggere e a rimuovere gli
+-- endpoint scaduti direttamente; i browser passano solo dalla RPC autenticata.
+GRANT SELECT, DELETE ON public.push_iscrizioni TO service_role;

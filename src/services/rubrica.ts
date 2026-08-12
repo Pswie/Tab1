@@ -44,9 +44,40 @@ function scriviLocale(voci: Contatto[]): void {
   }
 }
 
-/** In ordine alfabetico, come si cerca un nome in un elenco */
-function inOrdine(voci: Contatto[]): Contatto[] {
-  return [...voci].sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+const confrontoNomi = new Intl.Collator('it', {
+  usage: 'sort',
+  sensitivity: 'base',
+  ignorePunctuation: true,
+  numeric: true
+});
+
+const confrontoDettagli = new Intl.Collator('it', {
+  usage: 'sort',
+  sensitivity: 'variant',
+  numeric: true
+});
+
+function nomeNormalizzato(nome: string): string {
+  return nome.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Ordine alfabetico italiano, naturale e deterministico.
+ *
+ * Accenti, maiuscole e punteggiatura non separano contatti che una persona
+ * cercherebbe insieme; numero e id rendono stabile anche l'ordine degli
+ * omonimi, indipendentemente da come il database restituisce le righe.
+ */
+export function ordinaContatti(voci: readonly Contatto[]): Contatto[] {
+  return [...voci].sort((a, b) => {
+    const nomeA = nomeNormalizzato(a.nome);
+    const nomeB = nomeNormalizzato(b.nome);
+
+    return confrontoNomi.compare(nomeA, nomeB)
+      || confrontoDettagli.compare(nomeA, nomeB)
+      || confrontoDettagli.compare(a.telefono, b.telefono)
+      || confrontoDettagli.compare(a.id, b.id);
+  });
 }
 
 export async function elencaContatti(): Promise<Contatto[]> {
@@ -58,7 +89,7 @@ export async function elencaContatti(): Promise<Contatto[]> {
         .order('nome', { ascending: true });
 
       if (!error && data) {
-        const voci = inOrdine(data.map(daRiga));
+        const voci = ordinaContatti(data.map(daRiga));
         scriviLocale(voci);
         return voci;
       }
@@ -69,7 +100,7 @@ export async function elencaContatti(): Promise<Contatto[]> {
     }
   }
 
-  return inOrdine(leggiLocale());
+  return ordinaContatti(leggiLocale());
 }
 
 export async function aggiungiContatto(nome: string, telefono: string, autore = ''): Promise<Contatto> {

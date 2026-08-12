@@ -37,6 +37,7 @@ import { caricaRubrica, initRubrica } from './ui/rubricaUI';
 import { caricaTurni, initTurni } from './ui/turniUI';
 import { caricaAmmanchi, caricaAnticipi, initAnticipi } from './ui/anticipiUI';
 import { caricaPulizie, initPulizie } from './ui/pulizieUI';
+import { caricaOrdini, initOrdini } from './ui/ordiniUI';
 import {
   caricaIncassiH24,
   caricaProdottiH24,
@@ -178,6 +179,10 @@ const btnPrintDocument = document.getElementById('btn-print-document') as HTMLBu
 // Notifiche
 const btnNotifiche = document.getElementById('btn-notifiche') as HTMLButtonElement;
 const notaNotifiche = document.getElementById('notifiche-nota') as HTMLParagraphElement;
+const dialogNotifiche = document.getElementById('notifiche-obbligatorie') as HTMLDivElement;
+const btnNotificheObbligatorie = document.getElementById('btn-notifiche-obbligatorie') as HTMLButtonElement;
+const btnNotificheContinua = document.getElementById('btn-notifiche-continua') as HTMLButtonElement;
+const aiutoNotificheObbligatorie = document.getElementById('notifiche-obbligatorie-aiuto') as HTMLParagraphElement;
 
 /**
  * Apre una scheda dall'esterno del gestore dei menu.
@@ -1217,6 +1222,38 @@ function aggiornaPulsanteNotifiche() {
   }
 }
 
+function aggiornaDialogNotifiche(): void {
+  if (!dialogNotifiche || !btnNotificheObbligatorie) return;
+
+  const stato = statoNotifiche();
+  // Se il browser non supporta Web Push non si deve chiudere la persona fuori
+  // dall'app: non avrebbe alcuna azione possibile. Negli altri casi l'invito
+  // resta davanti come richiesto, finché il permesso non viene concesso.
+  const negatoIgnorato = stato === 'negato' && sessionStorage.getItem('notifiche_negate_ignorate') === '1';
+  const deveComparire = stato !== 'concesso' && stato !== 'non-supportate' && !negatoIgnorato;
+  dialogNotifiche.classList.toggle('is-visible', deveComparire);
+  dialogNotifiche.setAttribute('aria-hidden', String(!deveComparire));
+  dialogNotifiche.inert = !deveComparire;
+  document.body.classList.toggle('notifiche-da-attivare', deveComparire);
+
+  if (!deveComparire) return;
+
+  btnNotificheObbligatorie.disabled = false;
+  btnNotificheObbligatorie.textContent = stato === 'negato'
+    ? 'Ho attivato dalle impostazioni'
+    : 'Attiva notifiche';
+  if (btnNotificheContinua) btnNotificheContinua.hidden = stato !== 'negato';
+
+  if (aiutoNotificheObbligatorie) {
+    aiutoNotificheObbligatorie.hidden = stato !== 'negato';
+    aiutoNotificheObbligatorie.textContent = stato === 'negato'
+      ? 'Le notifiche sono state bloccate. Apri le impostazioni del sito, scegli Notifiche e poi Consenti; quindi torna qui e premi di nuovo.'
+      : '';
+  }
+
+  window.setTimeout(() => btnNotificheObbligatorie.focus(), 0);
+}
+
 async function premiAttivaNotifiche() {
   const stato = await attivaNotifiche();
   aggiornaPulsanteNotifiche();
@@ -1224,6 +1261,7 @@ async function premiAttivaNotifiche() {
   if (stato === 'concesso') {
     inviaNotifica('Notifiche attive', 'Da ora arrivano gli avvisi delle nuove attività.');
   }
+  aggiornaDialogNotifiche();
 }
 
 async function addNewTodoItem() {
@@ -1391,6 +1429,7 @@ function setupEventListeners() {
     if (targetTabId === 'tab-anticipi') caricaAnticipi();
     if (targetTabId === 'tab-ammanchi') caricaAmmanchi();
     if (targetTabId === 'tab-pulizie') caricaPulizie();
+    if (targetTabId === 'tab-ordini') caricaOrdini();
     if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
     if (targetTabId === 'tab-rubrica') caricaRubrica();
     if (targetTabId === 'tab-dashboard') caricaDashboard();
@@ -1493,11 +1532,18 @@ function setupEventListeners() {
     });
   }
 
+  btnNotifiche?.addEventListener('click', premiAttivaNotifiche);
+  btnNotificheObbligatorie?.addEventListener('click', premiAttivaNotifiche);
+  btnNotificheContinua?.addEventListener('click', () => {
+    // Vale soltanto per questa apertura: al prossimo avvio l'app ricorda di
+    // nuovo che il telefono è rimasto senza avvisi.
+    sessionStorage.setItem('notifiche_negate_ignorate', '1');
+    aggiornaDialogNotifiche();
+  });
+
   // Stampa diretta del documento contabile, senza passare da un'anteprima
   if (btnPrintDocument) {
-    btnNotifiche?.addEventListener('click', premiAttivaNotifiche);
-
-  btnPrintDocument.addEventListener('click', () => {
+    btnPrintDocument.addEventListener('click', () => {
       fillPrintDocument();
       window.print();
     });
@@ -1610,14 +1656,22 @@ async function initApp() {
   currentShift = getActiveShift();
 
   setupEventListeners();
-  ripristinaIscrizione();
+  navigator.serviceWorker?.addEventListener('message', evento => {
+    if (evento.data?.tipo !== 'apri-notifica') return;
+    const url = new URL(String(evento.data.url || '/'), window.location.origin);
+    const tab = url.searchParams.get('tab');
+    if (tab && document.getElementById(tab)) schedaDaAprire?.(tab);
+  });
+  void ripristinaIscrizione();
   aggiornaPulsanteNotifiche();
+  aggiornaDialogNotifiche();
   initInventario();
   initSoggiorno();
   initRubrica();
   initTurni();
   initAnticipi();
   initPulizie();
+  initOrdini();
 
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();
@@ -1635,12 +1689,21 @@ async function initApp() {
   const daRiaprire = schedaRicordata() || (amministratore() ? 'tab-dashboard' : '');
   if (daRiaprire) schedaDaAprire?.(daRiaprire);
 
+  // Se l'app è stata aperta toccando una notifica, la sua destinazione ha la
+  // precedenza sull'ultima scheda ricordata.
+  const schedaDaNotifica = new URLSearchParams(window.location.search).get('tab');
+  if (schedaDaNotifica && document.getElementById(schedaDaNotifica)) {
+    schedaDaAprire?.(schedaDaNotifica);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
   await loadDateIntoForm(selectedDate);
   await renderHistorySidebar();
   await caricaSoggiorni();
   await caricaRubrica();
   await caricaTurni();
   await caricaPulizie();
+  await caricaOrdini();
 
   // Promemoria della dichiarazione e pallino delle scorte si fanno vivi qui:
   // è il modo per accorgersene senza dover aprire le schede

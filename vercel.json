@@ -7,5 +7,15 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/ordini-notifica",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/ordini-notifica",
+      "schedule": "0 6 * * *"
+    }
   ]
 }

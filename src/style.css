@@ -4605,12 +4605,6 @@ body {
   text-decoration: underline;
 }
 
-.rub-firma {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .rub-azioni {
   display: flex;
   align-items: center;
@@ -6475,6 +6469,705 @@ body {
   }
 
   .pulizia-riga.is-done .pulizia-check {
+    color: HighlightText;
+    background: Highlight;
+    border-color: Highlight;
+  }
+}
+
+/* ==========================================================================
+   CONSENSO NOTIFICHE
+   Il sistema operativo vuole un gesto esplicito: questo foglio resta davanti
+   all'app finché il telefono non ha concesso il permesso.
+   ========================================================================== */
+
+body.notifiche-da-attivare {
+  overflow: hidden;
+}
+
+.notifiche-obbligatorie {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(18, 24, 38, 0.52);
+  backdrop-filter: blur(5px);
+}
+
+.notifiche-obbligatorie.is-visible {
+  display: grid;
+}
+
+.notifiche-obbligatorie-box {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 1rem;
+  width: min(100%, 440px);
+  padding: 1.25rem;
+  color: var(--text-primary);
+  background: var(--surface-card-outer);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-outer);
+  box-shadow: var(--shadow-modal);
+}
+
+.notifiche-obbligatorie-icona {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  color: var(--ferrari-red);
+  background: #FFF5F5;
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  border-radius: 16px;
+}
+
+.notifiche-obbligatorie-icona svg {
+  width: 27px;
+  height: 27px;
+}
+
+.notifiche-obbligatorie-eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--ferrari-red);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.notifiche-obbligatorie h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 5vw, 1.65rem);
+  letter-spacing: -0.025em;
+}
+
+.notifiche-obbligatorie h2 + p {
+  margin: 0.45rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.notifiche-obbligatorie-aiuto {
+  padding: 0.65rem 0.75rem;
+  margin: 0.75rem 0 0;
+  color: #92400E;
+  background: #FEF3C7;
+  border-radius: var(--radius-inner);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.notifiche-obbligatorie-box > .todo-add-btn,
+.notifiche-obbligatorie-box > .btn-secondary-action {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Stato dei dispositivi: compare soltanto quando l'admin apre la rotellina
+   degli ordini. Verde significa collegato, ambra richiede un controllo. */
+.ordini-stato-notifiche {
+  padding: 1rem;
+  margin-top: 1rem;
+  background: var(--surface-card-inner);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.ordini-stato-notifiche-testa {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ordini-stato-notifiche h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.ordini-stato-notifiche p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ordini-stato-notifiche-testa > span {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.55rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.ordini-stato-notifiche-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.ordini-stato-notifica {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 0.1rem 0.55rem;
+  align-items: center;
+  min-height: 52px;
+  padding: 0.55rem 0.65rem;
+  background: var(--surface-card-outer);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.ordini-stato-punto {
+  grid-row: 1 / 3;
+  width: 9px;
+  height: 9px;
+  background: #D49A16;
+  border-radius: 50%;
+}
+
+.ordini-stato-notifica.is-attiva .ordini-stato-punto {
+  background: var(--accent-green-line);
+}
+
+.ordini-stato-notifica strong {
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ordini-stato-notifica small {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 440px) {
+  .notifiche-obbligatorie-box {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+
+  .notifiche-obbligatorie-icona {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notifiche-obbligatorie {
+    backdrop-filter: none;
+  }
+}
+
+/* ===========================================================================
+   ORDINI SETTIMANALI
+   Un piccolo giro fornitori: ogni giorno e' un foglio unico, mentre le righe
+   restano separate perche' ognuna genera la propria notifica alle 07:00.
+   ========================================================================== */
+
+#tab-ordini {
+  --ordini-oggi: var(--ferrari-red);
+  --ordini-carta: var(--surface-card-inner);
+}
+
+.ordini-testa {
+  gap: 1rem;
+}
+
+.ordini-sottotitolo {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ordini-rotella {
+  flex: 0 0 38px;
+}
+
+.ordini-avviso {
+  margin: -0.55rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #991B1B;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-inner);
+}
+
+.ordini-avviso.is-hidden {
+  display: none;
+}
+
+.ordini-avviso.is-successo {
+  color: var(--accent-green-text);
+  background: var(--accent-green-bg);
+  border-color: #A7F3D0;
+}
+
+.ordini-avviso.is-nota {
+  color: #92400E;
+  background: #FEF3C7;
+  border-color: #FDE68A;
+}
+
+/* La gestione resta un unico banco di lavoro, non una modale separata. */
+.ordini-gestione {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(360px, 1.45fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.ordini-gestione[hidden] {
+  display: none;
+}
+
+.ordini-campo {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ordini-campo > span,
+.ordini-campo > legend {
+  display: block;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.ordini-campo .todo-add-input {
+  width: 100%;
+}
+
+/* Sette tasti compatti ma reali: frecce, Home ed End funzionano come in un
+   radiogroup e ogni bersaglio mantiene i 44 px richiesti da telefono. */
+.ordini-giorni {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  gap: 0.3rem;
+}
+
+.ordini-giorno-scelta {
+  min-width: 44px;
+  min-height: 46px;
+  padding: 0.4rem 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ordini-giorno-scelta:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--bg-pearl-warm);
+}
+
+.ordini-giorno-scelta.is-selected {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+  box-shadow: 0 3px 9px var(--ferrari-red-glow);
+}
+
+.ordini-giorno-scelta:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.ordini-orario-fisso {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 46px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+}
+
+.ordini-orario-fisso > svg {
+  width: 19px;
+  height: 19px;
+  color: var(--ferrari-red);
+}
+
+.ordini-orario-fisso > span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.ordini-orario-fisso small {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ordini-orario-fisso strong {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ordini-gestione-azioni {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ordini-gestione-azioni > button {
+  min-height: 44px;
+}
+
+.ordini-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.9rem;
+  transition: opacity var(--transition-normal);
+}
+
+#tab-ordini.is-caricamento .ordini-lista,
+#tab-ordini.is-salvataggio .ordini-lista {
+  opacity: 0.58;
+}
+
+.ordini-giorno {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--ordini-carta);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.ordini-giorno.is-oggi {
+  border-color: rgba(227, 6, 19, 0.3);
+  box-shadow: inset 3px 0 0 var(--ordini-oggi);
+}
+
+.ordini-giorno-testa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 58px;
+  padding: 0.65rem 0.85rem;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.ordini-giorno.is-oggi .ordini-giorno-testa {
+  background: #FFF8F7;
+}
+
+.ordini-giorno-titolo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ordini-giorno-titolo strong {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ordini-giorno-titolo small {
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.ordini-giorno.is-oggi .ordini-giorno-titolo small {
+  color: var(--ferrari-red);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ordini-orario {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.32rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-full);
+}
+
+.ordini-orario svg {
+  width: 15px;
+  height: 15px;
+  color: var(--ferrari-red);
+}
+
+.ordini-righe {
+  display: flex;
+  flex-direction: column;
+}
+
+.ordine-riga {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 56px;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.ordine-riga:last-child {
+  border-bottom: none;
+}
+
+/* Ogni puntino identifica una notifica autonoma, anche nello stesso giorno. */
+.ordine-segno {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  background: var(--ferrari-red);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #FFF0F1;
+}
+
+.ordine-nome {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ordine-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ordine-azioni .todo-icon-btn {
+  width: 44px;
+  height: 44px;
+}
+
+.ordini-disattivati {
+  grid-column: 1 / -1;
+  padding: 0.85rem;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-inner);
+}
+
+.ordini-disattivati > h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ordini-disattivati > p {
+  margin: 0.15rem 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ordini-disattivati-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.ordine-disattivato {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+}
+
+.ordine-disattivato > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.ordine-disattivato strong {
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ordine-disattivato small {
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ordine-disattivato .rub-btn-testo {
+  min-width: 44px;
+  height: 44px;
+}
+
+.ordini-vuoto,
+.ordini-caricamento {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 1.4rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.ordini-vuoto svg {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 0.35rem;
+}
+
+.ordini-vuoto p {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.ordini-vuoto small {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.ordini-caricamento {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+#tab-ordini button:focus-visible,
+#tab-ordini input:focus-visible {
+  outline: 2px solid var(--ferrari-red);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .ordini-gestione {
+    grid-template-columns: 1fr;
+  }
+
+  .ordini-gestione-azioni {
+    grid-column: auto;
+  }
+
+  .ordini-orario-fisso {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 700px) {
+  .ordini-lista,
+  .ordini-disattivati-lista {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .ordini-testa {
+    align-items: flex-start;
+  }
+
+  .ordini-gestione {
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    padding: 0.75rem;
+  }
+
+  .ordini-giorni {
+    gap: 0.2rem;
+  }
+
+  .ordini-giorno-scelta {
+    min-width: 0;
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+    font-size: 0.68rem;
+  }
+
+  .ordini-gestione-azioni {
+    flex-direction: column;
+  }
+
+  .ordini-gestione-azioni > button {
+    width: 100%;
+  }
+
+  .ordine-riga {
+    padding: 0.6rem 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ordini-giorno-scelta,
+  .ordini-lista {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .ordini-giorno.is-oggi {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  .ordini-giorno-scelta.is-selected,
+  .ordine-segno {
     color: HighlightText;
     background: Highlight;
     border-color: Highlight;
