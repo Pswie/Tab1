@@ -1,66 +1,74 @@
 import {
+  DipendenteTurni,
   FASCE_GIORNATA,
   FasciaTurno,
   NOMI_FASCIA,
   TurnoLavoro,
-  assegnaTurno,
+  annullaTurno,
+  elencaDipendentiTurni,
   elencaTurni,
-  inOrdine,
-  personeConosciute,
-  rimuoviTurno
+  impostaPeriodoDipendente,
+  impostaTurnoDipendente,
+  preparaTurniAutomatici
 } from '../services/turni';
-import { nomeUtente, puoGestireTurni } from '../services/auth';
+import { idUtente, nomeUtente, puoGestireTurni } from '../services/auth';
 import {
   formatDateLocalISO,
   getInizioSettimanaString,
   getTodayDateString
 } from '../utils/calculations';
 
-/**
- * Calendario dei turni di lavoro.
- *
- * Ricalca il foglio appeso in negozio: una settimana per volta, le fasce in
- * riga e le sette giornate in colonna. Da telefono la tabella si srotola in
- * una giornata dopo l'altra, perché sette colonne su uno schermo stretto non
- * si leggono.
- *
- * Chi sta usando l'app si riconosce dai propri turni, scritti in grassetto:
- * la domanda vera che si fa aprendo questa scheda è "quando lavoro io".
- */
-
-/** Lunedì della settimana mostrata */
-let settimana = getInizioSettimanaString();
-let turni: TurnoLavoro[] = [];
-let persone: string[] = [];
-
-/** La cella che sta chiedendo un nome, se ce n'è una aperta */
-let cellaAperta: { data: string; fascia: FasciaTurno } | null = null;
-
-/** Il riquadro delle ferie è aperto */
-let ferieAperte = false;
-
-const griglia = document.getElementById('turni-griglia') as HTMLDivElement;
-const etichettaSettimana = document.getElementById('turni-settimana') as HTMLSpanElement;
-const fasciaFerie = document.getElementById('turni-ferie') as HTMLDivElement;
-const riassuntoOggi = document.getElementById('turni-oggi') as HTMLParagraphElement;
-const avviso = document.getElementById('turni-avviso') as HTMLParagraphElement;
-const elencoNomi = document.getElementById('turni-nomi') as HTMLDataListElement;
-const btnIndietro = document.getElementById('btn-turni-indietro') as HTMLButtonElement;
-const btnAvanti = document.getElementById('btn-turni-avanti') as HTMLButtonElement;
-const btnOggi = document.getElementById('btn-turni-oggi') as HTMLButtonElement;
-const btnFerie = document.getElementById('btn-turni-ferie') as HTMLButtonElement;
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+interface CellaAperta {
+  data: string;
+  fascia: FasciaTurno;
+  profiloId: string | null;
+  nota: string;
+  chiediSquadra: boolean;
 }
 
-/** Data spostata di N giorni, in formato YYYY-MM-DD */
+/** Lunedì della settimana mostrata. */
+let settimana = getInizioSettimanaString();
+let turni: TurnoLavoro[] = [];
+let dipendenti: DipendenteTurni[] = [];
+let dipendentiInCaricamento = false;
+
+/**
+ * Il permesso abilita la rotellina, non mette subito il calendario in modifica.
+ * Anche l'amministratore e Marianna entrano quindi dalla propria vista normale.
+ */
+let modalitaGestione = false;
+let cellaAperta: CellaAperta | null = null;
+
+let ferieAperte = false;
+let profiloFerieId: string | null = null;
+let ferieDal = settimana;
+let ferieAl = '';
+
+const griglia = document.getElementById('turni-griglia') as HTMLDivElement | null;
+const etichettaSettimana = document.getElementById('turni-settimana') as HTMLSpanElement | null;
+const fasciaFerie = document.getElementById('turni-ferie') as HTMLDivElement | null;
+const riassuntoOggi = document.getElementById('turni-oggi') as HTMLParagraphElement | null;
+const avviso = document.getElementById('turni-avviso') as HTMLParagraphElement | null;
+const btnIndietro = document.getElementById('btn-turni-indietro') as HTMLButtonElement | null;
+const btnAvanti = document.getElementById('btn-turni-avanti') as HTMLButtonElement | null;
+const btnOggi = document.getElementById('btn-turni-oggi') as HTMLButtonElement | null;
+const btnFerie = document.getElementById('btn-turni-ferie') as HTMLButtonElement | null;
+const btnGestione = document.getElementById('btn-turni-gestione') as HTMLButtonElement | null;
+
+function escapeHtml(testo: string): string {
+  return testo
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Data spostata di N giorni, in formato YYYY-MM-DD. */
 function spostaGiorni(data: string, giorni: number): string {
   const [anno, mese, giorno] = data.split('-').map(Number);
-  const d = new Date(anno, mese - 1, giorno);
-  d.setDate(d.getDate() + giorni);
-
-  return formatDateLocalISO(d);
+  const nuova = new Date(anno, mese - 1, giorno);
+  nuova.setDate(nuova.getDate() + giorni);
+  return formatDateLocalISO(nuova);
 }
 
 function comeData(iso: string): Date {
@@ -68,10 +76,11 @@ function comeData(iso: string): Date {
   return new Date(anno, mese - 1, giorno);
 }
 
-/** "lun", "mar", ... senza il punto che l'italiano ci metterebbe */
 function siglaGiorno(iso: string): string {
-  const nome = new Intl.DateTimeFormat('it-IT', { weekday: 'short' }).format(comeData(iso));
-  return (nome.replace('.', '').charAt(0).toUpperCase() + nome.replace('.', '').slice(1));
+  const nome = new Intl.DateTimeFormat('it-IT', { weekday: 'short' })
+    .format(comeData(iso))
+    .replace('.', '');
+  return nome.charAt(0).toUpperCase() + nome.slice(1);
 }
 
 function nomeGiorno(iso: string): string {
@@ -79,115 +88,168 @@ function nomeGiorno(iso: string): string {
   return nome.charAt(0).toUpperCase() + nome.slice(1);
 }
 
-function mese(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(d);
+function nomeMese(data: Date): string {
+  return new Intl.DateTimeFormat('it-IT', { month: 'long' }).format(data);
 }
 
 function giornateSettimana(): string[] {
-  return Array.from({ length: 7 }, (_, i) => spostaGiorni(settimana, i));
+  return Array.from({ length: 7 }, (_, indice) => spostaGiorni(settimana, indice));
 }
 
-/**
- * "3 – 9 agosto 2026", e con il mese o l'anno a cavallo si scrivono entrambi:
- * una settimana che comincia a giugno e finisce a luglio deve dirlo.
- */
 function titoloSettimana(): string {
   const lunedi = comeData(settimana);
   const domenica = comeData(spostaGiorni(settimana, 6));
 
   if (lunedi.getFullYear() !== domenica.getFullYear()) {
-    return `${lunedi.getDate()} ${mese(lunedi)} ${lunedi.getFullYear()} – ` +
-      `${domenica.getDate()} ${mese(domenica)} ${domenica.getFullYear()}`;
+    return `${lunedi.getDate()} ${nomeMese(lunedi)} ${lunedi.getFullYear()} – ` +
+      `${domenica.getDate()} ${nomeMese(domenica)} ${domenica.getFullYear()}`;
   }
 
   if (lunedi.getMonth() !== domenica.getMonth()) {
-    return `${lunedi.getDate()} ${mese(lunedi)} – ` +
-      `${domenica.getDate()} ${mese(domenica)} ${domenica.getFullYear()}`;
+    return `${lunedi.getDate()} ${nomeMese(lunedi)} – ` +
+      `${domenica.getDate()} ${nomeMese(domenica)} ${domenica.getFullYear()}`;
   }
 
-  return `${lunedi.getDate()} – ${domenica.getDate()} ${mese(domenica)} ${domenica.getFullYear()}`;
+  return `${lunedi.getDate()} – ${domenica.getDate()} ${nomeMese(domenica)} ${domenica.getFullYear()}`;
 }
 
 function assegnati(data: string, fascia: FasciaTurno): TurnoLavoro[] {
-  return turni.filter(t => t.data === data && t.fascia === fascia);
+  return turni.filter(turno => turno.data === data && turno.fascia === fascia);
 }
 
-/**
- * Se un nome è di chi sta usando l'app.
- *
- * Sul foglio i turni si firmano col solo nome o col solo cognome, mentre il
- * profilo ha nome e cognome: basta una parola in comune per riconoscersi.
- */
-function eIlMio(persona: string): boolean {
+function dipendentePerId(id: string | null): DipendenteTurni | null {
+  if (!id) return null;
+  return dipendenti.find(dipendente => dipendente.id === id) ?? null;
+}
+
+function eIlMio(persona: string, profiloId: string | null = null): boolean {
+  const mioId = idUtente();
+  if (mioId && profiloId) return mioId === profiloId;
+
   const io = nomeUtente().trim().toLowerCase();
   const chi = persona.trim().toLowerCase();
   if (!io || !chi) return false;
-
   if (io === chi) return true;
 
-  const mie = io.split(/\s+/).filter(Boolean);
-  const sue = chi.split(/\s+/).filter(Boolean);
-
-  return sue.some(p => mie.includes(p));
+  const mieParole = io.split(/\s+/).filter(Boolean);
+  const sueParole = chi.split(/\s+/).filter(Boolean);
+  return sueParole.some(parola => mieParole.includes(parola));
 }
 
 function mostraAvviso(testo: string): void {
   if (!avviso) return;
-
   avviso.textContent = testo;
   avviso.classList.toggle('is-hidden', !testo);
 }
 
-function chipHtml(t: TurnoLavoro, puoGestire: boolean): string {
-  const mio = eIlMio(t.persona);
+function gestioneAttiva(): boolean {
+  return modalitaGestione && puoGestireTurni();
+}
 
-  const rimuovi = puoGestire
-    ? `<button type="button" class="turni-chip-x" data-action="rimuovi" data-id="${escapeHtml(t.id)}"
-         aria-label="Togli ${escapeHtml(t.persona)}">
+function chipHtml(turno: TurnoLavoro, puoModificare: boolean): string {
+  const mio = eIlMio(turno.persona, turno.profiloId);
+  const rimuovi = puoModificare
+    ? `<button type="button" class="turni-chip-x" data-action="rimuovi" data-id="${escapeHtml(turno.id)}"
+         aria-label="Togli ${escapeHtml(turno.persona)}">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
        </button>`
     : '';
-
-  const nota = t.nota ? `<span class="turni-chip-nota">${escapeHtml(t.nota)}</span>` : '';
+  const nota = turno.nota
+    ? `<span class="turni-chip-nota">${escapeHtml(turno.nota)}</span>`
+    : '';
 
   return `
-    <span class="turni-chip${mio ? ' is-mio' : ''}${puoGestire ? ' con-comando' : ''}">
-      <span class="turni-chip-nome">${escapeHtml(t.persona)}</span>
+    <span class="turni-chip${mio ? ' is-mio' : ''}${puoModificare ? ' con-comando' : ''}">
+      <span class="turni-chip-nome">${escapeHtml(turno.persona)}</span>
       ${nota}
       ${rimuovi}
     </span>
   `;
 }
 
-function formHtml(): string {
-  return `
-    <div class="turni-form">
-      <input type="text" class="turni-campo" data-campo="persona" list="turni-nomi"
-             placeholder="Nome" autocomplete="off" aria-label="Chi lavora" />
-      <input type="text" class="turni-campo" data-campo="nota"
-             placeholder="Nota" autocomplete="off" aria-label="Nota sul turno" />
-      <div class="turni-form-azioni">
-        <button type="button" class="turni-btn-primario" data-action="conferma">Assegna</button>
-        <button type="button" class="turni-btn" data-action="chiudi">Chiudi</button>
-      </div>
-    </div>
-  `;
+function pickerDipendentiHtml(
+  azione: 'scegli-persona' | 'scegli-persona-ferie',
+  selezionatoId: string | null,
+  giaAssegnati: Set<string>,
+  etichetta: string
+): string {
+  if (dipendentiInCaricamento) {
+    return '<span class="turni-nessuno">Caricamento dipendenti…</span>';
+  }
+
+  if (dipendenti.length === 0) {
+    return '<span class="turni-nessuno">Nessun dipendente registrato disponibile.</span>';
+  }
+
+  const pulsanti = dipendenti.map(dipendente => {
+    const selezionato = dipendente.id === selezionatoId;
+    const giaPresente = giaAssegnati.has(dipendente.id);
+
+    return `
+      <button type="button"
+              class="turni-dipendente${selezionato ? ' is-selected' : ''}"
+              data-action="${azione}" data-profilo-id="${escapeHtml(dipendente.id)}"
+              aria-pressed="${selezionato}"${giaPresente ? ' disabled' : ''}>
+        ${escapeHtml(dipendente.nome)}
+      </button>
+    `;
+  }).join('');
+
+  return `<div class="turni-dipendenti" role="group" aria-label="${escapeHtml(etichetta)}">${pulsanti}</div>`;
 }
 
-/**
- * Una cella della griglia: la fascia di una giornata.
- *
- * La posizione la decide il CSS Grid e non l'ordine nel documento: così la
- * stessa marcatura, in colonna per giornata, da telefono si legge come un
- * elenco e da schermo largo come la tabella del foglio.
- */
+function formHtml(data: string, fascia: FasciaTurno): string {
+  const stato = cellaAperta?.data === data && cellaAperta.fascia === fascia
+    ? cellaAperta
+    : null;
+  const selezionato = dipendentePerId(stato?.profiloId ?? null);
+  const giaAssegnati = new Set(
+    assegnati(data, fascia)
+      .map(turno => turno.profiloId)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  const sceltaSquadra = stato?.chiediSquadra && selezionato
+    ? `
+      <div class="turni-scelta-stabile" role="group" aria-label="Come aggiungere ${escapeHtml(selezionato.nome)}">
+        <p>
+          <strong>${escapeHtml(selezionato.nome)}</strong> non ha ancora una squadra.
+          Se la aggiungi alla squadra seguirà tutto il gruppo quando mattina e pomeriggio
+          si alternano ogni settimana.
+        </p>
+        <div class="turni-form-azioni">
+          <button type="button" class="turni-btn" data-action="conferma-solo-giorno">
+            Solo questo giorno
+          </button>
+          <button type="button" class="turni-btn-primario" data-action="conferma-squadra">
+            Aggiungi alla squadra
+          </button>
+          <button type="button" class="turni-btn" data-action="annulla-scelta-squadra">Indietro</button>
+        </div>
+      </div>
+    `
+    : `
+      ${pickerDipendentiHtml('scegli-persona', stato?.profiloId ?? null, giaAssegnati, 'Scegli chi lavora')}
+      <input type="text" class="turni-campo" data-campo="nota"
+             value="${escapeHtml(stato?.nota ?? '')}" placeholder="Nota (facoltativa)"
+             autocomplete="off" aria-label="Nota sul turno" />
+      <div class="turni-form-azioni">
+        <button type="button" class="turni-btn-primario" data-action="conferma"
+                ${selezionato ? '' : 'disabled'}>Assegna</button>
+        <button type="button" class="turni-btn" data-action="chiudi">Chiudi</button>
+      </div>
+    `;
+
+  return `<div class="turni-form">${sceltaSquadra}</div>`;
+}
+
 function cellaHtml(
   data: string,
   fascia: FasciaTurno,
   riga: number,
   colonna: number,
-  puoGestire: boolean
+  puoModificare: boolean
 ): string {
   const voci = assegnati(data, fascia);
   const aperta = cellaAperta?.data === data && cellaAperta.fascia === fascia;
@@ -197,9 +259,9 @@ function cellaHtml(
   if (aperta) classi.push('is-aperta');
   if (voci.length === 0 && !aperta) classi.push('is-vuota');
   if (oggi) classi.push('is-oggi');
-  if (voci.some(t => eIlMio(t.persona))) classi.push('ha-me');
+  if (voci.some(turno => eIlMio(turno.persona, turno.profiloId))) classi.push('ha-me');
 
-  const comando = puoGestire && !aperta
+  const comando = puoModificare && !aperta
     ? `<button type="button" class="turni-piu" data-action="apri"
          aria-label="Assegna ${NOMI_FASCIA[fascia]} di ${nomeGiorno(data)} ${comeData(data).getDate()}">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -212,44 +274,46 @@ function cellaHtml(
          style="grid-row:${riga};grid-column:${colonna}">
       <span class="turni-cella-etichetta">${NOMI_FASCIA[fascia]}</span>
       <div class="turni-persone">
-        ${voci.map(t => chipHtml(t, puoGestire)).join('')}
+        ${voci.map(turno => chipHtml(turno, puoModificare)).join('')}
         ${voci.length === 0 && !aperta ? '<span class="turni-nessuno">—</span>' : ''}
       </div>
       ${comando}
-      ${aperta ? formHtml() : ''}
+      ${aperta ? formHtml(data, fascia) : ''}
     </div>
   `;
 }
 
-/** Le ferie della settimana, una riga per persona con il periodo accorpato */
-function renderFerie(puoGestire: boolean): void {
+function renderFerie(puoModificare: boolean): void {
   if (!fasciaFerie) return;
 
-  const voci = turni.filter(t => t.fascia === 'ferie');
-
-  const perPersona = new Map<string, TurnoLavoro[]>();
-  voci.forEach(v => {
-    const elenco = perPersona.get(v.persona) || [];
-    elenco.push(v);
-    perPersona.set(v.persona, elenco);
+  const gruppi = new Map<string, { persona: string; profiloId: string | null; voci: TurnoLavoro[] }>();
+  turni.filter(turno => turno.fascia === 'ferie').forEach(turno => {
+    const chiave = turno.profiloId || `nome:${turno.persona.toLocaleLowerCase('it')}`;
+    const gruppo = gruppi.get(chiave) ?? {
+      persona: turno.persona,
+      profiloId: turno.profiloId,
+      voci: []
+    };
+    gruppo.voci.push(turno);
+    gruppi.set(chiave, gruppo);
   });
 
-  const moduloFerie = puoGestire && ferieAperte
+  const moduloFerie = puoModificare && ferieAperte
     ? `<div class="turni-form turni-form-ferie">
-         <input type="text" class="turni-campo" data-campo="persona" list="turni-nomi"
-                placeholder="Nome" autocomplete="off" aria-label="Chi è in ferie" />
-         <input type="date" class="turni-campo" data-campo="dal" value="${settimana}"
+         ${pickerDipendentiHtml('scegli-persona-ferie', profiloFerieId, new Set<string>(), 'Scegli chi è in ferie')}
+         <input type="date" class="turni-campo" data-campo="dal" value="${ferieDal}"
                 aria-label="Dal giorno" />
-         <input type="date" class="turni-campo" data-campo="al" value="${spostaGiorni(settimana, 6)}"
+         <input type="date" class="turni-campo" data-campo="al" value="${ferieAl}"
                 aria-label="Al giorno" />
          <div class="turni-form-azioni">
-           <button type="button" class="turni-btn-primario" data-action="conferma-ferie">Segna ferie</button>
+           <button type="button" class="turni-btn-primario" data-action="conferma-ferie"
+                   ${profiloFerieId ? '' : 'disabled'}>Segna ferie</button>
            <button type="button" class="turni-btn" data-action="chiudi-ferie">Chiudi</button>
          </div>
        </div>`
     : '';
 
-  if (perPersona.size === 0 && !moduloFerie) {
+  if (gruppi.size === 0 && !moduloFerie) {
     fasciaFerie.classList.add('is-hidden');
     fasciaFerie.innerHTML = '';
     return;
@@ -257,26 +321,26 @@ function renderFerie(puoGestire: boolean): void {
 
   fasciaFerie.classList.remove('is-hidden');
 
-  const righe = Array.from(perPersona.entries()).map(([persona, elenco]) => {
-    const ordinate = elenco.map(e => e.data).sort();
+  const righe = Array.from(gruppi.values()).map(gruppo => {
+    const ordinate = gruppo.voci.map(voce => voce.data).sort();
     const dal = comeData(ordinate[0]);
     const al = comeData(ordinate[ordinate.length - 1]);
-
     const periodo = dal.getMonth() === al.getMonth()
-      ? `${dal.getDate()}–${al.getDate()} ${mese(al)}`
-      : `${dal.getDate()} ${mese(dal)} – ${al.getDate()} ${mese(al)}`;
-
-    const togli = puoGestire
+      ? `${dal.getDate()}–${al.getDate()} ${nomeMese(al)}`
+      : `${dal.getDate()} ${nomeMese(dal)} – ${al.getDate()} ${nomeMese(al)}`;
+    const togli = puoModificare
       ? `<button type="button" class="turni-chip-x" data-action="rimuovi-ferie"
-           data-persona="${escapeHtml(persona)}" aria-label="Togli le ferie di ${escapeHtml(persona)}">
+           data-profilo-id="${escapeHtml(gruppo.profiloId ?? '')}"
+           data-persona="${escapeHtml(gruppo.persona)}"
+           aria-label="Togli le ferie di ${escapeHtml(gruppo.persona)}">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
          </button>`
       : '';
 
     return `
-      <span class="turni-chip is-ferie${eIlMio(persona) ? ' is-mio' : ''}${puoGestire ? ' con-comando' : ''}">
-        <span class="turni-chip-nome">${escapeHtml(persona)}</span>
+      <span class="turni-chip is-ferie${eIlMio(gruppo.persona, gruppo.profiloId) ? ' is-mio' : ''}${puoModificare ? ' con-comando' : ''}">
+        <span class="turni-chip-nome">${escapeHtml(gruppo.persona)}</span>
         <span class="turni-chip-nota">${escapeHtml(periodo)}</span>
         ${togli}
       </span>
@@ -292,27 +356,28 @@ function renderFerie(puoGestire: boolean): void {
   `;
 }
 
-/** Chi c'è oggi: è la domanda che ci si fa più spesso */
 function renderOggi(): void {
   if (!riassuntoOggi) return;
 
   const oggi = getTodayDateString();
   const dentroLaSettimana = oggi >= settimana && oggi <= spostaGiorni(settimana, 6);
-
   riassuntoOggi.classList.toggle('is-hidden', !dentroLaSettimana);
+
   if (!dentroLaSettimana) {
     riassuntoOggi.innerHTML = '';
     return;
   }
 
   const parti = FASCE_GIORNATA
-    .filter(f => f !== 'festa')
+    .filter(fascia => fascia !== 'festa')
     .map(fascia => {
-      const nomi = assegnati(oggi, fascia).map(t => t.persona);
-      if (nomi.length === 0) return '';
+      const voci = assegnati(oggi, fascia);
+      if (voci.length === 0) return '';
 
-      const scritti = nomi
-        .map(n => (eIlMio(n) ? `<strong>${escapeHtml(n)}</strong>` : escapeHtml(n)))
+      const scritti = voci
+        .map(turno => (eIlMio(turno.persona, turno.profiloId)
+          ? `<strong>${escapeHtml(turno.persona)}</strong>`
+          : escapeHtml(turno.persona)))
         .join(', ');
 
       return `<span class="turni-oggi-voce"><span class="turni-oggi-fascia">${NOMI_FASCIA[fascia]}</span> ${scritti}</span>`;
@@ -327,270 +392,361 @@ function renderOggi(): void {
 function render(): void {
   if (!griglia) return;
 
-  const puoGestire = puoGestireTurni();
+  const autorizzato = puoGestireTurni();
+  if (!autorizzato) modalitaGestione = false;
+  const puoModificare = autorizzato && modalitaGestione;
 
   if (etichettaSettimana) etichettaSettimana.textContent = titoloSettimana();
   if (btnOggi) btnOggi.disabled = settimana === getInizioSettimanaString();
-  if (btnFerie) btnFerie.hidden = !puoGestire;
+  if (btnFerie) btnFerie.hidden = !puoModificare;
 
-  if (elencoNomi) {
-    elencoNomi.innerHTML = persone.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+  if (btnGestione) {
+    btnGestione.hidden = !autorizzato;
+    btnGestione.setAttribute('aria-pressed', String(puoModificare));
+    btnGestione.classList.toggle('is-active', puoModificare);
+    btnGestione.title = puoModificare ? 'Chiudi gestione turni' : 'Gestisci i turni';
+    btnGestione.setAttribute(
+      'aria-label',
+      puoModificare ? 'Chiudi i comandi di gestione turni' : 'Mostra i comandi di gestione turni'
+    );
   }
 
-  griglia.classList.toggle('is-admin', puoGestire);
+  griglia.classList.toggle('is-admin', puoModificare);
+  griglia.classList.toggle('is-gestione', puoModificare);
 
   const giorni = giornateSettimana();
   const oggi = getTodayDateString();
-
-  // Colonna delle etichette: si vede solo quando c'è spazio per la tabella
-  const etichette = FASCE_GIORNATA.map((fascia, i) => `
-    <span class="turni-fascia-testa" style="grid-row:${i + 2};grid-column:1">${NOMI_FASCIA[fascia]}</span>
+  const etichette = FASCE_GIORNATA.map((fascia, indice) => `
+    <span class="turni-fascia-testa" style="grid-row:${indice + 2};grid-column:1">${NOMI_FASCIA[fascia]}</span>
   `).join('');
 
-  // Una giornata dopo l'altra: è l'ordine con cui si legge da telefono
-  const colonne = giorni.map((data, g) => {
-    const d = comeData(data);
+  const colonne = giorni.map((data, indiceGiorno) => {
+    const giorno = comeData(data);
     const testa = `
       <div class="turni-giorno-testa${data === oggi ? ' is-oggi' : ''}"
-           style="grid-row:1;grid-column:${g + 2}">
+           style="grid-row:1;grid-column:${indiceGiorno + 2}">
         <span class="turni-giorno-sigla">${escapeHtml(siglaGiorno(data))}</span>
-        <span class="turni-giorno-numero">${d.getDate()}</span>
+        <span class="turni-giorno-numero">${giorno.getDate()}</span>
       </div>
     `;
-
     const celle = FASCE_GIORNATA
-      .map((fascia, f) => cellaHtml(data, fascia, f + 2, g + 2, puoGestire))
+      .map((fascia, indiceFascia) => cellaHtml(
+        data,
+        fascia,
+        indiceFascia + 2,
+        indiceGiorno + 2,
+        puoModificare
+      ))
       .join('');
 
     return testa + celle;
   }).join('');
 
   griglia.innerHTML = etichette + colonne;
-
-  renderFerie(puoGestire);
+  renderFerie(puoModificare);
   renderOggi();
 
-  // Il nome si scrive appena la cella si apre, senza doverci tornare sopra
-  const daMettereAFuoco = cellaAperta
-    ? griglia.querySelector<HTMLInputElement>(
-        `.turni-cella[data-data="${cellaAperta.data}"][data-fascia="${cellaAperta.fascia}"] [data-campo="persona"]`
-      )
-    : ferieAperte
-      ? fasciaFerie?.querySelector<HTMLInputElement>('[data-campo="persona"]') ?? null
-      : null;
+  if (cellaAperta) {
+    const cella = griglia.querySelector<HTMLElement>(
+      `.turni-cella[data-data="${cellaAperta.data}"][data-fascia="${cellaAperta.fascia}"]`
+    );
+    const daMettereAFuoco = cellaAperta.chiediSquadra
+      ? cella?.querySelector<HTMLButtonElement>('[data-action="conferma-solo-giorno"]')
+      : cellaAperta.profiloId
+        ? cella?.querySelector<HTMLInputElement>('[data-campo="nota"]')
+        : cella?.querySelector<HTMLButtonElement>('[data-action="scegli-persona"]:not(:disabled)');
+    daMettereAFuoco?.focus();
+  } else if (ferieAperte && fasciaFerie) {
+    const daMettereAFuoco = profiloFerieId
+      ? fasciaFerie.querySelector<HTMLInputElement>('[data-campo="dal"]')
+      : fasciaFerie.querySelector<HTMLButtonElement>('[data-action="scegli-persona-ferie"]');
+    daMettereAFuoco?.focus();
+  }
+}
 
-  daMettereAFuoco?.focus();
+async function caricaDipendenti(): Promise<void> {
+  dipendentiInCaricamento = true;
+  render();
+  dipendenti = await elencaDipendentiTurni();
+  dipendentiInCaricamento = false;
+  render();
 }
 
 async function cambiaSettimana(inizio: string): Promise<void> {
   settimana = inizio;
   cellaAperta = null;
   ferieAperte = false;
+  profiloFerieId = null;
+  ferieDal = settimana;
+  ferieAl = spostaGiorni(settimana, 6);
   mostraAvviso('');
-
   await caricaTurni();
 }
 
-function ricorda(voci: TurnoLavoro[]): void {
-  const ids = new Set(voci.map(v => v.id));
-  turni = inOrdine([...turni.filter(t => !ids.has(t.id)), ...voci]);
-
-  voci.forEach(v => {
-    if (!persone.some(n => n.localeCompare(v.persona, 'it', { sensitivity: 'base' }) === 0)) {
-      persone.unshift(v.persona);
-    }
-  });
+function sincronizzaNota(cella: HTMLElement): void {
+  if (!cellaAperta) return;
+  const campoNota = cella.querySelector<HTMLInputElement>('[data-campo="nota"]');
+  if (campoNota) cellaAperta.nota = campoNota.value.trim();
 }
 
-/** Legge i campi della cella aperta e assegna la fascia */
-async function confermaAssegnazione(cella: HTMLElement): Promise<void> {
-  const data = cella.getAttribute('data-data') || '';
-  const fascia = (cella.getAttribute('data-fascia') as FasciaTurno) || 'mattina';
+async function salvaAssegnazione(cella: HTMLElement, rendiStabile: boolean): Promise<void> {
+  if (!gestioneAttiva() || !cellaAperta) return;
 
-  const campoPersona = cella.querySelector('[data-campo="persona"]') as HTMLInputElement | null;
-  const campoNota = cella.querySelector('[data-campo="nota"]') as HTMLInputElement | null;
-
-  const persona = campoPersona?.value?.trim() || '';
-  const nota = campoNota?.value?.trim() || '';
-
-  if (!persona) {
-    mostraAvviso('Scrivi chi lavora in questa fascia.');
-    campoPersona?.focus();
+  sincronizzaNota(cella);
+  const dipendente = dipendentePerId(cellaAperta.profiloId);
+  if (!dipendente) {
+    mostraAvviso('Scegli una persona dall’elenco dei dipendenti registrati.');
     return;
   }
 
+  const { data, fascia, nota } = cellaAperta;
   mostraAvviso('');
+  const esito = await impostaTurnoDipendente(
+    data,
+    fascia,
+    dipendente,
+    nota,
+    rendiStabile,
+    nomeUtente()
+  );
 
-  const esito = await assegnaTurno(data, data, fascia, persona, nota, nomeUtente());
-  ricorda(esito.voci);
+  cellaAperta = {
+    data,
+    fascia,
+    profiloId: null,
+    nota: '',
+    chiediSquadra: false
+  };
+
+  if (rendiStabile) {
+    dipendenti = await elencaDipendentiTurni();
+  }
+
+  await caricaTurni();
 
   if (!esito.suCloud) {
     mostraAvviso(
       'Turno salvato solo su questo dispositivo: i colleghi non lo vedono finché non torna la connessione.'
     );
   }
-
-  // La cella resta aperta: in una fascia può esserci più di una persona
-  render();
 }
 
-async function confermaFerie(): Promise<void> {
-  const campoPersona = fasciaFerie?.querySelector('[data-campo="persona"]') as HTMLInputElement | null;
-  const campoDal = fasciaFerie?.querySelector('[data-campo="dal"]') as HTMLInputElement | null;
-  const campoAl = fasciaFerie?.querySelector('[data-campo="al"]') as HTMLInputElement | null;
+async function confermaAssegnazione(cella: HTMLElement): Promise<void> {
+  if (!gestioneAttiva() || !cellaAperta) return;
 
-  const persona = campoPersona?.value?.trim() || '';
-  const dal = campoDal?.value || settimana;
-  const al = campoAl?.value || dal;
-
-  if (!persona) {
-    mostraAvviso('Scrivi chi va in ferie.');
-    campoPersona?.focus();
+  sincronizzaNota(cella);
+  const dipendente = dipendentePerId(cellaAperta.profiloId);
+  if (!dipendente) {
+    mostraAvviso('Scegli una persona dall’elenco dei dipendenti registrati.');
     return;
   }
 
-  if (al < dal) {
+  const fasciaConSquadra = cellaAperta.fascia === 'mattina' || cellaAperta.fascia === 'pomeriggio';
+  if (fasciaConSquadra && dipendente.squadra === null) {
+    cellaAperta.chiediSquadra = true;
+    mostraAvviso('');
+    render();
+    return;
+  }
+
+  await salvaAssegnazione(cella, false);
+}
+
+async function confermaFerie(): Promise<void> {
+  if (!gestioneAttiva()) return;
+
+  const dipendente = dipendentePerId(profiloFerieId);
+  if (!dipendente) {
+    mostraAvviso('Scegli chi va in ferie dall’elenco dei dipendenti registrati.');
+    return;
+  }
+
+  if (ferieAl < ferieDal) {
     mostraAvviso('Il giorno di fine ferie viene prima di quello di inizio.');
     return;
   }
 
   mostraAvviso('');
+  const esito = await impostaPeriodoDipendente(
+    ferieDal,
+    ferieAl,
+    'ferie',
+    dipendente,
+    '',
+    nomeUtente()
+  );
 
-  const esito = await assegnaTurno(dal, al, 'ferie', persona, '', nomeUtente());
-  ricorda(esito.voci);
+  ferieAperte = false;
+  profiloFerieId = null;
+  await caricaTurni();
 
   if (!esito.suCloud) {
     mostraAvviso(
       'Ferie salvate solo su questo dispositivo: i colleghi non le vedono finché non torna la connessione.'
     );
   }
-
-  ferieAperte = false;
-
-  // Le ferie possono uscire dalla settimana aperta: si rilegge quello che c'è
-  await caricaTurni();
 }
 
 async function togliAssegnazione(id: string): Promise<void> {
-  const suCloud = await rimuoviTurno(id);
+  if (!gestioneAttiva()) return;
 
-  turni = turni.filter(t => t.id !== id);
+  const suCloud = await annullaTurno(id);
+  await caricaTurni();
   mostraAvviso(suCloud ? '' : 'Turno tolto solo su questo dispositivo: i colleghi lo vedono ancora.');
-
-  render();
 }
 
-/** Le ferie si tolgono per persona: sono più giorni di fila, non una riga sola */
-async function togliFerie(persona: string): Promise<void> {
-  const suoi = turni.filter(t => t.fascia === 'ferie' && t.persona === persona);
+async function togliFerie(profiloId: string, persona: string): Promise<void> {
+  if (!gestioneAttiva()) return;
+
+  const sue = turni.filter(turno => {
+    if (turno.fascia !== 'ferie') return false;
+    return profiloId ? turno.profiloId === profiloId : turno.persona === persona;
+  });
 
   let tutteSuCloud = true;
-  for (const voce of suoi) {
-    const suCloud = await rimuoviTurno(voce.id);
+  for (const voce of sue) {
+    const suCloud = await annullaTurno(voce.id);
     if (!suCloud) tutteSuCloud = false;
   }
 
-  turni = turni.filter(t => !suoi.some(s => s.id === t.id));
+  await caricaTurni();
   mostraAvviso(tutteSuCloud ? '' : 'Ferie tolte solo su questo dispositivo.');
-
-  render();
 }
 
-/**
- * Ricarica la settimana mostrata. Si chiama a ogni apertura della scheda: i
- * turni li scrive qualcun altro, e una copia vecchia in memoria non serve.
- */
+/** Ricarica la settimana mostrata senza cambiare la modalità scelta. */
 export async function caricaTurni(): Promise<void> {
   if (!griglia) return;
-
+  if (puoGestireTurni()) await preparaTurniAutomatici();
   turni = await elencaTurni(settimana, spostaGiorni(settimana, 6));
-
-  // I nomi già usati servono solo a chi assegna
-  if (puoGestireTurni() && persone.length === 0) {
-    persone = await personeConosciute();
-  }
-
   render();
 }
 
 export function initTurni(): void {
   if (!griglia) return;
 
+  ferieAl = spostaGiorni(settimana, 6);
+
   btnIndietro?.addEventListener('click', () => cambiaSettimana(spostaGiorni(settimana, -7)));
   btnAvanti?.addEventListener('click', () => cambiaSettimana(spostaGiorni(settimana, 7)));
   btnOggi?.addEventListener('click', () => cambiaSettimana(getInizioSettimanaString()));
 
+  btnGestione?.addEventListener('click', async () => {
+    if (!puoGestireTurni()) return;
+
+    modalitaGestione = !modalitaGestione;
+    cellaAperta = null;
+    ferieAperte = false;
+    profiloFerieId = null;
+    mostraAvviso('');
+    render();
+
+    if (modalitaGestione) await caricaDipendenti();
+  });
+
   btnFerie?.addEventListener('click', () => {
+    if (!gestioneAttiva()) return;
+
     ferieAperte = !ferieAperte;
     cellaAperta = null;
+    profiloFerieId = null;
+    ferieDal = settimana;
+    ferieAl = spostaGiorni(settimana, 6);
     mostraAvviso('');
     render();
   });
 
-  // Un solo gestore sul contenitore: le giornate si ridisegnano a ogni modifica
-  griglia.addEventListener('click', e => {
-    const pulsante = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+  griglia.addEventListener('click', evento => {
+    const pulsante = (evento.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!pulsante) return;
 
-    const cella = pulsante.closest('.turni-cella') as HTMLElement | null;
+    const cella = pulsante.closest<HTMLElement>('.turni-cella');
     if (!cella) return;
 
     const azione = pulsante.getAttribute('data-action');
 
-    if (azione === 'apri') {
+    if (azione === 'apri' && gestioneAttiva()) {
       cellaAperta = {
         data: cella.getAttribute('data-data') || '',
-        fascia: (cella.getAttribute('data-fascia') as FasciaTurno) || 'mattina'
+        fascia: (cella.getAttribute('data-fascia') as FasciaTurno) || 'mattina',
+        profiloId: null,
+        nota: '',
+        chiediSquadra: false
       };
       ferieAperte = false;
       mostraAvviso('');
+      render();
+    } else if (azione === 'scegli-persona' && cellaAperta && gestioneAttiva()) {
+      cellaAperta.profiloId = pulsante.getAttribute('data-profilo-id');
+      cellaAperta.chiediSquadra = false;
       render();
     } else if (azione === 'chiudi') {
       cellaAperta = null;
       render();
     } else if (azione === 'conferma') {
-      confermaAssegnazione(cella);
+      void confermaAssegnazione(cella);
+    } else if (azione === 'conferma-solo-giorno') {
+      void salvaAssegnazione(cella, false);
+    } else if (azione === 'conferma-squadra') {
+      void salvaAssegnazione(cella, true);
+    } else if (azione === 'annulla-scelta-squadra' && cellaAperta) {
+      cellaAperta.chiediSquadra = false;
+      render();
     } else if (azione === 'rimuovi') {
       const id = pulsante.getAttribute('data-id');
-      if (id) togliAssegnazione(id);
+      if (id) void togliAssegnazione(id);
     }
   });
 
-  griglia.addEventListener('keydown', e => {
-    const campo = (e.target as HTMLElement).closest('[data-campo]');
-    const cella = campo?.closest('.turni-cella') as HTMLElement | null;
+  griglia.addEventListener('input', evento => {
+    const campo = (evento.target as HTMLElement).closest<HTMLInputElement>('[data-campo="nota"]');
+    if (campo && cellaAperta) cellaAperta.nota = campo.value;
+  });
+
+  griglia.addEventListener('keydown', evento => {
+    const cella = (evento.target as HTMLElement).closest<HTMLElement>('.turni-cella');
     if (!cella) return;
 
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      confermaAssegnazione(cella);
-    } else if (e.key === 'Escape') {
+    if (evento.key === 'Enter' && (evento.target as HTMLElement).matches('[data-campo="nota"]')) {
+      evento.preventDefault();
+      void confermaAssegnazione(cella);
+    } else if (evento.key === 'Escape') {
       cellaAperta = null;
       render();
     }
   });
 
-  fasciaFerie?.addEventListener('click', e => {
-    const pulsante = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+  fasciaFerie?.addEventListener('click', evento => {
+    const pulsante = (evento.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!pulsante) return;
 
     const azione = pulsante.getAttribute('data-action');
-
-    if (azione === 'conferma-ferie') {
-      confermaFerie();
+    if (azione === 'scegli-persona-ferie' && gestioneAttiva()) {
+      profiloFerieId = pulsante.getAttribute('data-profilo-id');
+      render();
+    } else if (azione === 'conferma-ferie') {
+      void confermaFerie();
     } else if (azione === 'chiudi-ferie') {
       ferieAperte = false;
+      profiloFerieId = null;
       render();
     } else if (azione === 'rimuovi-ferie') {
-      const persona = pulsante.getAttribute('data-persona');
-      if (persona) togliFerie(persona);
+      const profiloId = pulsante.getAttribute('data-profilo-id') || '';
+      const persona = pulsante.getAttribute('data-persona') || '';
+      void togliFerie(profiloId, persona);
     }
   });
 
-  fasciaFerie?.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.target as HTMLElement).closest('[data-campo]')) {
-      e.preventDefault();
-      confermaFerie();
+  fasciaFerie?.addEventListener('input', evento => {
+    const campo = (evento.target as HTMLElement).closest<HTMLInputElement>('[data-campo]');
+    if (!campo) return;
+    if (campo.getAttribute('data-campo') === 'dal') ferieDal = campo.value;
+    if (campo.getAttribute('data-campo') === 'al') ferieAl = campo.value;
+  });
+
+  fasciaFerie?.addEventListener('keydown', evento => {
+    if (evento.key === 'Enter' && (evento.target as HTMLElement).closest('[data-campo]')) {
+      evento.preventDefault();
+      void confermaFerie();
     }
   });
 

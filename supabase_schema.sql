@@ -531,17 +531,48 @@ BEGIN
 
     -- Per le settimanali il responsabile è il turno: si conserva anche la
     -- fotografia dei nomi presenti in quella fascia durante la settimana.
-    WITH turnisti AS (
-        SELECT turno,
+    WITH conteggi AS (
+        SELECT COALESCE(
+                   t.profilo_id::TEXT,
+                   LOWER(BTRIM(t.persona))
+               ) AS persona_chiave,
+               COALESCE(NULLIF(BTRIM(MIN(p.nome)), ''), MIN(BTRIM(t.persona))) AS persona,
+               COUNT(*) FILTER (WHERE t.turno = 'mattina') AS mattine,
+               COUNT(*) FILTER (WHERE t.turno = 'pomeriggio') AS pomeriggi
+          FROM public.turni_lavoro t
+          LEFT JOIN public.profili p ON p.id = t.profilo_id
+         WHERE t.data BETWEEN p_settimana AND v_fine_settimana
+           AND t.turno IN ('mattina', 'pomeriggio')
+           AND NOT COALESCE(t.annullato, false)
+           AND BTRIM(t.persona) <> ''
+         GROUP BY COALESCE(t.profilo_id::TEXT, LOWER(BTRIM(t.persona)))
+    ), turnisti AS (
+        -- Una copertura o un cambio di un solo giorno non deve assegnare le
+        -- pulizie di entrambe le fasce alla stessa persona. Ogni dipendente
+        -- appartiene alla fascia in cui compare piu' volte nella settimana;
+        -- in parita' decide il turno del lunedi', poi la mattina come fallback
+        -- stabile per i dati storici incompleti.
+        SELECT fascia AS turno,
                TO_JSONB(ARRAY_AGG(persona ORDER BY persona)) AS nomi
           FROM (
-              SELECT DISTINCT turno, persona
-                FROM public.turni_lavoro
-               WHERE data BETWEEN p_settimana AND v_fine_settimana
-                 AND turno IN ('mattina', 'pomeriggio')
-                 AND TRIM(persona) <> ''
-          ) persone
-         GROUP BY turno
+              SELECT c.persona,
+                     CASE
+                         WHEN c.mattine > c.pomeriggi THEN 'mattina'
+                         WHEN c.pomeriggi > c.mattine THEN 'pomeriggio'
+                         ELSE COALESCE((
+                             SELECT t.turno
+                               FROM public.turni_lavoro t
+                              WHERE t.data = p_settimana
+                                AND t.turno IN ('mattina', 'pomeriggio')
+                                AND NOT COALESCE(t.annullato, false)
+                                AND COALESCE(t.profilo_id::TEXT, LOWER(BTRIM(t.persona))) = c.persona_chiave
+                              ORDER BY CASE t.turno WHEN 'mattina' THEN 1 ELSE 2 END
+                              LIMIT 1
+                         ), 'mattina')
+                     END AS fascia
+                FROM conteggi c
+          ) prevalenti
+         GROUP BY fascia
     ), voci(tipo, voce, ordine, turno) AS (
         VALUES
             ('settimanale', 'Mensole', 1, 'mattina'),
@@ -569,8 +600,11 @@ BEGIN
       LEFT JOIN turnisti t ON t.turno = v.turno
     ON CONFLICT (tipo, voce, periodo_inizio) DO UPDATE
        SET responsabili = EXCLUDED.responsabili
-     WHERE public.pulizie_registro.completata_il IS NULL
-       AND public.pulizie_registro.non_fatta_il IS NULL;
+     -- Il periodo corrente segue i turni anche dopo una X: la X conserva chi
+     -- l'ha messa, mentre i responsabili restano corretti se il turno cambia.
+     -- Lo storico scaduto, invece, resta la fotografia congelata del periodo.
+     WHERE public.pulizie_registro.non_fatta_il IS NULL
+       AND public.pulizie_registro.periodo_fine >= v_oggi_italiano;
     END IF;
 
     IF p_mese BETWEEN (
@@ -1245,6 +1279,20 @@ CREATE TABLE IF NOT EXISTS public.turni_lavoro (
     UNIQUE (data, turno, persona)
 );
 
+-- Metadati del calendario ricorrente. Sono dichiarati qui, prima delle
+-- funzioni degli ammanchi che devono ignorare le righe annullate; la sezione 19
+-- completa poi vincoli, indici, backfill e RPC.
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS profilo_id UUID REFERENCES public.profili(id) ON DELETE SET NULL;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS origine TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato_il TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato_da UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
 -- Il vincolo si rifà ogni volta: le fasce sono cambiate dopo la prima versione
 -- e una tabella già creata resterebbe ferma a quelle vecchie.
 ALTER TABLE public.turni_lavoro DROP CONSTRAINT IF EXISTS turni_lavoro_turno_check;
@@ -1525,9 +1573,10 @@ BEGIN
       FROM (
           SELECT lower(trim(persona))
           FROM public.turni_lavoro
-          WHERE data = p_data
-            AND turno = p_turno
-            AND trim(persona) <> ''
+         WHERE data = p_data
+           AND turno = p_turno
+           AND NOT COALESCE(annullato, false)
+           AND trim(persona) <> ''
           GROUP BY lower(trim(persona))
       ) persone;
 
@@ -1585,6 +1634,7 @@ BEGIN
         FROM public.turni_lavoro
         WHERE data = p_data
           AND turno = p_turno
+          AND NOT COALESCE(annullato, false)
           AND trim(persona) <> ''
         GROUP BY lower(trim(persona))
     ) persone
@@ -1671,7 +1721,7 @@ REVOKE ALL ON FUNCTION private.aggiorna_debiti_da_turni() FROM PUBLIC;
 
 DROP TRIGGER IF EXISTS trg_aggiorna_debiti_da_turni ON public.turni_lavoro;
 CREATE TRIGGER trg_aggiorna_debiti_da_turni
-    AFTER INSERT OR UPDATE OR DELETE
+    AFTER INSERT OR DELETE OR UPDATE OF data, turno, persona, annullato
     ON public.turni_lavoro
     FOR EACH ROW
     EXECUTE FUNCTION private.aggiorna_debiti_da_turni();
@@ -1690,7 +1740,6 @@ BEGIN
     END LOOP;
 END;
 $$;
-
 
 -- =========================================================================
 -- 18. ACCESSO CONDIVISO E SCRITTURE FIRMATE DELLE PULIZIE
@@ -1790,3 +1839,753 @@ GRANT EXECUTE ON FUNCTION public.imposta_pulizia_completata(UUID, BOOLEAN) TO au
 -- Privilegi Data API espliciti; le policy RLS continuano a decidere chi può
 -- scrivere, quindi questo grant non allarga il permesso oltre admin/Marianna.
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.turni_lavoro TO authenticated;
+
+
+-- =========================================================================
+-- 19. TURNI RICORRENTI, DIPENDENTI REGISTRATI E CAMBI FIRMATI
+--
+-- Dal 24 agosto 2026 il calendario nasce da due squadre che scambiano mattina
+-- e pomeriggio ogni lunedi'. Il calendario resta materializzato nella tabella
+-- storica turni_lavoro: il modello genera soltanto righe nuove e non cancella
+-- ne' sovrascrive mai un cambio manuale. Le righe annullate restano auditabili
+-- ma non sono visibili dall'app e impediscono al generatore di ricrearle.
+-- =========================================================================
+
+-- Metadati aggiunti in modo non distruttivo: le righe gia' presenti conservano
+-- data, fascia, persona, nota e firma originali.
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS profilo_id UUID REFERENCES public.profili(id) ON DELETE SET NULL;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS origine TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato_il TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.turni_lavoro
+    ADD COLUMN IF NOT EXISTS annullato_da UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+ALTER TABLE public.turni_lavoro
+    DROP CONSTRAINT IF EXISTS turni_lavoro_origine_check;
+ALTER TABLE public.turni_lavoro
+    ADD CONSTRAINT turni_lavoro_origine_check
+    CHECK (origine IN ('legacy', 'automatico', 'manuale'));
+
+ALTER TABLE public.turni_lavoro
+    DROP CONSTRAINT IF EXISTS turni_lavoro_annullamento_coerente;
+ALTER TABLE public.turni_lavoro
+    ADD CONSTRAINT turni_lavoro_annullamento_coerente CHECK (
+        (NOT annullato AND annullato_il IS NULL AND annullato_da IS NULL)
+        OR (annullato AND annullato_il IS NOT NULL)
+    );
+
+-- Il vecchio vincolo includeva il nome e impediva di conservare una riga
+-- annullata accanto alla sua sostituzione. Ora l'identita' e' il profilo e
+-- l'unicita' vale soltanto fra le posizioni attive.
+ALTER TABLE public.turni_lavoro
+    DROP CONSTRAINT IF EXISTS turni_lavoro_data_turno_persona_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_turni_lavoro_profilo_giorno_attivo
+    ON public.turni_lavoro(data, profilo_id)
+    WHERE profilo_id IS NOT NULL AND NOT annullato;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_turni_lavoro_legacy_attivo
+    ON public.turni_lavoro(data, turno, LOWER(BTRIM(persona)))
+    WHERE profilo_id IS NULL AND NOT annullato;
+
+CREATE INDEX IF NOT EXISTS idx_turni_lavoro_profilo_data
+    ON public.turni_lavoro(profilo_id, data)
+    WHERE NOT annullato;
+CREATE INDEX IF NOT EXISTS idx_turni_lavoro_data_attivi
+    ON public.turni_lavoro(data, turno)
+    WHERE NOT annullato;
+
+-- Collega gli alias del vecchio foglio ai profili senza cambiare il testo
+-- storico mostrato nelle righe gia' esistenti.
+UPDATE public.turni_lavoro
+   SET profilo_id = CASE
+       WHEN LOWER(BTRIM(persona)) IN ('anita', 'anita schettino')
+           THEN '0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID
+       WHEN LOWER(BTRIM(persona)) IN ('cinzia', 'cinzia salemi')
+           THEN 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID
+       WHEN LOWER(BTRIM(persona)) IN ('imparato', 'francy', 'francesca imparato')
+           THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID
+       WHEN LOWER(BTRIM(persona)) IN ('mery', 'marianna palermo')
+           THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID
+       WHEN LOWER(BTRIM(persona)) IN ('rosy', 'maria rosaria', 'mariarosaria chierchia')
+           THEN '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID
+       ELSE profilo_id
+   END
+ WHERE profilo_id IS NULL
+   AND LOWER(BTRIM(persona)) IN (
+       'anita', 'anita schettino',
+       'cinzia', 'cinzia salemi',
+       'imparato', 'francy', 'francesca imparato',
+       'mery', 'marianna palermo',
+       'rosy', 'maria rosaria', 'mariarosaria chierchia'
+   );
+
+-- Una nuova validita' non modifica la precedente: chi era in squadra in un
+-- certo periodo resta ricostruibile. Il profilo e' l'unita' stabile.
+CREATE TABLE IF NOT EXISTS public.turni_squadre (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profilo_id UUID NOT NULL REFERENCES public.profili(id) ON DELETE RESTRICT,
+    squadra SMALLINT NOT NULL CHECK (squadra IN (1, 2)),
+    ordine_squadra SMALLINT NOT NULL CHECK (ordine_squadra > 0),
+    valida_dal DATE NOT NULL,
+    valida_al DATE,
+    creata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    creata_da UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    CHECK (valida_al IS NULL OR valida_al >= valida_dal),
+    UNIQUE (profilo_id, valida_dal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_turni_squadre_validita
+    ON public.turni_squadre(profilo_id, valida_dal DESC, valida_al);
+
+-- Una riga per mese preparato. Serve sia per idempotenza sia per sapere se il
+-- job del 15 ha davvero completato il lavoro.
+CREATE TABLE IF NOT EXISTS public.turni_generazioni (
+    mese DATE PRIMARY KEY CHECK (EXTRACT(DAY FROM mese) = 1),
+    generata_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    generata_da UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    giorni_dal DATE NOT NULL,
+    giorni_al DATE NOT NULL,
+    righe_generate INTEGER NOT NULL DEFAULT 0 CHECK (righe_generate >= 0),
+    CHECK (giorni_al >= giorni_dal)
+);
+
+-- Il seed e' idempotente. Se il file viene riapplicato, una configurazione gia'
+-- resa stabile dall'utente non viene riportata ai valori iniziali.
+INSERT INTO public.turni_squadre (
+    profilo_id, squadra, ordine_squadra, valida_dal
+) VALUES
+    ('8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID, 1, 1, '2026-08-24'::DATE),
+    ('f5196428-c7b3-4900-af4d-28571064adbb'::UUID, 1, 2, '2026-08-24'::DATE),
+    ('bbdea927-f41d-4593-8fba-43067b9f300b'::UUID, 1, 3, '2026-08-24'::DATE),
+    ('0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID, 2, 1, '2026-08-24'::DATE),
+    ('9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID, 2, 2, '2026-08-24'::DATE)
+ON CONFLICT DO NOTHING;
+
+ALTER TABLE public.turni_squadre ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.turni_generazioni ENABLE ROW LEVEL SECURITY;
+
+-- Le tabelle di configurazione non sono un'API diretta. Tutte le letture e le
+-- scritture esterne passano dalle RPC sottostanti.
+REVOKE ALL ON public.turni_squadre FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.turni_generazioni FROM PUBLIC, anon, authenticated;
+
+-- Funzione interna: nessuna dipendenza dalla policy RLS del chiamante.
+CREATE OR REPLACE FUNCTION private.puo_gestire_turni(p_utente UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT p_utente IS NOT NULL AND EXISTS (
+        SELECT 1
+          FROM public.profili
+         WHERE id = p_utente
+           AND accesso
+           AND (admin OR gestione_turni)
+    );
+$$;
+
+REVOKE ALL ON FUNCTION private.puo_gestire_turni(UUID) FROM PUBLIC, anon, authenticated;
+
+-- Il roster valido in un giorno: al massimo una riga per profilo, scelta dalla
+-- validita' piu' recente che copre quel giorno.
+CREATE OR REPLACE FUNCTION private.roster_turni_al(p_data DATE)
+RETURNS TABLE (
+    profilo_id UUID,
+    nome TEXT,
+    squadra SMALLINT,
+    ordine_squadra SMALLINT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT DISTINCT ON (s.profilo_id)
+           s.profilo_id,
+           COALESCE(NULLIF(BTRIM(p.nome), ''), NULLIF(BTRIM(p.email), ''), 'Dipendente'),
+           s.squadra,
+           s.ordine_squadra
+      FROM public.turni_squadre s
+      JOIN public.profili p ON p.id = s.profilo_id
+     WHERE s.valida_dal <= p_data
+       AND (s.valida_al IS NULL OR s.valida_al >= p_data)
+       AND p.accesso
+     ORDER BY s.profilo_id, s.valida_dal DESC;
+$$;
+
+REVOKE ALL ON FUNCTION private.roster_turni_al(DATE) FROM PUBLIC, anon, authenticated;
+
+-- Inserisce una singola posizione automatica. Manuali e annullamenti espliciti
+-- prevalgono; un automatico invalidato tecnicamente puo' essere rigenerato.
+CREATE OR REPLACE FUNCTION private.inserisci_turno_automatico(
+    p_data DATE,
+    p_turno TEXT,
+    p_profilo_id UUID,
+    p_persona TEXT
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_righe INTEGER := 0;
+    v_id UUID;
+BEGIN
+    IF p_turno NOT IN ('mattina', 'pomeriggio', 'festa') THEN
+        RAISE EXCEPTION 'Fascia automatica non valida' USING ERRCODE = '22023';
+    END IF;
+
+    -- Un annullamento esplicito fatto da un gestore e una riga manuale sono
+    -- tombstone: il generatore li rispetta. Un automatico annullato senza autore
+    -- e' invece un'invalidazione tecnica e puo' essere riattivato in-place.
+    IF EXISTS (
+        SELECT 1
+          FROM public.turni_lavoro
+         WHERE data = p_data
+           AND profilo_id = p_profilo_id
+           AND (
+               NOT annullato
+               OR origine = 'manuale'
+               OR annullato_da IS NOT NULL
+           )
+    ) THEN
+        RETURN 0;
+    END IF;
+
+    SELECT id
+      INTO v_id
+      FROM public.turni_lavoro
+     WHERE data = p_data
+       AND profilo_id = p_profilo_id
+       AND origine = 'automatico'
+       AND annullato
+       AND annullato_da IS NULL
+     ORDER BY aggiornato_il DESC, creato_il DESC
+     LIMIT 1;
+
+    IF v_id IS NOT NULL THEN
+        UPDATE public.turni_lavoro
+           SET turno = p_turno,
+               persona = p_persona,
+               nota = '',
+               creato_da = 'Generazione automatica',
+               annullato = false,
+               annullato_il = NULL,
+               annullato_da = NULL,
+               aggiornato_il = CURRENT_TIMESTAMP
+         WHERE id = v_id;
+
+        RETURN 1;
+    END IF;
+
+    INSERT INTO public.turni_lavoro (
+        data, turno, profilo_id, persona, nota, creato_da,
+        origine, annullato, aggiornato_il
+    ) VALUES (
+        p_data, p_turno, p_profilo_id, p_persona, '', 'Generazione automatica',
+        'automatico', false, CURRENT_TIMESTAMP
+    );
+
+    GET DIAGNOSTICS v_righe = ROW_COUNT;
+    RETURN v_righe;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.inserisci_turno_automatico(DATE, TEXT, UUID, TEXT)
+    FROM PUBLIC, anon, authenticated;
+
+-- Motore del calendario. La settimana 24-30 agosto ha squadra 1 al pomeriggio
+-- e squadra 2 al mattino; ogni lunedi' le fasce si scambiano. Nei feriali si
+-- applica la festa fissa. Se manca una componente della squadra da due, una
+-- componente della squadra da tre copre la fascia opposta a rotazione: chi si
+-- sposta compare una volta sola. Sabato e domenica lavorano le squadre intere.
+CREATE OR REPLACE FUNCTION private.genera_turni_periodo(
+    p_dal DATE,
+    p_al DATE,
+    p_generata_da UUID DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_data DATE;
+    v_lunedi DATE;
+    v_settimane INTEGER;
+    v_turno_squadra_1 TEXT;
+    v_turno_squadra_2 TEXT;
+    v_festa UUID;
+    v_copertura UUID;
+    v_r RECORD;
+    v_turno TEXT;
+    v_totale INTEGER := 0;
+BEGIN
+    IF p_dal IS NULL OR p_al IS NULL OR p_al < p_dal THEN
+        RAISE EXCEPTION 'Periodo turni non valido' USING ERRCODE = '22023';
+    END IF;
+
+    -- Serializza generatori concorrenti e chiamate client/cron simultanee.
+    PERFORM pg_advisory_xact_lock(20260824, 1901);
+
+    FOR v_data IN
+        SELECT giorno::DATE
+          FROM generate_series(p_dal::TIMESTAMP, p_al::TIMESTAMP, INTERVAL '1 day') AS giorno
+    LOOP
+        IF v_data < '2026-08-24'::DATE THEN
+            CONTINUE;
+        END IF;
+
+        v_lunedi := v_data - (EXTRACT(ISODOW FROM v_data)::INTEGER - 1);
+        v_settimane := ((v_lunedi - '2026-08-24'::DATE) / 7)::INTEGER;
+
+        IF MOD(v_settimane, 2) = 0 THEN
+            v_turno_squadra_1 := 'pomeriggio';
+            v_turno_squadra_2 := 'mattina';
+        ELSE
+            v_turno_squadra_1 := 'mattina';
+            v_turno_squadra_2 := 'pomeriggio';
+        END IF;
+
+        v_festa := CASE EXTRACT(ISODOW FROM v_data)::INTEGER
+            WHEN 1 THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID -- Marianna
+            WHEN 2 THEN CASE
+                WHEN v_turno_squadra_1 = 'pomeriggio'
+                    THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
+                ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+            END
+            WHEN 3 THEN CASE
+                WHEN v_turno_squadra_1 = 'mattina'
+                    THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
+                ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+            END
+            WHEN 4 THEN '0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID -- Anita
+            WHEN 5 THEN 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID -- Cinzia
+            ELSE NULL
+        END;
+
+        -- Se la festa cade nella squadra 2, una persona della squadra 1 copre
+        -- l'altra fascia. La rotazione dipende dal giorno assoluto e dall'ordine
+        -- del roster, quindi e' deterministica anche dopo una rigenerazione.
+        v_copertura := NULL;
+        IF v_festa IS NOT NULL AND EXISTS (
+            SELECT 1
+              FROM private.roster_turni_al(v_data) r
+             WHERE r.profilo_id = v_festa
+               AND r.squadra = 2
+        ) AND (
+            SELECT COUNT(*)
+              FROM private.roster_turni_al(v_data) r
+             WHERE r.squadra = 2
+               AND r.profilo_id <> v_festa
+        ) < 2 THEN
+            SELECT r.profilo_id
+              INTO v_copertura
+              FROM private.roster_turni_al(v_data) r
+             WHERE r.squadra = 1
+               AND r.profilo_id <> v_festa
+             ORDER BY MOD(
+                          (v_data - '2026-08-24'::DATE)::INTEGER + r.ordine_squadra - 1,
+                          GREATEST((SELECT COUNT(*) FROM private.roster_turni_al(v_data) q WHERE q.squadra = 1), 1)
+                      ),
+                      r.ordine_squadra
+             LIMIT 1;
+        END IF;
+
+        FOR v_r IN SELECT * FROM private.roster_turni_al(v_data)
+        LOOP
+            IF v_r.profilo_id = v_festa THEN
+                v_turno := 'festa';
+            ELSIF v_r.profilo_id = v_copertura THEN
+                v_turno := v_turno_squadra_2;
+            ELSIF v_r.squadra = 1 THEN
+                v_turno := v_turno_squadra_1;
+            ELSE
+                v_turno := v_turno_squadra_2;
+            END IF;
+
+            v_totale := v_totale + private.inserisci_turno_automatico(
+                v_data, v_turno, v_r.profilo_id, v_r.nome
+            );
+        END LOOP;
+    END LOOP;
+
+    RETURN v_totale;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.genera_turni_periodo(DATE, DATE, UUID)
+    FROM PUBLIC, anon, authenticated;
+
+-- La variante interna del cron non ha una sessione Auth, ma non accetta alcun
+-- parametro esterno e puo' soltanto invocare lo stesso generatore deterministico.
+CREATE OR REPLACE FUNCTION private.genera_turni_cron(p_oggi DATE DEFAULT NULL)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_oggi DATE := COALESCE(p_oggi, (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Rome')::DATE);
+    v_corrente DATE;
+    v_dal_corrente DATE;
+    v_al_corrente DATE;
+    v_mese DATE;
+    v_al DATE;
+    v_righe INTEGER := 0;
+    v_aggiunte INTEGER := 0;
+BEGIN
+    -- Garantisce anzitutto il mese corrente. Per agosto 2026 il modello parte
+    -- il 24; per i mesi successivi parte dal primo giorno.
+    v_corrente := DATE_TRUNC('month', v_oggi)::DATE;
+    IF (v_corrente + INTERVAL '1 month - 1 day')::DATE >= '2026-08-24'::DATE THEN
+        v_dal_corrente := GREATEST(v_corrente, '2026-08-24'::DATE);
+        v_al_corrente := (v_corrente + INTERVAL '1 month - 1 day')::DATE;
+        v_aggiunte := private.genera_turni_periodo(v_dal_corrente, v_al_corrente, NULL);
+        v_righe := v_righe + v_aggiunte;
+
+        INSERT INTO public.turni_generazioni (
+            mese, generata_da, giorni_dal, giorni_al, righe_generate
+        ) VALUES (v_corrente, NULL, v_dal_corrente, v_al_corrente, v_aggiunte)
+        ON CONFLICT (mese) DO UPDATE
+           SET generata_il = CURRENT_TIMESTAMP,
+               righe_generate = public.turni_generazioni.righe_generate + EXCLUDED.righe_generate;
+    END IF;
+
+    IF EXTRACT(DAY FROM v_oggi)::INTEGER < 15 THEN
+        RETURN v_righe;
+    END IF;
+
+    v_mese := (DATE_TRUNC('month', v_oggi) + INTERVAL '1 month')::DATE;
+    v_al := (v_mese + INTERVAL '1 month - 1 day')::DATE;
+    v_aggiunte := private.genera_turni_periodo(v_mese, v_al, NULL);
+    v_righe := v_righe + v_aggiunte;
+
+    INSERT INTO public.turni_generazioni (
+        mese, generata_da, giorni_dal, giorni_al, righe_generate
+    ) VALUES (v_mese, NULL, v_mese, v_al, v_aggiunte)
+    ON CONFLICT (mese) DO UPDATE
+       SET generata_il = CURRENT_TIMESTAMP,
+           righe_generate = public.turni_generazioni.righe_generate + EXCLUDED.righe_generate;
+
+    RETURN v_righe;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.genera_turni_cron(DATE) FROM PUBLIC, anon, authenticated;
+
+-- RPC idempotente richiamabile dal client. Garantisce il tratto operativo del
+-- mese corrente e, dal giorno 15 italiano, prepara anche il mese seguente.
+CREATE OR REPLACE FUNCTION public.genera_turni_automatici()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+BEGIN
+    IF NOT private.puo_gestire_turni(v_utente) THEN
+        RAISE EXCEPTION 'Gestione turni non consentita' USING ERRCODE = '42501';
+    END IF;
+
+    RETURN private.genera_turni_cron(NULL);
+END;
+$$;
+
+-- Elenco minimale per il selettore: niente email, flag amministrativi o altri
+-- dati del profilo. Maria, Francesca, Cinzia, Anita e Maria Rosaria soltanto.
+CREATE OR REPLACE FUNCTION public.elenca_dipendenti_turni()
+RETURNS TABLE (
+    id UUID,
+    nome TEXT,
+    squadra SMALLINT,
+    ordine_squadra SMALLINT
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+BEGIN
+    IF NOT private.puo_gestire_turni(v_utente) THEN
+        RAISE EXCEPTION 'Gestione turni non consentita' USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    WITH roster AS (
+        -- Mostra subito anche un'appartenenza che iniziera' in una settimana
+        -- futura: dopo la conferma "Aggiungi alla squadra" il picker deve
+        -- ricordarla senza aspettare che arrivi quella data.
+        SELECT DISTINCT ON (s.profilo_id)
+               s.profilo_id,
+               s.squadra,
+               s.ordine_squadra
+          FROM public.turni_squadre s
+         WHERE s.valida_al IS NULL
+         ORDER BY s.profilo_id, s.valida_dal DESC
+    )
+    SELECT p.id,
+           COALESCE(NULLIF(BTRIM(p.nome), ''), NULLIF(BTRIM(p.email), ''), 'Dipendente'),
+           r.squadra,
+           r.ordine_squadra
+      FROM public.profili p
+      LEFT JOIN roster r ON r.profilo_id = p.id
+     WHERE p.accesso
+       AND p.id <> 'bb9b9cb8-be6e-470c-b70f-cd844436b39c'::UUID
+     ORDER BY r.squadra NULLS LAST, r.ordine_squadra NULLS LAST, p.nome;
+END;
+$$;
+
+-- Modifica una posizione del calendario. `p_rendi_stabile` non rende ricorrente
+-- il singolo giorno: inserisce una persona nuova nella squadra della fascia e
+-- rigenera solo automatici futuri. Le righe manuali, le ferie e gli
+-- annullamenti espliciti restano intatti.
+CREATE OR REPLACE FUNCTION public.imposta_turno_dipendente(
+    p_data DATE,
+    p_turno TEXT,
+    p_profilo_id UUID,
+    p_nota TEXT DEFAULT '',
+    p_rendi_stabile BOOLEAN DEFAULT false
+)
+RETURNS SETOF public.turni_lavoro
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+    v_nome_autore TEXT;
+    v_nome TEXT;
+    v_squadra_attuale SMALLINT;
+    v_ordine_attuale SMALLINT;
+    v_nuova_squadra SMALLINT;
+    v_nuovo_ordine SMALLINT;
+    v_fine_generata DATE;
+    v_riga public.turni_lavoro%ROWTYPE;
+BEGIN
+    IF NOT private.puo_gestire_turni(v_utente) THEN
+        RAISE EXCEPTION 'Gestione turni non consentita' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_data IS NULL OR p_turno NOT IN ('mattina', 'intermedio', 'pomeriggio', 'festa', 'ferie')
+       OR p_profilo_id IS NULL THEN
+        RAISE EXCEPTION 'Parametri turno non validi' USING ERRCODE = '22023';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(20260824, 1901);
+
+    SELECT COALESCE(NULLIF(BTRIM(nome), ''), NULLIF(BTRIM(email), ''), 'Gestore')
+      INTO v_nome_autore
+      FROM public.profili
+     WHERE id = v_utente;
+
+    SELECT COALESCE(NULLIF(BTRIM(nome), ''), NULLIF(BTRIM(email), ''), 'Dipendente')
+      INTO v_nome
+      FROM public.profili
+     WHERE id = p_profilo_id
+       AND accesso
+       AND id <> 'bb9b9cb8-be6e-470c-b70f-cd844436b39c'::UUID;
+
+    IF v_nome IS NULL THEN
+        RAISE EXCEPTION 'Dipendente non disponibile per i turni' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT r.squadra, r.ordine_squadra
+      INTO v_squadra_attuale, v_ordine_attuale
+      FROM private.roster_turni_al(GREATEST(p_data, '2026-08-24'::DATE)) r
+     WHERE r.profilo_id = p_profilo_id;
+
+    IF p_rendi_stabile THEN
+        IF p_turno NOT IN ('mattina', 'pomeriggio') THEN
+            RAISE EXCEPTION 'Una squadra stabile puo essere mattina o pomeriggio' USING ERRCODE = '22023';
+        END IF;
+
+        IF p_data < '2026-08-24'::DATE THEN
+            RAISE EXCEPTION 'La ricorrenza stabile parte dal 24 agosto 2026' USING ERRCODE = '22023';
+        END IF;
+
+        -- Nella settimana della data richiesta si ricava quale squadra occupa
+        -- la fascia scelta. Si aggiunge/sposta soltanto la persona selezionata:
+        -- gli altri componenti delle due squadre non cambiano.
+        IF MOD((((p_data - (EXTRACT(ISODOW FROM p_data)::INTEGER - 1)) - '2026-08-24'::DATE) / 7)::INTEGER, 2) = 0 THEN
+            v_nuova_squadra := CASE WHEN p_turno = 'pomeriggio' THEN 1 ELSE 2 END;
+        ELSE
+            v_nuova_squadra := CASE WHEN p_turno = 'mattina' THEN 1 ELSE 2 END;
+        END IF;
+
+        -- Le persone gia' nel ciclo fanno i cambi una tantum senza smontare le
+        -- due squadre base. "Rendi stabile" serve a inserire una persona nuova;
+        -- se e' gia' nella squadra della fascia richiesta, e' gia' stabile.
+        IF v_squadra_attuale IS NOT NULL AND v_squadra_attuale <> v_nuova_squadra THEN
+            RAISE EXCEPTION 'Dipendente gia in una squadra: usa il cambio per questa data' USING ERRCODE = '22023';
+        END IF;
+
+        IF v_squadra_attuale IS NULL THEN
+            UPDATE public.turni_squadre
+               SET valida_al = p_data - 1
+             WHERE profilo_id = p_profilo_id
+               AND valida_dal < p_data
+               AND (valida_al IS NULL OR valida_al >= p_data);
+
+            SELECT (COALESCE(MAX(r.ordine_squadra), 0) + 1)::SMALLINT
+              INTO v_nuovo_ordine
+              FROM private.roster_turni_al(p_data) r
+             WHERE r.squadra = v_nuova_squadra;
+
+            INSERT INTO public.turni_squadre (
+                profilo_id, squadra, ordine_squadra, valida_dal, creata_da
+            ) VALUES (
+                p_profilo_id, v_nuova_squadra, v_nuovo_ordine, p_data, v_utente
+            )
+            ON CONFLICT (profilo_id, valida_dal) DO UPDATE
+               SET squadra = EXCLUDED.squadra,
+                   ordine_squadra = EXCLUDED.ordine_squadra,
+                   valida_al = NULL,
+                   creata_da = EXCLUDED.creata_da;
+        END IF;
+
+        SELECT COALESCE(MAX(giorni_al), p_data)
+          INTO v_fine_generata
+          FROM public.turni_generazioni;
+
+        -- Gli automatici futuri sono un prodotto rigenerabile, non storico
+        -- umano. Si annullano tecnicamente invece di cancellarli; manuali, ferie
+        -- e annullamenti espliciti non si toccano.
+        UPDATE public.turni_lavoro
+           SET annullato = true,
+               annullato_il = CURRENT_TIMESTAMP,
+               annullato_da = NULL,
+               aggiornato_il = CURRENT_TIMESTAMP
+         WHERE data >= p_data
+           AND data <= GREATEST(p_data, v_fine_generata)
+           AND origine = 'automatico'
+           AND NOT annullato;
+
+        PERFORM private.genera_turni_periodo(p_data, GREATEST(p_data, v_fine_generata), v_utente);
+    END IF;
+
+    -- Qualunque vecchia posizione della persona nel giorno diventa storico.
+    UPDATE public.turni_lavoro
+       SET annullato = true,
+           annullato_il = CURRENT_TIMESTAMP,
+           annullato_da = v_utente,
+           aggiornato_il = CURRENT_TIMESTAMP
+     WHERE data = p_data
+       AND profilo_id = p_profilo_id
+       AND NOT annullato;
+
+    INSERT INTO public.turni_lavoro (
+        data, turno, profilo_id, persona, nota, creato_da,
+        origine, annullato, aggiornato_il
+    ) VALUES (
+        p_data, p_turno, p_profilo_id, v_nome, COALESCE(p_nota, ''), v_nome_autore,
+        'manuale', false, CURRENT_TIMESTAMP
+    )
+    RETURNING * INTO v_riga;
+
+    RETURN NEXT v_riga;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.annulla_turno_lavoro(p_id UUID)
+RETURNS SETOF public.turni_lavoro
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+BEGIN
+    IF NOT private.puo_gestire_turni(v_utente) THEN
+        RAISE EXCEPTION 'Gestione turni non consentita' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_id IS NULL THEN
+        RAISE EXCEPTION 'Turno non valido' USING ERRCODE = '22023';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(20260824, 1901);
+
+    RETURN QUERY
+    UPDATE public.turni_lavoro
+       SET annullato = true,
+           annullato_il = CURRENT_TIMESTAMP,
+           annullato_da = v_utente,
+           aggiornato_il = CURRENT_TIMESTAMP
+     WHERE id = p_id
+       AND NOT annullato
+    RETURNING public.turni_lavoro.*;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Turno non trovato o gia annullato' USING ERRCODE = 'P0002';
+    END IF;
+END;
+$$;
+
+-- Accesso al calendario: tutti gli account approvati leggono soltanto righe
+-- attive; nessuno scrive direttamente. I gestori usano RPC firmate.
+DROP POLICY IF EXISTS "Lettura turni" ON public.turni_lavoro;
+CREATE POLICY "Lettura turni" ON public.turni_lavoro
+    FOR SELECT
+    TO authenticated
+    USING (
+        NOT annullato
+        AND EXISTS (
+            SELECT 1
+              FROM public.profili
+             WHERE id = (SELECT auth.uid())
+               AND accesso
+        )
+    );
+
+DROP POLICY IF EXISTS "Scrittura turni" ON public.turni_lavoro;
+
+REVOKE ALL ON public.turni_lavoro FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.turni_lavoro TO authenticated;
+
+REVOKE ALL ON FUNCTION public.genera_turni_automatici() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.elenca_dipendenti_turni() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.imposta_turno_dipendente(DATE, TEXT, UUID, TEXT, BOOLEAN)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.annulla_turno_lavoro(UUID) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.genera_turni_automatici() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.elenca_dipendenti_turni() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.imposta_turno_dipendente(DATE, TEXT, UUID, TEXT, BOOLEAN)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.annulla_turno_lavoro(UUID) TO authenticated;
+
+DO $$
+BEGIN
+    -- Installa e pianifica il controllo giornaliero senza fissare una versione.
+    -- Tutto vive nel blocco protetto: se il piano non abilita Cron, lo schema e
+    -- la generazione via client restano comunque utilizzabili.
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        PERFORM cron.schedule(
+            'genera-turni-mese-successivo',
+            '15 2 * * *',
+            'SELECT private.genera_turni_cron();'
+        );
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- In progetti in cui Cron non e' abilitabile dal ruolo SQL, il client
+        -- conserva comunque la generazione idempotente tramite RPC.
+        RAISE NOTICE 'Cron turni non configurato: %', SQLERRM;
+END;
+$$;
+
+-- La prima applicazione garantisce il tratto del mese corrente. Se viene
+-- applicata dal giorno 15 in poi prepara naturalmente anche il mese seguente.
+SELECT private.genera_turni_cron(NULL);

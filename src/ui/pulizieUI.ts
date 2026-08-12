@@ -143,13 +143,6 @@ function dataOra(iso: string): string {
   }).format(d).replace('.', '');
 }
 
-function scadenzaBreve(voce: Pulizia): string {
-  const d = dataLocale(voce.previstaIl || voce.periodoFine);
-  return new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
-    .format(d)
-    .replace(/\./g, '');
-}
-
 function rigaHtml(voce: Pulizia): string {
   const oggi = getTodayDateString();
   const scaduta = voce.nonFatta;
@@ -167,10 +160,10 @@ function rigaHtml(voce: Pulizia): string {
   const stato = voce.completata
     ? 'Fatta'
     : (scaduta ? 'Non fatta' : (oggi < voce.periodoInizio ? 'Non iniziata' : 'Da fare'));
-  const responsabili = voce.responsabili.length > 0 ? voce.responsabili.join(', ') : 'Turno non assegnato';
-  const quando = voce.tipo === 'bagno' && voce.previstaIl
-    ? `prevista ${scadenzaBreve(voce)} · segnabile entro domenica`
-    : `entro ${scadenzaBreve(voce)}`;
+  const responsabili = voce.responsabili.join(', ');
+  const responsabiliHtml = responsabili
+    ? `<p class="pulizia-responsabili">${escapeHtml(responsabili)}</p>`
+    : '';
   const blocco = fuoriPeriodo
     ? (oggi > voce.periodoFine ? 'Periodo concluso' : 'Periodo non ancora iniziato')
     : '';
@@ -189,7 +182,7 @@ function rigaHtml(voce: Pulizia): string {
           <span class="pulizia-nome">${escapeHtml(voce.voce)}</span>
           <span class="pulizia-stato">${stato}</span>
         </div>
-        <p class="pulizia-responsabili">Doveva farla: ${escapeHtml(responsabili)} · ${escapeHtml(quando)}</p>
+        ${responsabiliHtml}
         ${voce.completata && voce.completataIl
           ? `<p class="pulizia-firma">Segnata da ${escapeHtml(voce.completataDa || 'Dipendente')} · ${escapeHtml(dataOra(voce.completataIl))}</p>`
           : ''}
@@ -226,8 +219,7 @@ function gruppoHtml(gruppo: GruppoPulizia): string {
   return `
     <section class="pulizie-blocco is-${gruppo}">
       <header class="pulizie-blocco-testa">
-        <span>${gruppo === 'gruppo-1' ? 'Gruppo 1' : 'Gruppo 2'}</span>
-        <small>${escapeHtml(nomi)}</small>
+        <span>${escapeHtml(nomi)}</span>
       </header>
       <div class="pulizie-lista">${listaHtml(elenco)}</div>
     </section>
