@@ -134,6 +134,12 @@ export function nomeUtente(): string {
   return p.nome || p.email || '';
 }
 
+/** Identità stabile del profilo, utile quando lo storico usa un soprannome. */
+export function idUtente(): string {
+  const p = profiloRicordato();
+  return p && p.accesso ? p.id : '';
+}
+
 /**
  * Se chi sta usando l'app amministra, e quindi vede anche la dashboard.
  *

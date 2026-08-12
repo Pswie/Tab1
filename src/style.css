@@ -5067,7 +5067,37 @@ body {
   gap: 0.75rem;
 }
 
+.turni-titolo-riga {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.h24-rotella.turni-rotella {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+}
+
+.turni-rotella[hidden] {
+  display: none;
+}
+
+.turni-rotella.is-active {
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+}
+
 .turni-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.turni-periodo-nav,
+.turni-nav-azioni {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -5318,8 +5348,8 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   color: var(--text-muted);
   background: transparent;
@@ -5353,6 +5383,67 @@ body {
   gap: 0.35rem;
   width: 100%;
   margin-top: 0.35rem;
+}
+
+.turni-dipendenti,
+.turni-dipendenti-picker {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.turni-dipendente,
+.turni-btn.turni-dipendente-btn {
+  min-height: 40px;
+  height: auto;
+  padding: 0.55rem 0.75rem;
+  font: 700 0.82rem/1.2 var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface-card-outer);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.turni-dipendente:hover,
+.turni-dipendente.is-selected,
+.turni-btn.turni-dipendente-btn:hover,
+.turni-btn.turni-dipendente-btn.is-active {
+  color: var(--ferrari-red);
+  border-color: var(--ferrari-red);
+  background: var(--ferrari-red-glow);
+}
+
+.turni-btn.turni-dipendente-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.turni-dipendente:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.turni-scelta-stabile,
+.turni-scelta-squadra {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.turni-scelta-stabile p,
+.turni-scelta-squadra-testo {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .turni-campo {
@@ -5553,7 +5644,7 @@ body {
     position: absolute;
     top: 100%;
     left: 0;
-    width: 17rem;
+    width: min(24rem, calc(100vw - 2rem));
     padding: 0.6rem;
     background: #FFFFFF;
     border: 1px solid var(--border-pearl);
@@ -5566,6 +5657,43 @@ body {
   .turni-cella[style*="grid-column:8"] .turni-form {
     left: auto;
     right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .turni-testa,
+  .turni-nav {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .turni-titolo-riga {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .turni-nav {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .turni-periodo-nav {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    width: 100%;
+  }
+
+  .turni-settimana {
+    min-width: 0;
+  }
+
+  .turni-nav-azioni {
+    justify-content: flex-end;
+  }
+
+  .turni-chip-x {
+    width: 44px;
+    height: 44px;
   }
 }
 

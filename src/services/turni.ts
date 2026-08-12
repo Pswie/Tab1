@@ -1,24 +1,9 @@
 import { isSupabaseConfigured, supabase } from './supabase';
 
-/**
- * Turni di lavoro: chi c'è in negozio, in che giornata e in quale fascia.
- *
- * Ricalca il foglio appeso in negozio: per ogni giornata mattina, intermedio,
- * pomeriggio e chi è di festa, più le ferie che valgono per più giorni di fila.
- * L'intermedio non c'è tutti i giorni, ed è normale che una fascia resti vuota.
- *
- * Non ha niente a che vedere con le chiusure di cassa, che pure si chiamano
- * turni: qui non ci sono importi, solo nomi.
- *
- * Lo leggono tutti; lo scrive chi amministra o possiede il permesso dedicato.
- * Il divieto non sta solo nell'interfaccia: le policy Supabase controllano il
- * profilo anche quando una richiesta non arriva dai pulsanti dell'app.
- */
-
-/** Le fasce di una giornata, nell'ordine in cui si leggono sul foglio */
+/** Le fasce di una giornata, nell'ordine in cui si leggono sul foglio. */
 export type FasciaTurno = 'mattina' | 'intermedio' | 'pomeriggio' | 'festa' | 'ferie';
 
-/** Quelle che compaiono nel riquadro della giornata: le ferie stanno a parte */
+/** Quelle che compaiono nel riquadro della giornata: le ferie stanno a parte. */
 export const FASCE_GIORNATA: FasciaTurno[] = ['mattina', 'intermedio', 'pomeriggio', 'festa'];
 
 export const NOMI_FASCIA: Record<FasciaTurno, string> = {
@@ -31,54 +16,107 @@ export const NOMI_FASCIA: Record<FasciaTurno, string> = {
 
 const ORDINE_FASCIA: FasciaTurno[] = ['mattina', 'intermedio', 'pomeriggio', 'festa', 'ferie'];
 
+export type SquadraTurni = 1 | 2;
+
+/** Dipendente approvato che può essere scelto nel calendario. */
+export interface DipendenteTurni {
+  id: string;
+  nome: string;
+  /** null finché non è stato inserito in una delle due squadre alternate. */
+  squadra: SquadraTurni | null;
+}
+
 export interface TurnoLavoro {
   id: string;
   /** YYYY-MM-DD */
   data: string;
   fascia: FasciaTurno;
+  /** Identità stabile del profilo; può mancare soltanto nelle vecchie righe. */
+  profiloId: string | null;
+  /** Copia leggibile del nome al momento dell'assegnazione. */
   persona: string;
-  /** Una precisazione breve accanto al nome: "entra alle 7", "fino alle 12" */
+  /** Una precisazione breve accanto al nome: "entra alle 7", "fino alle 12". */
   nota: string;
-  /** Chi ha assegnato il turno */
+  /** manuale, automatica/squadra o altro valore conservato dal database. */
+  origine: string;
+  /** Gli annullamenti restano tracciati nel database ma non nel calendario. */
+  annullato: boolean;
+  /** Chi ha assegnato il turno. */
   scrittoDa: string;
 }
 
-/**
- * Esito di una scrittura: dice anche DOVE è finita.
- *
- * Un turno rimasto su questo dispositivo non lo vede nessun collega, ed è
- * esattamente il contrario di quello che serve a un calendario condiviso:
- * l'interfaccia deve poterlo dire invece di far credere che sia a posto.
- */
 export interface EsitoTurno {
   voci: TurnoLavoro[];
-  /** false = salvato solo in locale, i colleghi non lo vedono */
+  /** false = salvato solo in locale, i colleghi non lo vedono. */
   suCloud: boolean;
 }
 
 const CHIAVE_LOCALE = 'tabaccheria_turni_v2';
+const CHIAVE_DIPENDENTI = 'tabaccheria_dipendenti_turni_v1';
+let ultimoControlloGenerazione = '';
 
-function fasciaValida(valore: unknown): FasciaTurno {
-  const f = String(valore ?? '') as FasciaTurno;
-  return ORDINE_FASCIA.includes(f) ? f : 'mattina';
+function eRiga(valore: unknown): valore is Record<string, unknown> {
+  return Boolean(valore && typeof valore === 'object' && !Array.isArray(valore));
 }
 
-function daRiga(r: Record<string, unknown>): TurnoLavoro {
+function fasciaValida(valore: unknown): FasciaTurno {
+  const fascia = String(valore ?? '') as FasciaTurno;
+  return ORDINE_FASCIA.includes(fascia) ? fascia : 'mattina';
+}
+
+function squadraValida(valore: unknown): SquadraTurni | null {
+  const squadra = Number(valore);
+  return squadra === 1 || squadra === 2 ? squadra : null;
+}
+
+function daRiga(riga: Record<string, unknown>): TurnoLavoro {
+  const profiloId = String(riga.profilo_id ?? riga.profiloId ?? '').trim();
+
   return {
-    id: String(r.id),
-    data: String(r.data ?? '').slice(0, 10),
-    // Sul database la colonna si chiama ancora turno: è la stessa cosa
-    fascia: fasciaValida(r.turno),
-    persona: String(r.persona ?? ''),
-    nota: String(r.nota ?? ''),
-    scrittoDa: String(r.creato_da || '')
+    id: String(riga.id ?? ''),
+    data: String(riga.data ?? '').slice(0, 10),
+    fascia: fasciaValida(riga.turno ?? riga.fascia),
+    profiloId: profiloId || null,
+    persona: String(riga.persona ?? riga.nome ?? '').trim(),
+    nota: String(riga.nota ?? ''),
+    origine: String(riga.origine ?? 'legacy'),
+    annullato: Boolean(riga.annullato),
+    scrittoDa: String(riga.creato_da ?? riga.scrittoDa ?? '')
   };
+}
+
+function daDipendente(riga: Record<string, unknown>): DipendenteTurni | null {
+  const id = String(riga.profilo_id ?? riga.id ?? '').trim();
+  const nome = String(riga.nome ?? riga.persona ?? '').trim();
+  if (!id || !nome) return null;
+
+  return {
+    id,
+    nome,
+    squadra: squadraValida(riga.squadra)
+  };
+}
+
+function righeDaRisposta(risposta: unknown): Record<string, unknown>[] {
+  if (Array.isArray(risposta)) return risposta.filter(eRiga);
+  if (!eRiga(risposta)) return [];
+
+  const annidate = risposta.voci;
+  if (Array.isArray(annidate)) return annidate.filter(eRiga);
+
+  return 'id' in risposta ? [risposta] : [];
 }
 
 function leggiLocale(): TurnoLavoro[] {
   try {
     const raw = localStorage.getItem(CHIAVE_LOCALE);
-    return raw ? JSON.parse(raw) : [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(eRiga)
+      .map(daRiga)
+      .filter(voce => voce.id && voce.data && voce.persona);
   } catch {
     return [];
   }
@@ -87,40 +125,71 @@ function leggiLocale(): TurnoLavoro[] {
 function scriviLocale(voci: TurnoLavoro[]): void {
   try {
     localStorage.setItem(CHIAVE_LOCALE, JSON.stringify(voci));
-  } catch (err) {
-    console.error('Errore salvataggio turni', err);
+  } catch (errore) {
+    console.error('Errore salvataggio turni', errore);
   }
 }
 
-/** Prima le giornate in ordine, dentro la giornata le fasce, poi i nomi */
+function leggiDipendentiLocali(): DipendenteTurni[] {
+  try {
+    const raw = localStorage.getItem(CHIAVE_DIPENDENTI);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(eRiga)
+      .map(daDipendente)
+      .filter((dipendente): dipendente is DipendenteTurni => dipendente !== null);
+  } catch {
+    return [];
+  }
+}
+
+function scriviDipendentiLocali(dipendenti: DipendenteTurni[]): void {
+  try {
+    localStorage.setItem(CHIAVE_DIPENDENTI, JSON.stringify(dipendenti));
+  } catch (errore) {
+    console.error('Errore salvataggio dipendenti turni', errore);
+  }
+}
+
+/** Prima le giornate, dentro la giornata le fasce, poi i nomi. */
 export function inOrdine(voci: TurnoLavoro[]): TurnoLavoro[] {
   return [...voci].sort((a, b) => {
     if (a.data !== b.data) return a.data < b.data ? -1 : 1;
 
-    const fa = ORDINE_FASCIA.indexOf(a.fascia);
-    const fb = ORDINE_FASCIA.indexOf(b.fascia);
-    if (fa !== fb) return fa - fb;
+    const fasciaA = ORDINE_FASCIA.indexOf(a.fascia);
+    const fasciaB = ORDINE_FASCIA.indexOf(b.fascia);
+    if (fasciaA !== fasciaB) return fasciaA - fasciaB;
 
     return a.persona.localeCompare(b.persona, 'it', { sensitivity: 'base' });
   });
 }
 
-function nelPeriodo(v: TurnoLavoro, dal: string, al: string): boolean {
-  return v.data >= dal && v.data <= al;
+function nelPeriodo(voce: TurnoLavoro, dal: string, al: string): boolean {
+  return voce.data >= dal && voce.data <= al;
 }
 
-/**
- * Rimpiazza nella copia locale la sola finestra appena letta: le altre
- * settimane già scaricate restano disponibili anche senza rete.
- */
+function stessaAssegnazione(a: TurnoLavoro, b: TurnoLavoro): boolean {
+  if (a.id && a.id === b.id) return true;
+  if (a.data !== b.data || a.fascia !== b.fascia) return false;
+
+  if (a.profiloId && b.profiloId) return a.profiloId === b.profiloId;
+  return a.persona.localeCompare(b.persona, 'it', { sensitivity: 'base' }) === 0;
+}
+
+function unisciLocale(voci: TurnoLavoro[]): void {
+  const restanti = leggiLocale().filter(vecchia => !voci.some(nuova => stessaAssegnazione(vecchia, nuova)));
+  scriviLocale(inOrdine([...restanti, ...voci]));
+}
+
+/** Rimpiazza nella cache la sola finestra appena letta. */
 function aggiornaLocale(dal: string, al: string, voci: TurnoLavoro[]): void {
-  const fuori = leggiLocale().filter(v => !nelPeriodo(v, dal, al));
+  const fuori = leggiLocale().filter(voce => !nelPeriodo(voce, dal, al));
   scriviLocale(inOrdine([...fuori, ...voci]));
 }
 
-/**
- * I turni assegnati fra due date comprese, in formato YYYY-MM-DD
- */
+/** I turni assegnati fra due date comprese. */
 export async function elencaTurni(dal: string, al: string): Promise<TurnoLavoro[]> {
   if (isSupabaseConfigured() && supabase) {
     try {
@@ -131,117 +200,217 @@ export async function elencaTurni(dal: string, al: string): Promise<TurnoLavoro[
         .lte('data', al);
 
       if (!error && data) {
-        const voci = inOrdine(data.map(daRiga));
+        const voci = inOrdine(data.filter(eRiga).map(daRiga).filter(voce => !voce.annullato));
         aggiornaLocale(dal, al, voci);
         return voci;
       }
 
       console.warn('Errore lettura turni:', error?.message);
-    } catch (err) {
-      console.warn('Eccezione lettura turni:', err);
+    } catch (errore) {
+      console.warn('Eccezione lettura turni:', errore);
     }
   }
 
-  return inOrdine(leggiLocale().filter(v => nelPeriodo(v, dal, al)));
+  return inOrdine(leggiLocale().filter(voce => nelPeriodo(voce, dal, al)));
 }
 
-/** Le giornate da una data all'altra, comprese */
-function giornate(dal: string, al: string): string[] {
-  const elenco: string[] = [];
-  const [a, m, g] = dal.split('-').map(Number);
-  const d = new Date(a, m - 1, g);
+/**
+ * Elenco esatto dei dipendenti approvati e non amministratori.
+ *
+ * La RPC restituisce soltanto id, nome e squadra: non si allarga la lettura
+ * della tabella profili e non si ricavano nomi casuali dai vecchi turni.
+ */
+export async function elencaDipendentiTurni(): Promise<DipendenteTurni[]> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase.rpc('elenca_dipendenti_turni');
 
-  // Un intervallo al contrario non è un intervallo: meglio niente che un ciclo
-  // che non finisce
-  for (let i = 0; i < 366 && dal <= al; i++) {
+      if (!error) {
+        const dipendenti = righeDaRisposta(data)
+          .map(daDipendente)
+          .filter((dipendente): dipendente is DipendenteTurni => dipendente !== null)
+          .sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+
+        scriviDipendentiLocali(dipendenti);
+        return dipendenti;
+      }
+
+      console.warn('Errore lettura dipendenti turni:', error.message);
+    } catch (errore) {
+      console.warn('Eccezione lettura dipendenti turni:', errore);
+    }
+  }
+
+  return leggiDipendentiLocali()
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));
+}
+
+/**
+ * Fallback del job automatico: una chiamata al giorno da un account abilitato
+ * recupera un eventuale mese non preparato dal Cron.
+ */
+export async function preparaTurniAutomatici(): Promise<void> {
+  const oggi = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+  if (ultimoControlloGenerazione === oggi || !isSupabaseConfigured() || !supabase) return;
+
+  try {
+    const { error } = await supabase.rpc('genera_turni_automatici');
+    if (error) {
+      console.warn('Generazione automatica turni non disponibile:', error.message);
+      return;
+    }
+
+    ultimoControlloGenerazione = oggi;
+  } catch (errore) {
+    console.warn('Eccezione generazione automatica turni:', errore);
+  }
+}
+
+/** Le giornate da una data all'altra, comprese. */
+function giornate(dal: string, al: string): string[] {
+  if (!dal || !al || al < dal) return [];
+
+  const elenco: string[] = [];
+  const [anno, mese, giorno] = dal.split('-').map(Number);
+  const data = new Date(anno, mese - 1, giorno);
+
+  for (let indice = 0; indice < 366; indice++) {
     const iso = [
-      d.getFullYear(),
-      String(d.getMonth() + 1).padStart(2, '0'),
-      String(d.getDate()).padStart(2, '0')
+      data.getFullYear(),
+      String(data.getMonth() + 1).padStart(2, '0'),
+      String(data.getDate()).padStart(2, '0')
     ].join('-');
 
     if (iso > al) break;
-
     elenco.push(iso);
-    d.setDate(d.getDate() + 1);
+    data.setDate(data.getDate() + 1);
   }
 
   return elenco;
 }
 
-/**
- * Assegna una persona a una fascia, per una giornata sola o per un periodo.
- *
- * Riassegnare qualcuno che c'è già aggiorna la sua nota invece di sdoppiare
- * la riga: il vincolo di unicità sul database dice che una persona sta in una
- * fascia una volta sola.
- */
-export async function assegnaTurno(
-  dal: string,
-  al: string,
+async function rileggiAssegnazione(
+  dataTurno: string,
   fascia: FasciaTurno,
-  persona: string,
-  nota = '',
-  autore = ''
-): Promise<EsitoTurno> {
-  const giorni = giornate(dal, al);
-  if (giorni.length === 0) return { voci: [], suCloud: false };
+  profiloId: string
+): Promise<TurnoLavoro[]> {
+  if (!supabase) return [];
 
-  const righe = giorni.map(data => ({
-    data,
-    turno: fascia,
-    persona,
-    nota,
-    creato_da: autore,
-    aggiornato_il: new Date().toISOString()
-  }));
+  const { data, error } = await supabase
+    .from('turni_lavoro')
+    .select('*')
+    .eq('data', dataTurno)
+    .eq('turno', fascia)
+    .eq('profilo_id', profiloId);
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('turni_lavoro')
-        .upsert(righe, { onConflict: 'data,turno,persona' })
-        .select();
-
-      if (!error && data) {
-        const voci = data.map(daRiga);
-        const ids = new Set(voci.map(v => v.id));
-        scriviLocale(inOrdine([...leggiLocale().filter(v => !ids.has(v.id)), ...voci]));
-
-        return { voci, suCloud: true };
-      }
-
-      console.warn('Turno salvato solo in locale:', error?.message);
-    } catch (err) {
-      console.warn('Eccezione salvataggio turno:', err);
-    }
-  }
-
-  const voci: TurnoLavoro[] = giorni.map(data => ({
-    id: `loc-${data}-${fascia}-${persona}`,
-    data,
-    fascia,
-    persona,
-    nota,
-    scrittoDa: autore
-  }));
-
-  const restanti = leggiLocale().filter(
-    v => !voci.some(n => n.data === v.data && n.fascia === v.fascia && n.persona === v.persona)
-  );
-  scriviLocale(inOrdine([...restanti, ...voci]));
-
-  return { voci, suCloud: false };
+  return !error && data
+    ? data.filter(eRiga).map(daRiga).filter(voce => !voce.annullato)
+    : [];
 }
 
 /**
- * Toglie una persona da una fascia. Restituisce false se la cancellazione è
- * rimasta su questo dispositivo.
+ * Assegna un dipendente registrato a una giornata.
+ *
+ * `rendiStabile` non significa "sempre mattina": inserisce la persona nella
+ * squadra che in questa settimana copre quella fascia. Da lì seguirà tutta la
+ * squadra quando mattina e pomeriggio si scambiano la settimana successiva.
  */
-export async function rimuoviTurno(id: string): Promise<boolean> {
-  const scriviSenza = () => scriviLocale(leggiLocale().filter(v => v.id !== id));
+export async function impostaTurnoDipendente(
+  dataTurno: string,
+  fascia: FasciaTurno,
+  dipendente: DipendenteTurni,
+  nota = '',
+  rendiStabile = false,
+  autore = ''
+): Promise<EsitoTurno> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase.rpc('imposta_turno_dipendente', {
+        p_data: dataTurno,
+        p_turno: fascia,
+        p_profilo_id: dipendente.id,
+        p_nota: nota,
+        p_rendi_stabile: rendiStabile
+      });
 
-  // Una riga nata offline non è mai arrivata sul database: sparisce e basta
+      if (!error) {
+        let voci = righeDaRisposta(data).map(daRiga).filter(voce => !voce.annullato);
+
+        // Alcune versioni della funzione possono restituire void: in quel
+        // caso si rilegge la riga firmata dal database invece di inventarne una.
+        if (voci.length === 0) {
+          voci = await rileggiAssegnazione(dataTurno, fascia, dipendente.id);
+        }
+
+        if (voci.length > 0) unisciLocale(voci);
+        return { voci: inOrdine(voci), suCloud: true };
+      }
+
+      console.warn('Turno salvato solo in locale:', error.message);
+    } catch (errore) {
+      console.warn('Eccezione salvataggio turno:', errore);
+    }
+  }
+
+  const voce: TurnoLavoro = {
+    id: `loc-${dataTurno}-${fascia}-${dipendente.id}`,
+    data: dataTurno,
+    fascia,
+    profiloId: dipendente.id,
+    persona: dipendente.nome,
+    nota,
+    // Senza server non si può davvero modificare la squadra ricorrente: resta
+    // un'eccezione manuale locale e l'avviso in UI lo rende esplicito.
+    origine: 'manuale',
+    annullato: false,
+    scrittoDa: autore
+  };
+
+  unisciLocale([voce]);
+  return { voci: [voce], suCloud: false };
+}
+
+/** Assegna lo stesso dipendente per più giorni, usato per le ferie. */
+export async function impostaPeriodoDipendente(
+  dal: string,
+  al: string,
+  fascia: FasciaTurno,
+  dipendente: DipendenteTurni,
+  nota = '',
+  autore = ''
+): Promise<EsitoTurno> {
+  const date = giornate(dal, al);
+  if (date.length === 0) return { voci: [], suCloud: false };
+
+  const voci: TurnoLavoro[] = [];
+  let tutteSuCloud = true;
+
+  // In sequenza per non far gareggiare gli aggiornamenti della cache locale.
+  for (const dataTurno of date) {
+    const esito = await impostaTurnoDipendente(
+      dataTurno,
+      fascia,
+      dipendente,
+      nota,
+      false,
+      autore
+    );
+    voci.push(...esito.voci);
+    if (!esito.suCloud) tutteSuCloud = false;
+  }
+
+  return { voci: inOrdine(voci), suCloud: tutteSuCloud };
+}
+
+/** Annulla una singola assegnazione tramite la funzione protetta sul server. */
+export async function annullaTurno(id: string): Promise<boolean> {
+  const scriviSenza = () => scriviLocale(leggiLocale().filter(voce => voce.id !== id));
+
   if (id.startsWith('loc-')) {
     scriviSenza();
     return false;
@@ -249,59 +418,19 @@ export async function rimuoviTurno(id: string): Promise<boolean> {
 
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { error } = await supabase.from('turni_lavoro').delete().eq('id', id);
+      const { error } = await supabase.rpc('annulla_turno_lavoro', { p_id: id });
 
       if (!error) {
         scriviSenza();
         return true;
       }
 
-      console.warn('Errore eliminazione turno:', error.message);
-    } catch (err) {
-      console.warn('Eccezione eliminazione turno:', err);
+      console.warn('Errore annullamento turno:', error.message);
+    } catch (errore) {
+      console.warn('Eccezione annullamento turno:', errore);
     }
   }
 
   scriviSenza();
   return false;
-}
-
-/**
- * I nomi già usati, dal più recente.
- *
- * Servono a proporre chi lavora di solito invece di farlo riscrivere ogni
- * volta: sono le stesse persone tutte le settimane, e un nome digitato a mano
- * si scrive prima o poi in due modi diversi.
- */
-export async function personeConosciute(): Promise<string[]> {
-  const nomi: string[] = [];
-
-  const raccogli = (voci: Array<{ persona: string }>) => {
-    voci.forEach(v => {
-      const nome = (v.persona || '').trim();
-      if (nome && !nomi.some(n => n.localeCompare(nome, 'it', { sensitivity: 'base' }) === 0)) {
-        nomi.push(nome);
-      }
-    });
-  };
-
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('turni_lavoro')
-        .select('persona')
-        .order('creato_il', { ascending: false })
-        .limit(400);
-
-      if (!error && data) {
-        raccogli(data.map(r => ({ persona: String(r.persona ?? '') })));
-        return nomi;
-      }
-    } catch (err) {
-      console.warn('Eccezione lettura nomi turni:', err);
-    }
-  }
-
-  raccogli([...leggiLocale()].reverse());
-  return nomi;
 }
