@@ -38,6 +38,7 @@ import { caricaTurni, initTurni } from './ui/turniUI';
 import { caricaAmmanchi, caricaAnticipi, initAnticipi } from './ui/anticipiUI';
 import { caricaPulizie, initPulizie } from './ui/pulizieUI';
 import { caricaOrdini, initOrdini } from './ui/ordiniUI';
+import { caricaDatiTabaccheria, initDatiTabaccheria } from './ui/datiTabaccheriaUI';
 import {
   caricaIncassiH24,
   caricaProdottiH24,
@@ -1430,6 +1431,7 @@ function setupEventListeners() {
     if (targetTabId === 'tab-ammanchi') caricaAmmanchi();
     if (targetTabId === 'tab-pulizie') caricaPulizie();
     if (targetTabId === 'tab-ordini') caricaOrdini();
+    if (targetTabId === 'tab-dati-tabaccheria') caricaDatiTabaccheria();
     if (targetTabId === 'tab-soggiorno') caricaSoggiorni();
     if (targetTabId === 'tab-rubrica') caricaRubrica();
     if (targetTabId === 'tab-dashboard') caricaDashboard();
@@ -1672,6 +1674,7 @@ async function initApp() {
   initAnticipi();
   initPulizie();
   initOrdini();
+  initDatiTabaccheria();
 
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();

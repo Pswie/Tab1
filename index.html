@@ -201,6 +201,13 @@
           <span>Nomi e numeri di telefono</span>
         </div>
       </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-dati-tabaccheria">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Dati Tabaccheria</strong>
+          <span>Accessi condivisi e procedure</span>
+        </div>
+      </button>
     </div>
 
     <p class="hotdog-gruppo solo-admin" hidden>H24</p>
@@ -312,6 +319,9 @@
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-rubrica">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7Z"/><circle cx="13.5" cy="10" r="2.4"/><path d="M10 17a3.5 3.5 0 0 1 7 0"/><path d="M7 7H4"/><path d="M7 12H4"/><path d="M7 17H4"/></svg></span> Registro numeri
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-dati-tabaccheria">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg></span> Dati Tabaccheria
       </button>
 
       <!-- Da qui in poi si parla di distributori, non più di tabaccheria -->
@@ -1536,6 +1546,98 @@
                placeholder="Cerca per nome o numero" autocomplete="off" />
 
         <div id="rubrica-lista" class="rub-lista"></div>
+      </section>
+    </div>
+
+    <!-- TAB: DATI TABACCHERIA
+         Le persone approvate possono consultare accessi e procedure; soltanto
+         l'admin apre la rotellina per modificare il cassetto condiviso. -->
+    <div id="tab-dati-tabaccheria" class="tab-pane">
+      <section class="card-section dati-tabaccheria-card">
+        <div class="section-header dati-testa">
+          <div>
+            <div class="section-title"><span>Dati Tabaccheria</span></div>
+            <p class="dati-sottotitolo">Accessi e passaggi operativi condivisi con tutte le dipendenti.</p>
+          </div>
+          <button type="button" id="btn-dati-gestione" class="h24-rotella dati-rotella"
+                  aria-pressed="false" aria-label="Apri gestione Dati Tabaccheria"
+                  title="Gestisci dati e procedure" hidden>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/>
+            </svg>
+          </button>
+        </div>
+
+        <p id="dati-avviso" class="dati-avviso is-hidden" role="status" aria-live="polite"></p>
+
+        <div class="dati-colonne">
+          <section class="dati-blocco" aria-labelledby="dati-credenziali-titolo">
+            <header class="dati-blocco-testa">
+              <span class="dati-blocco-icona" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg>
+              </span>
+              <div><h2 id="dati-credenziali-titolo">Username e Password</h2><p>Prima lo username, poi la password.</p></div>
+            </header>
+
+            <form id="dati-credenziale-form" class="dati-form" hidden>
+              <label>
+                <span>Nome servizio</span>
+                <input type="text" id="dati-credenziale-servizio" class="todo-add-input"
+                       maxlength="120" autocomplete="off" placeholder="Es. Terminale Sisal" required />
+              </label>
+              <label>
+                <span>Username</span>
+                <input type="text" id="dati-credenziale-username" class="todo-add-input"
+                       maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" required />
+              </label>
+              <label>
+                <span>Password</span>
+                <input type="password" id="dati-credenziale-password" class="todo-add-input"
+                       maxlength="4096" autocomplete="new-password" autocapitalize="none" spellcheck="false" />
+              </label>
+              <p id="dati-credenziale-password-hint" class="dati-form-hint">
+                La password viene salvata in modo protetto e non rimane nel browser.
+              </p>
+              <div class="dati-form-azioni">
+                <button type="submit" id="btn-dati-credenziale-salva" class="todo-add-btn">Aggiungi accesso</button>
+                <button type="button" id="btn-dati-credenziale-annulla" class="btn-secondary-action" hidden>Annulla</button>
+              </div>
+            </form>
+
+            <div id="dati-credenziali-lista" class="dati-credenziali-lista" aria-live="polite"></div>
+          </section>
+
+          <section class="dati-blocco" aria-labelledby="dati-procedure-titolo">
+            <header class="dati-blocco-testa">
+              <span class="dati-blocco-icona" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+              </span>
+              <div><h2 id="dati-procedure-titolo">Procedure</h2><p>I passaggi da seguire, nell'ordine corretto.</p></div>
+            </header>
+
+            <form id="dati-procedura-form" class="dati-form" hidden>
+              <label>
+                <span>Nome procedura</span>
+                <input type="text" id="dati-procedura-titolo" class="todo-add-input"
+                       maxlength="160" autocomplete="off" placeholder="Es. Chiusura terminale" required />
+              </label>
+              <label>
+                <span>Passaggi <small>uno per riga</small></span>
+                <textarea id="dati-procedura-passaggi" class="todo-add-input dati-passaggi-input"
+                          rows="5" maxlength="6000" placeholder="Apri il menu&#10;Scegli Chiusura&#10;Conferma e stampa" required></textarea>
+              </label>
+              <div class="dati-form-azioni">
+                <button type="submit" id="btn-dati-procedura-salva" class="todo-add-btn">Aggiungi procedura</button>
+                <button type="button" id="btn-dati-procedura-annulla" class="btn-secondary-action" hidden>Annulla</button>
+              </div>
+            </form>
+
+            <div id="dati-procedure-lista" class="dati-procedure-lista" aria-live="polite"></div>
+          </section>
+        </div>
+        <div id="dati-archivio"></div>
       </section>
     </div>
   </main>

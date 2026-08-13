@@ -6475,6 +6475,629 @@ body {
   }
 }
 
+/* ===========================================================================
+   DATI TABACCHERIA
+   Un cassetto operativo: etichette di servizio e righe ledger per gli accessi,
+   poi percorsi numerati per le procedure. I segreti non diventano mai una
+   tabella da scorrere o una collezione di campi sempre aperti.
+   ========================================================================== */
+
+#tab-dati-tabaccheria {
+  --dati-carta: var(--surface-card-inner);
+  --dati-incasso: var(--surface-subtle);
+  --dati-segno: var(--ferrari-red);
+}
+
+.dati-testa {
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.dati-sottotitolo {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dati-rotella {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+}
+
+.dati-avviso {
+  margin: -0.45rem 0 1rem;
+  padding: 0.72rem 0.85rem;
+  color: #991B1B;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-inner);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.dati-avviso.is-hidden {
+  display: none;
+}
+
+.dati-avviso.is-successo {
+  color: var(--accent-green-text);
+  background: var(--accent-green-bg);
+  border-color: rgba(16, 185, 129, 0.26);
+}
+
+.dati-avviso.is-nota {
+  color: #92400E;
+  background: #FEF3C7;
+  border-color: #FDE68A;
+}
+
+.dati-colonne {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+.dati-blocco {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--dati-carta);
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-inner);
+}
+
+.dati-blocco-testa {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 74px;
+  padding: 0.8rem 0.9rem;
+  background: var(--dati-incasso);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.dati-blocco-icona {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  color: var(--ferrari-red);
+  background: var(--ferrari-red-glow);
+  border: 1px solid rgba(225, 6, 0, 0.12);
+  border-radius: 12px;
+}
+
+.dati-blocco-icona svg {
+  width: 21px;
+  height: 21px;
+}
+
+.dati-blocco-testa h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.dati-blocco-testa p {
+  margin: 0.18rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dati-form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.dati-form[hidden] {
+  display: none;
+}
+
+.dati-form label {
+  display: grid;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.dati-form label > span {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.dati-form label > span small {
+  font: inherit;
+  font-weight: 600;
+}
+
+.dati-form .todo-add-input {
+  width: 100%;
+  min-height: 44px;
+  background: #FFFFFF;
+}
+
+.dati-passaggi-input {
+  min-height: 128px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.dati-form-hint {
+  margin: -0.1rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dati-form-azioni {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.dati-form-azioni > button {
+  min-height: 44px;
+}
+
+.dati-credenziali-lista,
+.dati-procedure-lista {
+  display: grid;
+  gap: 0;
+  transition: opacity var(--transition-fast);
+}
+
+#tab-dati-tabaccheria.is-caricamento .dati-credenziali-lista,
+#tab-dati-tabaccheria.is-caricamento .dati-procedure-lista,
+#tab-dati-tabaccheria.is-salvataggio .dati-credenziali-lista,
+#tab-dati-tabaccheria.is-salvataggio .dati-procedure-lista {
+  opacity: 0.58;
+}
+
+/* Ogni accesso ricorda l'etichetta di un cassetto del banco: il servizio è la
+   linguetta, sotto ci sono le sole due righe necessarie e nel giusto ordine. */
+.dati-credenziale {
+  position: relative;
+  min-width: 0;
+  background: var(--surface-card-outer);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.dati-credenziale:last-child {
+  border-bottom: 0;
+}
+
+.dati-credenziale-testa {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 52px;
+  padding: 0.55rem 0.7rem;
+  background: #FBFAF6;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dati-cassetto-segno {
+  align-self: stretch;
+  flex: 0 0 4px;
+  width: 4px;
+  min-height: 30px;
+  background: var(--dati-segno);
+  border-radius: var(--radius-full);
+}
+
+.dati-credenziale-testa h3,
+.dati-procedura-testa h3 {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dati-riga-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.dati-riga-azioni .todo-icon-btn {
+  width: 44px;
+  height: 44px;
+}
+
+.dati-accesso-ledger {
+  margin: 0;
+}
+
+.dati-accesso-riga {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.42fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 58px;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dati-accesso-riga:last-child {
+  border-bottom: 0;
+}
+
+.dati-accesso-riga dt {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dati-accesso-riga dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.dati-accesso-riga code {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dati-accesso-riga.is-password code {
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+}
+
+.dati-accesso-riga.is-password.is-rivelata {
+  background: #FFF9F8;
+}
+
+.dati-accesso-riga.is-password.is-rivelata code {
+  color: var(--text-primary);
+  letter-spacing: normal;
+}
+
+.dati-password-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dati-azione-valore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.5rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-pearl);
+  border-radius: 10px;
+  font: 750 0.66rem var(--font-sans);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dati-azione-valore svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.dati-azione-valore:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: #FFFFFF;
+  border-color: var(--border-strong);
+}
+
+.dati-azione-valore[aria-pressed="true"] {
+  color: var(--ferrari-red);
+  background: var(--ferrari-red-glow);
+  border-color: rgba(225, 6, 0, 0.22);
+}
+
+.dati-azione-valore.is-copiato {
+  color: var(--accent-green-text);
+  background: var(--accent-green-bg);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.dati-azione-valore:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.dati-procedura {
+  min-width: 0;
+  padding: 0.8rem;
+  background: var(--surface-card-outer);
+  border-bottom: 1px solid var(--border-pearl);
+}
+
+.dati-procedura:last-of-type {
+  border-bottom: 0;
+}
+
+.dati-procedura-testa {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+}
+
+.dati-passaggi {
+  counter-reset: passaggio;
+  display: grid;
+  gap: 0;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dati-passaggi li {
+  counter-increment: passaggio;
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 0.65rem;
+  min-height: 48px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dati-passaggi li::before {
+  content: counter(passaggio);
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 30px;
+  height: 30px;
+  color: #FFFFFF;
+  background: var(--ferrari-red);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.dati-passaggi li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 30px;
+  bottom: 0;
+  left: 14px;
+  width: 1px;
+  background: rgba(225, 6, 0, 0.2);
+}
+
+.dati-passaggi li > span {
+  padding: 0.28rem 0 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.dati-archivio {
+  margin: 1rem 0 0;
+  padding: 0.75rem;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+#dati-archivio:empty {
+  display: none;
+}
+
+.dati-archivio > h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.dati-archivio > p {
+  margin: 0.18rem 0 0.65rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dati-archivio-lista {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dati-archivio-riga {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  background: #FFFFFF;
+  border: 1px solid var(--border-pearl);
+  border-radius: var(--radius-sm);
+}
+
+.dati-archivio-riga > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dati-archivio-riga small {
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dati-archivio-riga strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.dati-archivio-riga .rub-btn-testo {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.dati-vuoto,
+.dati-caricamento {
+  margin: 0;
+  padding: 1.25rem 0.85rem;
+  color: var(--text-muted);
+  background: var(--surface-card-outer);
+  text-align: center;
+}
+
+.dati-vuoto p {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dati-vuoto small {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.dati-caricamento {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+#tab-dati-tabaccheria button:focus-visible,
+#tab-dati-tabaccheria input:focus-visible,
+#tab-dati-tabaccheria textarea:focus-visible {
+  outline: 2px solid var(--ferrari-red);
+  outline-offset: 2px;
+}
+
+@media (max-width: 940px) {
+  .dati-colonne {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .dati-tabaccheria-card {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .dati-blocco-testa {
+    padding: 0.72rem;
+  }
+
+  .dati-accesso-riga {
+    grid-template-columns: minmax(70px, 0.35fr) minmax(0, 1fr) auto;
+    gap: 0.4rem;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .dati-accesso-riga.is-password {
+    grid-template-columns: minmax(70px, 0.35fr) minmax(0, 1fr);
+  }
+
+  .dati-accesso-riga.is-password .dati-password-azioni {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    padding-left: calc(35% + 0.4rem);
+  }
+
+  .dati-azione-valore span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .dati-form-azioni {
+    flex-direction: column;
+  }
+
+  .dati-form-azioni > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .dati-accesso-riga,
+  .dati-accesso-riga.is-password {
+    grid-template-columns: 1fr auto;
+  }
+
+  .dati-accesso-riga dt {
+    grid-column: 1 / -1;
+  }
+
+  .dati-accesso-riga.is-password .dati-password-azioni {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dati-credenziali-lista,
+  .dati-procedure-lista,
+  .dati-azione-valore {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .dati-cassetto-segno,
+  .dati-passaggi li::before {
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  .dati-accesso-riga.is-password.is-rivelata {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
 /* ==========================================================================
    CONSENSO NOTIFICHE
    Il sistema operativo vuole un gesto esplicito: questo foglio resta davanti
