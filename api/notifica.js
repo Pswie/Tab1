@@ -14,7 +14,13 @@ const CHIAVE_PRIVATA = process.env.VAPID_PRIVATE_KEY;
 const CONTATTO = process.env.VAPID_SUBJECT || 'mailto:tabaccheria@example.com';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SECRET_KEY
+  || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+function tokenAutenticazione(req) {
+  const intestazione = String(req.headers.authorization || '');
+  return intestazione.startsWith('Bearer ') ? intestazione.slice(7).trim() : '';
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,22 +33,51 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     res.status(503).json({ errore: 'Supabase non configurato sul server' });
     return;
   }
 
-  const { titolo, testo, mittente } = req.body || {};
+  const token = tokenAutenticazione(req);
+  if (!token) {
+    res.status(401).json({ errore: 'Accesso richiesto' });
+    return;
+  }
 
-  if (!testo) {
-    res.status(400).json({ errore: 'Manca il testo della notifica' });
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+  const { data: identita, error: erroreIdentita } = await db.auth.getUser(token);
+  if (erroreIdentita || !identita.user) {
+    res.status(401).json({ errore: 'Sessione non valida' });
+    return;
+  }
+
+  const { data: profilo, error: erroreProfilo } = await db
+    .from('profili')
+    .select('id')
+    .eq('id', identita.user.id)
+    .eq('accesso', true)
+    .maybeSingle();
+  if (erroreProfilo || !profilo) {
+    res.status(403).json({ errore: 'Profilo non autorizzato' });
+    return;
+  }
+
+  const titolo = typeof req.body?.titolo === 'string' ? req.body.titolo.trim() : '';
+  const testo = typeof req.body?.testo === 'string' ? req.body.testo.trim() : '';
+  const mittente = typeof req.body?.mittente === 'string' ? req.body.mittente.slice(0, 200) : '';
+
+  if (!testo || testo.length > 500 || titolo.length > 100) {
+    res.status(400).json({ errore: 'Testo della notifica non valido' });
     return;
   }
 
   webpush.setVapidDetails(CONTATTO, CHIAVE_PUBBLICA, CHIAVE_PRIVATA);
 
-  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-  const { data, error } = await db.from('push_iscrizioni').select('*');
+  const { data, error } = await db
+    .from('push_iscrizioni')
+    .select('endpoint,p256dh,auth,dispositivo');
 
   if (error) {
     res.status(502).json({ errore: `Elenco destinatari non leggibile: ${error.message}` });
@@ -70,7 +105,9 @@ export default async function handler(req, res) {
       inviate++;
     } catch (err) {
       // 404 e 410 significano che quel dispositivo non esiste più
-      if (err.statusCode === 404 || err.statusCode === 410) scaduti.push(r.endpoint);
+      if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+        scaduti.push(r.endpoint);
+      }
     }
   }));
 

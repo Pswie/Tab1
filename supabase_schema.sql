@@ -2589,3 +2589,1255 @@ $$;
 -- La prima applicazione garantisce il tratto del mese corrente. Se viene
 -- applicata dal giorno 15 in poi prepara naturalmente anche il mese seguente.
 SELECT private.genera_turni_cron(NULL);
+
+
+-- =========================================================================
+-- 20. ORDINI SETTIMANALI E NOTIFICHE DELLE 07:00
+--
+-- Il programma e' ricorrente: il giorno e la voce possono essere cambiati
+-- dall'amministratore, mentre l'orario resta fisso alle 07:00 italiane.
+-- Le righe iniziali hanno una chiave stabile e vengono inserite una sola volta:
+-- rieseguire questo file non rimette un ordine disattivato e non sovrascrive le
+-- correzioni fatte dall'app.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.ordini_settimanali (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chiave_seed TEXT UNIQUE,
+    voce TEXT NOT NULL CHECK (char_length(BTRIM(voce)) BETWEEN 1 AND 120),
+    -- Numerazione ISO: lunedi' = 1, domenica = 7.
+    giorno_settimana SMALLINT NOT NULL CHECK (giorno_settimana BETWEEN 1 AND 7),
+    ordine SMALLINT NOT NULL DEFAULT 0 CHECK (ordine >= 0),
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    creato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ordini_settimanali_giorno
+    ON public.ordini_settimanali (giorno_settimana, ordine, voce)
+    WHERE attivo;
+
+INSERT INTO public.ordini_settimanali (
+    chiave_seed, voce, giorno_settimana, ordine
+)
+VALUES
+    ('lunedi-nicola-cartinee', 'Nicola Cartinee', 1, 10),
+    ('lunedi-gratta-e-vinci', 'Gratta e vinci', 1, 20),
+    ('martedi-sigarette', 'Sigarette', 2, 10),
+    ('giovedi-detersivo', 'Detersivo', 4, 10),
+    ('giovedi-gratta-e-vinci', 'Gratta e vinci', 4, 20)
+ON CONFLICT (chiave_seed) DO NOTHING;
+
+ALTER TABLE public.ordini_settimanali ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Gli approvati leggono gli ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli approvati leggono gli ordini settimanali"
+    ON public.ordini_settimanali
+    FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+              FROM public.profili
+             WHERE id = (SELECT auth.uid())
+               AND accesso
+        )
+    );
+
+DROP POLICY IF EXISTS "Gli admin aggiungono ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli admin aggiungono ordini settimanali"
+    ON public.ordini_settimanali
+    FOR INSERT
+    TO authenticated
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+DROP POLICY IF EXISTS "Gli admin aggiornano ordini settimanali"
+    ON public.ordini_settimanali;
+CREATE POLICY "Gli admin aggiornano ordini settimanali"
+    ON public.ordini_settimanali
+    FOR UPDATE
+    TO authenticated
+    USING ((SELECT private.e_amministratore()))
+    WITH CHECK ((SELECT private.e_amministratore()));
+
+-- La cancellazione e' intenzionalmente assente: un ordine si disattiva e resta
+-- recuperabile. I grant espliciti coprono i progetti che dal 2026 non espongono
+-- automaticamente le nuove tabelle alla Data API.
+REVOKE ALL ON public.ordini_settimanali FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.ordini_settimanali TO authenticated;
+
+
+-- Selettore interno testabile per il mittente server. Converte sempre l'istante
+-- in Europe/Rome, quindi le 07:00 restano corrette sia con l'ora legale sia con
+-- quella solare. Fuori da quell'ora non espone alcun ordine.
+CREATE OR REPLACE FUNCTION private.ordini_da_notificare(
+    p_istante TIMESTAMP WITH TIME ZONE
+)
+RETURNS TABLE (
+    ordine_id UUID,
+    voce TEXT,
+    data_locale DATE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    WITH istante AS (
+        SELECT p_istante AT TIME ZONE 'Europe/Rome' AS locale
+    )
+    SELECT o.id,
+           BTRIM(o.voce),
+           i.locale::DATE
+      FROM public.ordini_settimanali o
+      CROSS JOIN istante i
+     WHERE EXTRACT(HOUR FROM i.locale)::INTEGER = 7
+       AND o.attivo
+       AND o.giorno_settimana = EXTRACT(ISODOW FROM i.locale)::SMALLINT
+     ORDER BY o.ordine, o.voce, o.id;
+$$;
+
+REVOKE ALL ON FUNCTION private.ordini_da_notificare(TIMESTAMP WITH TIME ZONE)
+    FROM PUBLIC, anon, authenticated;
+
+-- RPC volutamente senza parametri: il backend protetto non puo' scegliere una
+-- data o un'ora arbitraria. E' una sola lettura, non crea claim e non puo'
+-- impedire i tentativi successivi del servizio di pianificazione esterno.
+CREATE OR REPLACE FUNCTION public.ordini_da_notificare_ora()
+RETURNS TABLE (
+    ordine_id UUID,
+    voce TEXT,
+    data_locale DATE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT *
+      FROM private.ordini_da_notificare(CURRENT_TIMESTAMP);
+$$;
+
+REVOKE ALL ON FUNCTION public.ordini_da_notificare_ora()
+    FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.ordini_da_notificare_ora()
+    TO service_role;
+
+
+-- =========================================================================
+-- 21. STATO NOTIFICHE PER DIPENDENTE
+--
+-- Le iscrizioni storiche restano valide: il collegamento al profilo e'
+-- volutamente nullable, quindi gli endpoint gia' presenti non vengono persi.
+-- Quando il dispositivo rinnova l'iscrizione, il client compila questi campi
+-- e l'amministratore puo' vedere chi ha effettivamente le notifiche attive.
+-- =========================================================================
+ALTER TABLE public.push_iscrizioni
+    ADD COLUMN IF NOT EXISTS profilo_id UUID;
+
+ALTER TABLE public.push_iscrizioni
+    ADD COLUMN IF NOT EXISTS aggiornata_il TIMESTAMP WITH TIME ZONE
+        NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- Il vincolo viene aggiunto separatamente dalla colonna: in questo modo anche
+-- un'applicazione interrotta fra i due passaggi si completa alla riesecuzione.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conname = 'push_iscrizioni_profilo_id_fkey'
+           AND conrelid = 'public.push_iscrizioni'::regclass
+    ) THEN
+        ALTER TABLE public.push_iscrizioni
+            ADD CONSTRAINT push_iscrizioni_profilo_id_fkey
+            FOREIGN KEY (profilo_id)
+            REFERENCES public.profili(id)
+            ON DELETE CASCADE;
+    END IF;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_push_iscrizioni_profilo_aggiornamento
+    ON public.push_iscrizioni (profilo_id, aggiornata_il DESC)
+    WHERE profilo_id IS NOT NULL;
+
+
+-- L'aggregazione vive nello schema non esposto e scavalca RLS soltanto per
+-- leggere profili e iscrizioni. Non contiene il controllo del chiamante perche'
+-- non e' eseguibile dai ruoli dell'app; il wrapper pubblico lo verifica prima.
+CREATE OR REPLACE FUNCTION private.stato_notifiche_dipendenti()
+RETURNS TABLE (
+    profilo_id UUID,
+    nome TEXT,
+    attive BOOLEAN,
+    numero_dispositivi INTEGER,
+    ultimo_aggiornamento TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT p.id,
+           COALESCE(
+               NULLIF(BTRIM(p.nome), ''),
+               NULLIF(BTRIM(p.email), ''),
+               'Dipendente'
+           ),
+           COUNT(i.id) > 0,
+           COUNT(i.id)::INTEGER,
+           MAX(i.aggiornata_il)
+      FROM public.profili p
+      LEFT JOIN public.push_iscrizioni i ON i.profilo_id = p.id
+     WHERE p.accesso
+       AND NOT p.admin
+     GROUP BY p.id, p.nome, p.email
+     ORDER BY COALESCE(
+                  NULLIF(BTRIM(p.nome), ''),
+                  NULLIF(BTRIM(p.email), ''),
+                  'Dipendente'
+              ),
+              p.id;
+$$;
+
+REVOKE ALL ON FUNCTION private.stato_notifiche_dipendenti()
+    FROM PUBLIC, anon, authenticated;
+
+
+-- Il riepilogo espone soltanto stato e conteggi, mai endpoint o chiavi push.
+-- Il controllo usa auth.uid() tramite la funzione privata gia' adottata dagli
+-- altri registri amministrativi.
+CREATE OR REPLACE FUNCTION public.stato_notifiche_dipendenti()
+RETURNS TABLE (
+    profilo_id UUID,
+    nome TEXT,
+    attive BOOLEAN,
+    numero_dispositivi INTEGER,
+    ultimo_aggiornamento TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+    IF NOT private.e_amministratore() THEN
+        RAISE EXCEPTION 'Solo un amministratore puo vedere lo stato delle notifiche'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    SELECT s.profilo_id,
+           s.nome,
+           s.attive,
+           s.numero_dispositivi,
+           s.ultimo_aggiornamento
+      FROM private.stato_notifiche_dipendenti() s;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.stato_notifiche_dipendenti()
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.stato_notifiche_dipendenti()
+    TO authenticated;
+
+
+-- La registrazione non passa piu' da INSERT/UPSERT diretto. Il profilo viene
+-- ricavato esclusivamente dal JWT: neppure un client modificato puo' attribuire
+-- il proprio dispositivo a un'altra persona.
+CREATE OR REPLACE FUNCTION public.registra_iscrizione_push(
+    p_endpoint TEXT,
+    p_p256dh TEXT,
+    p_auth TEXT,
+    p_dispositivo TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+    v_endpoint TEXT := BTRIM(COALESCE(p_endpoint, ''));
+    v_p256dh TEXT := BTRIM(COALESCE(p_p256dh, ''));
+    v_auth TEXT := BTRIM(COALESCE(p_auth, ''));
+    v_dispositivo TEXT := BTRIM(COALESCE(p_dispositivo, ''));
+BEGIN
+    IF v_utente IS NULL OR NOT EXISTS (
+        SELECT 1
+          FROM public.profili
+         WHERE id = v_utente
+           AND accesso
+    ) THEN
+        RAISE EXCEPTION 'Profilo non autorizzato alle notifiche'
+            USING ERRCODE = '42501';
+    END IF;
+
+    IF char_length(v_endpoint) NOT BETWEEN 10 AND 4096
+       OR v_endpoint !~ '^https://'
+       OR char_length(v_p256dh) NOT BETWEEN 20 AND 512
+       OR char_length(v_auth) NOT BETWEEN 8 AND 256
+       OR char_length(v_dispositivo) NOT BETWEEN 1 AND 200 THEN
+        RAISE EXCEPTION 'Dati iscrizione push non validi'
+            USING ERRCODE = '22023';
+    END IF;
+
+    INSERT INTO public.push_iscrizioni (
+        endpoint,
+        p256dh,
+        auth,
+        dispositivo,
+        profilo_id,
+        aggiornata_il
+    ) VALUES (
+        v_endpoint,
+        v_p256dh,
+        v_auth,
+        v_dispositivo,
+        v_utente,
+        CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (endpoint) DO UPDATE
+       SET p256dh = EXCLUDED.p256dh,
+           auth = EXCLUDED.auth,
+           dispositivo = EXCLUDED.dispositivo,
+           profilo_id = v_utente,
+           aggiornata_il = CURRENT_TIMESTAMP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.registra_iscrizione_push(TEXT, TEXT, TEXT, TEXT)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.registra_iscrizione_push(TEXT, TEXT, TEXT, TEXT)
+    TO authenticated;
+
+
+-- Gli endpoint e le chiavi dei dispositivi non vengono esposti da alcuna RPC
+-- pubblica. Soltanto le funzioni server Vercel, configurate con service role,
+-- possono leggerli e ripulire quelli scaduti.
+DROP FUNCTION IF EXISTS public.elenca_iscrizioni_push();
+
+
+-- Le vecchie policy permettevano a chiunque di leggere, creare e cancellare
+-- recapiti. Questo blocco e' volutamente in fondo allo schema: dopo ogni
+-- riesecuzione prevale sulle definizioni storiche senza toccare i dati.
+DROP POLICY IF EXISTS "Lettura iscrizioni push" ON public.push_iscrizioni;
+DROP POLICY IF EXISTS "Scrittura iscrizioni push" ON public.push_iscrizioni;
+
+REVOKE ALL ON public.push_iscrizioni FROM PUBLIC, anon, authenticated;
+-- Il server configurato con service role continua a leggere e a rimuovere gli
+-- endpoint scaduti direttamente; i browser passano solo dalla RPC autenticata.
+GRANT SELECT, DELETE ON public.push_iscrizioni TO service_role;
+
+
+-- =========================================================================
+-- 22. DATI TABACCHERIA: CREDENZIALI E PROCEDURE
+--
+-- Username e password vivono esclusivamente in Supabase Vault: nelle tabelle
+-- pubbliche restano soltanto gli UUID dei segreti cifrati. Il client legge i
+-- dati tramite RPC e non deve mai salvarli nella cache locale. Tutti i profili
+-- con accesso attivo possono consultare i dati; creazione, modifica,
+-- archiviazione, ripristino e riordino sono riservati agli amministratori.
+--
+-- Non esiste alcuna cancellazione applicativa. Le procedure conservano una
+-- revisione immutabile per ogni modifica, mentre l'audit registra chi ha
+-- visualizzato/copiato un campo o modificato una voce senza memorizzare valori.
+-- =========================================================================
+CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
+
+CREATE TABLE IF NOT EXISTS public.dati_tabaccheria_credenziali (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome_servizio TEXT NOT NULL
+        CHECK (char_length(BTRIM(nome_servizio)) BETWEEN 1 AND 120),
+    username_secret_id UUID NOT NULL,
+    password_secret_id UUID NOT NULL,
+    ordine INTEGER NOT NULL DEFAULT 0
+        CHECK (ordine BETWEEN 0 AND 1000000),
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    versione INTEGER NOT NULL DEFAULT 1
+        CHECK (versione > 0),
+    creato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    aggiornato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (username_secret_id <> password_secret_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_credenziali_ordine
+    ON public.dati_tabaccheria_credenziali (attivo DESC, ordine, nome_servizio, id);
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_credenziali_creato_da
+    ON public.dati_tabaccheria_credenziali (creato_da)
+    WHERE creato_da IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_credenziali_aggiornato_da
+    ON public.dati_tabaccheria_credenziali (aggiornato_da)
+    WHERE aggiornato_da IS NOT NULL;
+
+
+CREATE TABLE IF NOT EXISTS public.dati_tabaccheria_procedure (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    titolo TEXT NOT NULL
+        CHECK (char_length(BTRIM(titolo)) BETWEEN 1 AND 160),
+    versione_corrente INTEGER NOT NULL DEFAULT 1
+        CHECK (versione_corrente > 0),
+    ordine INTEGER NOT NULL DEFAULT 0
+        CHECK (ordine BETWEEN 0 AND 1000000),
+    attivo BOOLEAN NOT NULL DEFAULT true,
+    creato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    aggiornato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_procedure_ordine
+    ON public.dati_tabaccheria_procedure (attivo DESC, ordine, titolo, id);
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_procedure_creato_da
+    ON public.dati_tabaccheria_procedure (creato_da)
+    WHERE creato_da IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_procedure_aggiornato_da
+    ON public.dati_tabaccheria_procedure (aggiornato_da)
+    WHERE aggiornato_da IS NOT NULL;
+
+
+-- Titolo e passaggi vengono fotografati insieme: una modifica crea la
+-- versione successiva e non sovrascrive mai le istruzioni precedenti.
+CREATE TABLE IF NOT EXISTS public.dati_tabaccheria_procedure_versioni (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    procedura_id UUID NOT NULL
+        REFERENCES public.dati_tabaccheria_procedure(id) ON DELETE RESTRICT,
+    versione INTEGER NOT NULL CHECK (versione > 0),
+    titolo TEXT NOT NULL
+        CHECK (char_length(BTRIM(titolo)) BETWEEN 1 AND 160),
+    passaggi JSONB NOT NULL CHECK (jsonb_typeof(passaggi) = 'array'),
+    creato_da UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (procedura_id, versione)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_procedure_versioni_creato_da
+    ON public.dati_tabaccheria_procedure_versioni (creato_da)
+    WHERE creato_da IS NOT NULL;
+
+
+-- L'audit contiene soltanto identita', operazione e riferimento alla voce.
+-- Username, password, titoli e passaggi non vengono mai copiati nel log.
+CREATE TABLE IF NOT EXISTS public.dati_tabaccheria_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profilo_id UUID REFERENCES public.profili(id) ON DELETE SET NULL,
+    evento TEXT NOT NULL CHECK (evento IN (
+        'campo_visualizzato',
+        'campo_copiato',
+        'credenziale_creata',
+        'credenziale_modificata',
+        'credenziale_archiviata',
+        'credenziale_ripristinata',
+        'credenziali_riordinate',
+        'procedura_creata',
+        'procedura_modificata',
+        'procedura_archiviata',
+        'procedura_ripristinata',
+        'procedure_riordinate'
+    )),
+    entita_tipo TEXT NOT NULL CHECK (entita_tipo IN ('credenziale', 'procedura')),
+    entita_id UUID,
+    campo TEXT CHECK (campo IS NULL OR campo IN ('username', 'password')),
+    creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_audit_data
+    ON public.dati_tabaccheria_audit (creato_il DESC);
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_audit_profilo
+    ON public.dati_tabaccheria_audit (profilo_id, creato_il DESC)
+    WHERE profilo_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_dati_tabaccheria_audit_entita
+    ON public.dati_tabaccheria_audit (entita_tipo, entita_id, creato_il DESC)
+    WHERE entita_id IS NOT NULL;
+
+
+-- Anche se in futuro qualcuno concedesse per errore un privilegio di tabella,
+-- RLS senza policy impedisce l'accesso dai ruoli applicativi. Le RPC firmate
+-- sono l'unico varco e ripetono sempre il controllo sul profilo corrente.
+ALTER TABLE public.dati_tabaccheria_credenziali ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dati_tabaccheria_procedure ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dati_tabaccheria_procedure_versioni ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dati_tabaccheria_audit ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON public.dati_tabaccheria_credenziali
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.dati_tabaccheria_procedure
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.dati_tabaccheria_procedure_versioni
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.dati_tabaccheria_audit
+    FROM PUBLIC, anon, authenticated;
+
+
+-- Restituisce l'UUID soltanto se l'account esiste ancora, e' approvato e,
+-- quando richiesto, e' ancora amministratore. Il controllo quindi non dipende
+-- da claim JWT potenzialmente vecchi o modificabili dal client.
+CREATE OR REPLACE FUNCTION private.autorizza_dati_tabaccheria(
+    p_richiedi_admin BOOLEAN DEFAULT false
+)
+RETURNS UUID
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := (SELECT auth.uid());
+BEGIN
+    IF v_utente IS NULL OR NOT EXISTS (
+        SELECT 1
+          FROM public.profili p
+         WHERE p.id = v_utente
+           AND p.accesso
+           AND (NOT p_richiedi_admin OR p.admin)
+    ) THEN
+        RAISE EXCEPTION 'Accesso ai dati della tabaccheria non autorizzato'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN v_utente;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.autorizza_dati_tabaccheria(BOOLEAN)
+    FROM PUBLIC, anon, authenticated, service_role;
+
+
+CREATE OR REPLACE FUNCTION private.registra_audit_dati_tabaccheria(
+    p_profilo_id UUID,
+    p_evento TEXT,
+    p_entita_tipo TEXT,
+    p_entita_id UUID DEFAULT NULL,
+    p_campo TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    INSERT INTO public.dati_tabaccheria_audit (
+        profilo_id,
+        evento,
+        entita_tipo,
+        entita_id,
+        campo
+    ) VALUES (
+        p_profilo_id,
+        p_evento,
+        p_entita_tipo,
+        p_entita_id,
+        p_campo
+    );
+$$;
+
+REVOKE ALL ON FUNCTION private.registra_audit_dati_tabaccheria(
+    UUID, TEXT, TEXT, UUID, TEXT
+) FROM PUBLIC, anon, authenticated, service_role;
+
+
+-- Elenca le credenziali senza restituire la password. Lo username e' letto
+-- da Vault al momento della risposta e non esiste in chiaro in public.
+CREATE OR REPLACE FUNCTION public.elenca_credenziali_tabaccheria(
+    p_includi_archiviate BOOLEAN DEFAULT false
+)
+RETURNS TABLE (
+    id UUID,
+    nome_servizio TEXT,
+    username TEXT,
+    ordine INTEGER,
+    attiva BOOLEAN,
+    versione INTEGER,
+    aggiornato_il TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(false);
+    v_admin BOOLEAN;
+BEGIN
+    SELECT p.admin
+      INTO v_admin
+      FROM public.profili p
+     WHERE p.id = v_utente
+       AND p.accesso;
+
+    IF p_includi_archiviate AND NOT COALESCE(v_admin, false) THEN
+        RAISE EXCEPTION 'Solo un amministratore puo vedere le credenziali archiviate'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    SELECT c.id,
+           c.nome_servizio,
+           s.decrypted_secret,
+           c.ordine,
+           c.attivo,
+           c.versione,
+           c.aggiornato_il
+      FROM public.dati_tabaccheria_credenziali c
+      LEFT JOIN vault.decrypted_secrets s ON s.id = c.username_secret_id
+     WHERE c.attivo OR p_includi_archiviate
+     ORDER BY c.attivo DESC, c.ordine, c.nome_servizio, c.id;
+END;
+$$;
+
+
+-- Visualizzare o copiare username/password passa da questa RPC: il valore
+-- viene restituito soltanto dopo aver scritto l'evento di audit.
+CREATE OR REPLACE FUNCTION public.usa_credenziale_tabaccheria(
+    p_id UUID,
+    p_campo TEXT,
+    p_azione TEXT
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(false);
+    v_admin BOOLEAN;
+    v_attivo BOOLEAN;
+    v_secret_id UUID;
+    v_valore TEXT;
+BEGIN
+    IF p_campo NOT IN ('username', 'password') THEN
+        RAISE EXCEPTION 'Campo credenziale non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_azione NOT IN ('visualizza', 'copia') THEN
+        RAISE EXCEPTION 'Azione credenziale non valida'
+            USING ERRCODE = '22023';
+    END IF;
+
+    SELECT p.admin
+      INTO v_admin
+      FROM public.profili p
+     WHERE p.id = v_utente
+       AND p.accesso;
+
+    SELECT c.attivo,
+           CASE p_campo
+               WHEN 'username' THEN c.username_secret_id
+               ELSE c.password_secret_id
+           END
+      INTO v_attivo, v_secret_id
+      FROM public.dati_tabaccheria_credenziali c
+     WHERE c.id = p_id;
+
+    IF NOT FOUND OR (NOT v_attivo AND NOT COALESCE(v_admin, false)) THEN
+        RAISE EXCEPTION 'Credenziale non trovata'
+            USING ERRCODE = 'P0002';
+    END IF;
+
+    SELECT s.decrypted_secret
+      INTO v_valore
+      FROM vault.decrypted_secrets s
+     WHERE s.id = v_secret_id;
+
+    IF NOT FOUND OR v_valore IS NULL THEN
+        RAISE EXCEPTION 'Valore cifrato non disponibile'
+            USING ERRCODE = 'P0002';
+    END IF;
+
+    PERFORM private.registra_audit_dati_tabaccheria(
+        v_utente,
+        CASE p_azione
+            WHEN 'visualizza' THEN 'campo_visualizzato'
+            ELSE 'campo_copiato'
+        END,
+        'credenziale',
+        p_id,
+        p_campo
+    );
+
+    RETURN v_valore;
+END;
+$$;
+
+
+-- p_id NULL crea una voce. In modifica username e metadati vengono aggiornati;
+-- password NULL o vuota conserva il segreto esistente.
+CREATE OR REPLACE FUNCTION public.salva_credenziale_tabaccheria(
+    p_id UUID,
+    p_nome_servizio TEXT,
+    p_username TEXT,
+    p_password TEXT,
+    p_ordine INTEGER DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(true);
+    v_id UUID := COALESCE(p_id, gen_random_uuid());
+    v_nome_servizio TEXT := BTRIM(COALESCE(p_nome_servizio, ''));
+    v_username TEXT := BTRIM(COALESCE(p_username, ''));
+    v_password TEXT := COALESCE(p_password, '');
+    v_ordine INTEGER;
+    v_username_secret_id UUID;
+    v_password_secret_id UUID;
+BEGIN
+    IF char_length(v_nome_servizio) NOT BETWEEN 1 AND 120 THEN
+        RAISE EXCEPTION 'Il nome del servizio deve contenere da 1 a 120 caratteri'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF char_length(v_username) NOT BETWEEN 1 AND 500 THEN
+        RAISE EXCEPTION 'Lo username deve contenere da 1 a 500 caratteri'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF char_length(v_password) > 4096 THEN
+        RAISE EXCEPTION 'La password supera la lunghezza consentita'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_ordine IS NOT NULL AND p_ordine NOT BETWEEN 0 AND 1000000 THEN
+        RAISE EXCEPTION 'Ordine non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_id IS NULL THEN
+        IF v_password = '' THEN
+            RAISE EXCEPTION 'La password e obbligatoria per una nuova credenziale'
+                USING ERRCODE = '22023';
+        END IF;
+
+        SELECT COALESCE(
+                   p_ordine,
+                   COALESCE(MAX(c.ordine), 0) + 10
+               )
+          INTO v_ordine
+          FROM public.dati_tabaccheria_credenziali c;
+
+        v_username_secret_id := vault.create_secret(
+            v_username,
+            'dati_tabaccheria.' || v_id::TEXT || '.username',
+            'Username cifrato dei dati tabaccheria',
+            NULL
+        );
+        v_password_secret_id := vault.create_secret(
+            v_password,
+            'dati_tabaccheria.' || v_id::TEXT || '.password',
+            'Password cifrata dei dati tabaccheria',
+            NULL
+        );
+
+        INSERT INTO public.dati_tabaccheria_credenziali (
+            id,
+            nome_servizio,
+            username_secret_id,
+            password_secret_id,
+            ordine,
+            creato_da,
+            aggiornato_da
+        ) VALUES (
+            v_id,
+            v_nome_servizio,
+            v_username_secret_id,
+            v_password_secret_id,
+            v_ordine,
+            v_utente,
+            v_utente
+        );
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'credenziale_creata', 'credenziale', v_id, NULL
+        );
+    ELSE
+        SELECT c.username_secret_id,
+               c.password_secret_id,
+               COALESCE(p_ordine, c.ordine)
+          INTO v_username_secret_id, v_password_secret_id, v_ordine
+          FROM public.dati_tabaccheria_credenziali c
+         WHERE c.id = p_id
+         FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Credenziale non trovata'
+                USING ERRCODE = 'P0002';
+        END IF;
+
+        PERFORM vault.update_secret(
+            v_username_secret_id,
+            v_username,
+            'dati_tabaccheria.' || v_id::TEXT || '.username',
+            'Username cifrato dei dati tabaccheria',
+            NULL
+        );
+
+        IF v_password <> '' THEN
+            PERFORM vault.update_secret(
+                v_password_secret_id,
+                v_password,
+                'dati_tabaccheria.' || v_id::TEXT || '.password',
+                'Password cifrata dei dati tabaccheria',
+                NULL
+            );
+        END IF;
+
+        UPDATE public.dati_tabaccheria_credenziali c
+           SET nome_servizio = v_nome_servizio,
+               ordine = v_ordine,
+               versione = c.versione + 1,
+               aggiornato_da = v_utente,
+               aggiornato_il = CURRENT_TIMESTAMP
+         WHERE c.id = p_id;
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'credenziale_modificata', 'credenziale', p_id, NULL
+        );
+    END IF;
+
+    RETURN v_id;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION public.imposta_credenziale_tabaccheria_attiva(
+    p_id UUID,
+    p_attiva BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(true);
+BEGIN
+    IF p_attiva IS NULL THEN
+        RAISE EXCEPTION 'Stato credenziale non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.dati_tabaccheria_credenziali c
+       SET attivo = p_attiva,
+           aggiornato_da = v_utente,
+           aggiornato_il = CURRENT_TIMESTAMP
+     WHERE c.id = p_id
+       AND c.attivo IS DISTINCT FROM p_attiva;
+
+    IF NOT FOUND THEN
+        IF NOT EXISTS (
+            SELECT 1
+              FROM public.dati_tabaccheria_credenziali c
+             WHERE c.id = p_id
+        ) THEN
+            RAISE EXCEPTION 'Credenziale non trovata'
+                USING ERRCODE = 'P0002';
+        END IF;
+        RETURN;
+    END IF;
+
+    PERFORM private.registra_audit_dati_tabaccheria(
+        v_utente,
+        CASE WHEN p_attiva
+             THEN 'credenziale_ripristinata'
+             ELSE 'credenziale_archiviata'
+        END,
+        'credenziale',
+        p_id,
+        NULL
+    );
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION public.elenca_procedure_tabaccheria(
+    p_includi_archiviate BOOLEAN DEFAULT false
+)
+RETURNS TABLE (
+    id UUID,
+    titolo TEXT,
+    passaggi JSONB,
+    versione INTEGER,
+    ordine INTEGER,
+    attiva BOOLEAN,
+    aggiornato_il TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(false);
+    v_admin BOOLEAN;
+BEGIN
+    SELECT p.admin
+      INTO v_admin
+      FROM public.profili p
+     WHERE p.id = v_utente
+       AND p.accesso;
+
+    IF p_includi_archiviate AND NOT COALESCE(v_admin, false) THEN
+        RAISE EXCEPTION 'Solo un amministratore puo vedere le procedure archiviate'
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN QUERY
+    SELECT p.id,
+           p.titolo,
+           v.passaggi,
+           p.versione_corrente,
+           p.ordine,
+           p.attivo,
+           p.aggiornato_il
+      FROM public.dati_tabaccheria_procedure p
+      JOIN public.dati_tabaccheria_procedure_versioni v
+        ON v.procedura_id = p.id
+       AND v.versione = p.versione_corrente
+     WHERE p.attivo OR p_includi_archiviate
+     ORDER BY p.attivo DESC, p.ordine, p.titolo, p.id;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION public.salva_procedura_tabaccheria(
+    p_id UUID,
+    p_titolo TEXT,
+    p_passaggi JSONB,
+    p_ordine INTEGER DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(true);
+    v_id UUID := COALESCE(p_id, gen_random_uuid());
+    v_titolo TEXT := BTRIM(COALESCE(p_titolo, ''));
+    v_passaggi JSONB;
+    v_ordine INTEGER;
+    v_versione INTEGER;
+BEGIN
+    IF char_length(v_titolo) NOT BETWEEN 1 AND 160 THEN
+        RAISE EXCEPTION 'Il titolo deve contenere da 1 a 160 caratteri'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_passaggi IS NULL OR jsonb_typeof(p_passaggi) <> 'array' THEN
+        RAISE EXCEPTION 'I passaggi devono essere una lista ordinata'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF jsonb_array_length(p_passaggi) NOT BETWEEN 1 AND 50 THEN
+        RAISE EXCEPTION 'Una procedura deve contenere da 1 a 50 passaggi'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM jsonb_array_elements(p_passaggi) e(valore)
+         WHERE jsonb_typeof(e.valore) <> 'string'
+            OR char_length(BTRIM(e.valore #>> '{}')) NOT BETWEEN 1 AND 500
+    ) THEN
+        RAISE EXCEPTION 'Ogni passaggio deve essere testo da 1 a 500 caratteri'
+            USING ERRCODE = '22023';
+    END IF;
+
+    SELECT jsonb_agg(
+               to_jsonb(BTRIM(e.valore #>> '{}'))
+               ORDER BY e.posizione
+           )
+      INTO v_passaggi
+      FROM jsonb_array_elements(p_passaggi)
+           WITH ORDINALITY AS e(valore, posizione);
+
+    IF p_ordine IS NOT NULL AND p_ordine NOT BETWEEN 0 AND 1000000 THEN
+        RAISE EXCEPTION 'Ordine non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_id IS NULL THEN
+        SELECT COALESCE(
+                   p_ordine,
+                   COALESCE(MAX(p.ordine), 0) + 10
+               )
+          INTO v_ordine
+          FROM public.dati_tabaccheria_procedure p;
+        v_versione := 1;
+
+        INSERT INTO public.dati_tabaccheria_procedure (
+            id,
+            titolo,
+            versione_corrente,
+            ordine,
+            creato_da,
+            aggiornato_da
+        ) VALUES (
+            v_id,
+            v_titolo,
+            v_versione,
+            v_ordine,
+            v_utente,
+            v_utente
+        );
+
+        INSERT INTO public.dati_tabaccheria_procedure_versioni (
+            procedura_id,
+            versione,
+            titolo,
+            passaggi,
+            creato_da
+        ) VALUES (
+            v_id,
+            v_versione,
+            v_titolo,
+            v_passaggi,
+            v_utente
+        );
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'procedura_creata', 'procedura', v_id, NULL
+        );
+    ELSE
+        SELECT p.versione_corrente + 1,
+               COALESCE(p_ordine, p.ordine)
+          INTO v_versione, v_ordine
+          FROM public.dati_tabaccheria_procedure p
+         WHERE p.id = p_id
+         FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Procedura non trovata'
+                USING ERRCODE = 'P0002';
+        END IF;
+
+        INSERT INTO public.dati_tabaccheria_procedure_versioni (
+            procedura_id,
+            versione,
+            titolo,
+            passaggi,
+            creato_da
+        ) VALUES (
+            p_id,
+            v_versione,
+            v_titolo,
+            v_passaggi,
+            v_utente
+        );
+
+        UPDATE public.dati_tabaccheria_procedure p
+           SET titolo = v_titolo,
+               versione_corrente = v_versione,
+               ordine = v_ordine,
+               aggiornato_da = v_utente,
+               aggiornato_il = CURRENT_TIMESTAMP
+         WHERE p.id = p_id;
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'procedura_modificata', 'procedura', p_id, NULL
+        );
+    END IF;
+
+    RETURN v_id;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION public.imposta_procedura_tabaccheria_attiva(
+    p_id UUID,
+    p_attiva BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(true);
+BEGIN
+    IF p_attiva IS NULL THEN
+        RAISE EXCEPTION 'Stato procedura non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    UPDATE public.dati_tabaccheria_procedure p
+       SET attivo = p_attiva,
+           aggiornato_da = v_utente,
+           aggiornato_il = CURRENT_TIMESTAMP
+     WHERE p.id = p_id
+       AND p.attivo IS DISTINCT FROM p_attiva;
+
+    IF NOT FOUND THEN
+        IF NOT EXISTS (
+            SELECT 1
+              FROM public.dati_tabaccheria_procedure p
+             WHERE p.id = p_id
+        ) THEN
+            RAISE EXCEPTION 'Procedura non trovata'
+                USING ERRCODE = 'P0002';
+        END IF;
+        RETURN;
+    END IF;
+
+    PERFORM private.registra_audit_dati_tabaccheria(
+        v_utente,
+        CASE WHEN p_attiva
+             THEN 'procedura_ripristinata'
+             ELSE 'procedura_archiviata'
+        END,
+        'procedura',
+        p_id,
+        NULL
+    );
+END;
+$$;
+
+
+-- Riordino atomico delle sole voci attive. L'array deve contenerle tutte una
+-- volta sola, evitando ordini parziali o duplicati in caso di client vecchi.
+CREATE OR REPLACE FUNCTION public.riordina_dati_tabaccheria(
+    p_tipo TEXT,
+    p_ids UUID[]
+)
+RETURNS VOID
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    v_utente UUID := private.autorizza_dati_tabaccheria(true);
+    v_totale INTEGER;
+BEGIN
+    IF p_tipo NOT IN ('credenziali', 'procedure') THEN
+        RAISE EXCEPTION 'Tipo di riordino non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_ids IS NULL OR array_position(p_ids, NULL) IS NOT NULL OR EXISTS (
+        SELECT 1
+          FROM unnest(p_ids) x(id)
+         GROUP BY x.id
+        HAVING COUNT(*) > 1
+    ) THEN
+        RAISE EXCEPTION 'Elenco di riordino non valido'
+            USING ERRCODE = '22023';
+    END IF;
+
+    IF p_tipo = 'credenziali' THEN
+        PERFORM 1
+          FROM public.dati_tabaccheria_credenziali c
+         WHERE c.attivo
+         FOR UPDATE;
+
+        SELECT COUNT(*)::INTEGER
+          INTO v_totale
+          FROM public.dati_tabaccheria_credenziali c
+         WHERE c.attivo;
+
+        IF v_totale <> cardinality(p_ids) OR EXISTS (
+            SELECT 1
+              FROM public.dati_tabaccheria_credenziali c
+             WHERE c.attivo
+               AND NOT (c.id = ANY (p_ids))
+        ) THEN
+            RAISE EXCEPTION 'Il riordino deve includere tutte le credenziali attive'
+                USING ERRCODE = '22023';
+        END IF;
+
+        UPDATE public.dati_tabaccheria_credenziali c
+           SET ordine = (x.posizione * 10)::INTEGER,
+               aggiornato_da = v_utente,
+               aggiornato_il = CURRENT_TIMESTAMP
+          FROM unnest(p_ids) WITH ORDINALITY AS x(id, posizione)
+         WHERE c.id = x.id;
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'credenziali_riordinate', 'credenziale', NULL, NULL
+        );
+    ELSE
+        PERFORM 1
+          FROM public.dati_tabaccheria_procedure p
+         WHERE p.attivo
+         FOR UPDATE;
+
+        SELECT COUNT(*)::INTEGER
+          INTO v_totale
+          FROM public.dati_tabaccheria_procedure p
+         WHERE p.attivo;
+
+        IF v_totale <> cardinality(p_ids) OR EXISTS (
+            SELECT 1
+              FROM public.dati_tabaccheria_procedure p
+             WHERE p.attivo
+               AND NOT (p.id = ANY (p_ids))
+        ) THEN
+            RAISE EXCEPTION 'Il riordino deve includere tutte le procedure attive'
+                USING ERRCODE = '22023';
+        END IF;
+
+        UPDATE public.dati_tabaccheria_procedure p
+           SET ordine = (x.posizione * 10)::INTEGER,
+               aggiornato_da = v_utente,
+               aggiornato_il = CURRENT_TIMESTAMP
+          FROM unnest(p_ids) WITH ORDINALITY AS x(id, posizione)
+         WHERE p.id = x.id;
+
+        PERFORM private.registra_audit_dati_tabaccheria(
+            v_utente, 'procedure_riordinate', 'procedura', NULL, NULL
+        );
+    END IF;
+END;
+$$;
+
+
+-- Le RPC pubbliche sono endpoint PostgREST, quindi il privilegio predefinito
+-- di PUBLIC viene sempre tolto prima di concederle ai soli utenti autenticati.
+REVOKE ALL ON FUNCTION public.elenca_credenziali_tabaccheria(BOOLEAN)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.usa_credenziale_tabaccheria(UUID, TEXT, TEXT)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.salva_credenziale_tabaccheria(
+    UUID, TEXT, TEXT, TEXT, INTEGER
+) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.imposta_credenziale_tabaccheria_attiva(UUID, BOOLEAN)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.elenca_procedure_tabaccheria(BOOLEAN)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.salva_procedura_tabaccheria(UUID, TEXT, JSONB, INTEGER)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.imposta_procedura_tabaccheria_attiva(UUID, BOOLEAN)
+    FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.riordina_dati_tabaccheria(TEXT, UUID[])
+    FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.elenca_credenziali_tabaccheria(BOOLEAN)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.usa_credenziale_tabaccheria(UUID, TEXT, TEXT)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.salva_credenziale_tabaccheria(
+    UUID, TEXT, TEXT, TEXT, INTEGER
+) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.imposta_credenziale_tabaccheria_attiva(UUID, BOOLEAN)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.elenca_procedure_tabaccheria(BOOLEAN)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.salva_procedura_tabaccheria(UUID, TEXT, JSONB, INTEGER)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.imposta_procedura_tabaccheria_attiva(UUID, BOOLEAN)
+    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.riordina_dati_tabaccheria(TEXT, UUID[])
+    TO authenticated;

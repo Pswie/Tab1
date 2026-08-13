@@ -1,3 +1,6 @@
+import { salvaIscrizionePush } from '../services/push';
+import { supabase } from '../services/supabase';
+
 /**
  * Notifiche.
  *
@@ -56,8 +59,8 @@ function chiaveInByte(base64: string): Uint8Array {
  * Registra il service worker e iscrive il dispositivo alle notifiche push.
  * Va chiamata solo a permesso concesso.
  */
-async function iscriviAllePush(): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+async function iscriviAllePush(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
 
   try {
     const registrazione = await navigator.serviceWorker.register('/sw.js');
@@ -70,11 +73,9 @@ async function iscriviAllePush(): Promise<void> {
     });
 
     const dati = iscrizione.toJSON();
-    if (!dati.endpoint || !dati.keys) return;
+    if (!dati.endpoint || !dati.keys) return false;
 
-    const { salvaIscrizionePush } = await import('../services/push');
-
-    await salvaIscrizionePush({
+    return await salvaIscrizionePush({
       endpoint: dati.endpoint,
       p256dh: dati.keys.p256dh,
       auth: dati.keys.auth,
@@ -82,6 +83,7 @@ async function iscriviAllePush(): Promise<void> {
     });
   } catch (err) {
     console.warn('Iscrizione alle notifiche non riuscita:', err);
+    return false;
   }
 }
 
@@ -111,8 +113,8 @@ export async function chiediPermessoUnaVolta(): Promise<void> {
 }
 
 /** Riaggancia il service worker all'avvio, se il permesso c'è già */
-export function ripristinaIscrizione(): void {
-  if (permessoConcesso()) iscriviAllePush();
+export async function ripristinaIscrizione(): Promise<void> {
+  if (permessoConcesso()) void iscriviAllePush();
 }
 
 export type StatoNotifiche = 'concesso' | 'da-chiedere' | 'negato' | 'non-supportate';
@@ -138,8 +140,7 @@ export async function attivaNotifiche(): Promise<StatoNotifiche> {
   // tardasse a registrarsi, il pulsante resterebbe fermo su "Attiva" pur
   // avendo il permesso. Fallisce da sola in silenzio, e si riprova all'avvio.
   if (Notification.permission === 'granted') {
-    iscriviAllePush();
-    return 'concesso';
+    return await iscriviAllePush() ? 'concesso' : 'da-chiedere';
   }
 
   // Una volta negato, il browser non ripropone la richiesta: va tolto il blocco
@@ -151,8 +152,7 @@ export async function attivaNotifiche(): Promise<StatoNotifiche> {
     localStorage.setItem(CHIAVE_PERMESSO_CHIESTO, '1');
 
     if (esito === 'granted') {
-      iscriviAllePush();
-      return 'concesso';
+      return await iscriviAllePush() ? 'concesso' : 'da-chiedere';
     }
 
     return esito === 'denied' ? 'negato' : 'da-chiedere';
@@ -178,11 +178,19 @@ export function inviaNotifica(titolo: string, testo: string): void {
  */
 export async function avvisaGliAltri(titolo: string, testo: string): Promise<void> {
   try {
-    await fetch('/api/notifica', {
+    const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+    const token = data.session?.access_token;
+    if (!token) return;
+
+    const risposta = await fetch('/api/notifica', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify({ titolo, testo, mittente: idDispositivo() })
     });
+    if (!risposta.ok) throw new Error(`Invio rifiutato (${risposta.status})`);
   } catch (err) {
     // Resta comunque il pallino sul menu degli altri dispositivi
     console.warn('Avviso non inviato:', err);

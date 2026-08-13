@@ -166,6 +166,13 @@
           <span>Bagno, settimanali e mensili</span>
         </div>
       </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-ordini">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Ordini settimanali</strong>
+          <span>Cosa ordinare e in quale giorno</span>
+        </div>
+      </button>
       <button type="button" class="hotdog-menu-item" data-tab="tab-inventario">
         <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span>
         <div class="hotdog-text">
@@ -192,6 +199,13 @@
         <div class="hotdog-text">
           <strong>Registro numeri</strong>
           <span>Nomi e numeri di telefono</span>
+        </div>
+      </button>
+      <button type="button" class="hotdog-menu-item" data-tab="tab-dati-tabaccheria">
+        <span class="hotdog-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg></span>
+        <div class="hotdog-text">
+          <strong>Dati Tabaccheria</strong>
+          <span>Accessi condivisi e procedure</span>
         </div>
       </button>
     </div>
@@ -244,6 +258,38 @@
   </div>
   <div id="hotdog-backdrop" class="hotdog-backdrop"></div>
 
+  <!-- Il browser richiede sempre un gesto della persona prima di concedere le
+       notifiche. Finché manca il permesso questo invito resta davanti all'app:
+       l'unica azione disponibile è provare ad attivarle. -->
+  <div id="notifiche-obbligatorie" class="notifiche-obbligatorie" role="dialog"
+       aria-modal="true" aria-hidden="true" inert
+       aria-labelledby="notifiche-obbligatorie-titolo"
+       aria-describedby="notifiche-obbligatorie-testo">
+    <div class="notifiche-obbligatorie-box" role="document">
+      <span class="notifiche-obbligatorie-icona" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+          <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+        </svg>
+      </span>
+      <div>
+        <p class="notifiche-obbligatorie-eyebrow">Avvisi di lavoro</p>
+        <h2 id="notifiche-obbligatorie-titolo">Attiva le notifiche</h2>
+        <p id="notifiche-obbligatorie-testo">
+          Servono per ricevere alle 07:00 le cose da ordinare, anche con l'app chiusa.
+        </p>
+        <p id="notifiche-obbligatorie-aiuto" class="notifiche-obbligatorie-aiuto" hidden></p>
+      </div>
+      <button type="button" id="btn-notifiche-obbligatorie" class="todo-add-btn">
+        Attiva notifiche
+      </button>
+      <button type="button" id="btn-notifiche-continua" class="btn-secondary-action" hidden>
+        Continua senza notifiche
+      </button>
+    </div>
+  </div>
+
   <!-- Navigation Bar Desktop & Tablet -->
   <nav class="app-nav-tabs">
     <div class="nav-tabs-container">
@@ -259,6 +305,9 @@
       <button type="button" class="nav-tab-item" data-tab="tab-pulizie">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 4 6 6"/><path d="m12 6 6 6"/><path d="M4 20h8l6-8-6-6-8 8Z"/><path d="m4 14 6 6"/></svg></span> Pulizie
       </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-ordini">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l1 14H5L6 7Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span> Ordini settimanali
+      </button>
       <button type="button" class="nav-tab-item" data-tab="tab-inventario">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 12 4l9 4.5v7L12 20l-9-4.5v-7Z"/><path d="m3 8.5 9 4.5 9-4.5"/><path d="M12 13v7"/></svg></span> Inventario <span class="nav-badge" id="badge-nav-inventario" hidden></span>
       </button>
@@ -270,6 +319,9 @@
       </button>
       <button type="button" class="nav-tab-item" data-tab="tab-rubrica">
         <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7Z"/><circle cx="13.5" cy="10" r="2.4"/><path d="M10 17a3.5 3.5 0 0 1 7 0"/><path d="M7 7H4"/><path d="M7 12H4"/><path d="M7 17H4"/></svg></span> Registro numeri
+      </button>
+      <button type="button" class="nav-tab-item" data-tab="tab-dati-tabaccheria">
+        <span class="tab-icon"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg></span> Dati Tabaccheria
       </button>
 
       <!-- Da qui in poi si parla di distributori, non più di tabaccheria -->
@@ -1221,6 +1273,71 @@
       </section>
     </div>
 
+    <!-- TAB: ORDINI SETTIMANALI
+         Tutti vedono il giro degli ordini. Solo chi amministra apre con la
+         rotellina i comandi per aggiungere, spostare o disattivare una voce. -->
+    <div id="tab-ordini" class="tab-pane">
+      <section class="card-section">
+        <div class="section-header ordini-testa">
+          <div>
+            <div class="section-title"><span>Ordini settimanali</span></div>
+            <p class="ordini-sottotitolo">Ogni voce invia il proprio promemoria alle 07:00.</p>
+          </div>
+
+          <button type="button" id="btn-ordini-gestione" class="h24-rotella ordini-rotella"
+                  aria-pressed="false" aria-label="Apri gestione ordini" title="Gestisci gli ordini" hidden>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/>
+            </svg>
+          </button>
+        </div>
+
+        <p id="ordini-avviso" class="ordini-avviso is-hidden" role="status" aria-live="polite"></p>
+
+        <form id="ordini-gestione" class="ordini-gestione" hidden>
+          <label class="ordini-campo ordini-campo-voce" for="ordini-voce">
+            <span>Cosa ordinare</span>
+            <input type="text" id="ordini-voce" class="todo-add-input" maxlength="120"
+                   placeholder="Es. Cartine" autocomplete="off" required />
+          </label>
+          <fieldset class="ordini-campo ordini-campo-giorno">
+            <legend>Giorno</legend>
+            <div id="ordini-giorno" class="ordini-giorni" role="radiogroup" aria-label="Giorno ricorrente">
+              <button type="button" class="ordini-giorno-scelta is-selected" data-giorno="1"
+                      role="radio" aria-checked="true" aria-label="Lunedì">Lun</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="2"
+                      role="radio" aria-checked="false" aria-label="Martedì" tabindex="-1">Mar</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="3"
+                      role="radio" aria-checked="false" aria-label="Mercoledì" tabindex="-1">Mer</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="4"
+                      role="radio" aria-checked="false" aria-label="Giovedì" tabindex="-1">Gio</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="5"
+                      role="radio" aria-checked="false" aria-label="Venerdì" tabindex="-1">Ven</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="6"
+                      role="radio" aria-checked="false" aria-label="Sabato" tabindex="-1">Sab</button>
+              <button type="button" class="ordini-giorno-scelta" data-giorno="7"
+                      role="radio" aria-checked="false" aria-label="Domenica" tabindex="-1">Dom</button>
+            </div>
+          </fieldset>
+          <span class="ordini-orario-fisso" aria-label="Orario fisso delle notifiche">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+            </svg>
+            <span><small>Notifica</small><strong>07:00</strong></span>
+          </span>
+          <div class="ordini-gestione-azioni">
+            <button type="submit" id="btn-ordini-salva" class="todo-add-btn">Aggiungi ordine</button>
+            <button type="button" id="btn-ordini-annulla" class="btn-secondary-action" hidden>Annulla</button>
+          </div>
+        </form>
+
+        <div id="ordini-lista" class="ordini-lista" aria-live="polite"></div>
+      </section>
+    </div>
+
     <!-- TAB 2: INVENTARIO -->
     <div id="tab-inventario" class="tab-pane">
       <!-- Si registrano le differenze del conteggio: negativo se manca,
@@ -1429,6 +1546,98 @@
                placeholder="Cerca per nome o numero" autocomplete="off" />
 
         <div id="rubrica-lista" class="rub-lista"></div>
+      </section>
+    </div>
+
+    <!-- TAB: DATI TABACCHERIA
+         Le persone approvate possono consultare accessi e procedure; soltanto
+         l'admin apre la rotellina per modificare il cassetto condiviso. -->
+    <div id="tab-dati-tabaccheria" class="tab-pane">
+      <section class="card-section dati-tabaccheria-card">
+        <div class="section-header dati-testa">
+          <div>
+            <div class="section-title"><span>Dati Tabaccheria</span></div>
+            <p class="dati-sottotitolo">Accessi e passaggi operativi condivisi con tutte le dipendenti.</p>
+          </div>
+          <button type="button" id="btn-dati-gestione" class="h24-rotella dati-rotella"
+                  aria-pressed="false" aria-label="Apri gestione Dati Tabaccheria"
+                  title="Gestisci dati e procedure" hidden>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/>
+            </svg>
+          </button>
+        </div>
+
+        <p id="dati-avviso" class="dati-avviso is-hidden" role="status" aria-live="polite"></p>
+
+        <div class="dati-colonne">
+          <section class="dati-blocco" aria-labelledby="dati-credenziali-titolo">
+            <header class="dati-blocco-testa">
+              <span class="dati-blocco-icona" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg>
+              </span>
+              <div><h2 id="dati-credenziali-titolo">Username e Password</h2><p>Prima lo username, poi la password.</p></div>
+            </header>
+
+            <form id="dati-credenziale-form" class="dati-form" hidden>
+              <label>
+                <span>Nome servizio</span>
+                <input type="text" id="dati-credenziale-servizio" class="todo-add-input"
+                       maxlength="120" autocomplete="off" placeholder="Es. Terminale Sisal" required />
+              </label>
+              <label>
+                <span>Username</span>
+                <input type="text" id="dati-credenziale-username" class="todo-add-input"
+                       maxlength="500" autocomplete="off" autocapitalize="none" spellcheck="false" required />
+              </label>
+              <label>
+                <span>Password</span>
+                <input type="password" id="dati-credenziale-password" class="todo-add-input"
+                       maxlength="4096" autocomplete="new-password" autocapitalize="none" spellcheck="false" />
+              </label>
+              <p id="dati-credenziale-password-hint" class="dati-form-hint">
+                La password viene salvata in modo protetto e non rimane nel browser.
+              </p>
+              <div class="dati-form-azioni">
+                <button type="submit" id="btn-dati-credenziale-salva" class="todo-add-btn">Aggiungi accesso</button>
+                <button type="button" id="btn-dati-credenziale-annulla" class="btn-secondary-action" hidden>Annulla</button>
+              </div>
+            </form>
+
+            <div id="dati-credenziali-lista" class="dati-credenziali-lista" aria-live="polite"></div>
+          </section>
+
+          <section class="dati-blocco" aria-labelledby="dati-procedure-titolo">
+            <header class="dati-blocco-testa">
+              <span class="dati-blocco-icona" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+              </span>
+              <div><h2 id="dati-procedure-titolo">Procedure</h2><p>I passaggi da seguire, nell'ordine corretto.</p></div>
+            </header>
+
+            <form id="dati-procedura-form" class="dati-form" hidden>
+              <label>
+                <span>Nome procedura</span>
+                <input type="text" id="dati-procedura-titolo" class="todo-add-input"
+                       maxlength="160" autocomplete="off" placeholder="Es. Chiusura terminale" required />
+              </label>
+              <label>
+                <span>Passaggi <small>uno per riga</small></span>
+                <textarea id="dati-procedura-passaggi" class="todo-add-input dati-passaggi-input"
+                          rows="5" maxlength="6000" placeholder="Apri il menu&#10;Scegli Chiusura&#10;Conferma e stampa" required></textarea>
+              </label>
+              <div class="dati-form-azioni">
+                <button type="submit" id="btn-dati-procedura-salva" class="todo-add-btn">Aggiungi procedura</button>
+                <button type="button" id="btn-dati-procedura-annulla" class="btn-secondary-action" hidden>Annulla</button>
+              </div>
+            </form>
+
+            <div id="dati-procedure-lista" class="dati-procedure-lista" aria-live="polite"></div>
+          </section>
+        </div>
+        <div id="dati-archivio"></div>
       </section>
     </div>
   </main>
