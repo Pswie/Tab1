@@ -14,7 +14,8 @@ const CHIAVE_PRIVATA = process.env.VAPID_PRIVATE_KEY;
 const CONTATTO = process.env.VAPID_SUBJECT || 'mailto:tabaccheria@example.com';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SECRET_KEY
+  || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function tokenAutenticazione(req) {
   const intestazione = String(req.headers.authorization || '');

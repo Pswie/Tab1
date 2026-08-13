@@ -2702,9 +2702,9 @@ $$;
 REVOKE ALL ON FUNCTION private.ordini_da_notificare(TIMESTAMP WITH TIME ZONE)
     FROM PUBLIC, anon, authenticated;
 
--- RPC volutamente senza parametri: Vercel usa la chiave anon ma non puo'
--- scegliere una data o un'ora arbitraria. E' una sola lettura, non crea claim e
--- non puo' impedire i tentativi successivi del cron.
+-- RPC volutamente senza parametri: il backend protetto non puo' scegliere una
+-- data o un'ora arbitraria. E' una sola lettura, non crea claim e non puo'
+-- impedire i tentativi successivi del servizio di pianificazione esterno.
 CREATE OR REPLACE FUNCTION public.ordini_da_notificare_ora()
 RETURNS TABLE (
     ordine_id UUID,
@@ -2721,9 +2721,9 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.ordini_da_notificare_ora()
-    FROM PUBLIC, anon, authenticated;
+    FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.ordini_da_notificare_ora()
-    TO anon, authenticated, service_role;
+    TO service_role;
 
 
 -- =========================================================================

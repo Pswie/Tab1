@@ -4,10 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * Promemoria automatici degli ordini settimanali.
  *
- * Vercel richiama questa funzione due volte al giorno, nelle due possibili
- * ore UTC che corrispondono alle 07:00 in Italia. Il database restituisce le
- * voci soltanto quando a Roma sono davvero le sette: così il cambio fra ora
- * solare e ora legale non richiede interventi manuali.
+ * Un servizio esterno (cron-job.org) richiama questa funzione alle 07:00 con
+ * fuso Europe/Rome. Il database controlla comunque l'ora italiana e fuori
+ * dalle sette restituisce un elenco vuoto.
  */
 
 const CHIAVE_PUBBLICA = process.env.VITE_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY;
@@ -15,13 +14,16 @@ const CHIAVE_PRIVATA = process.env.VAPID_PRIVATE_KEY;
 const CONTATTO = process.env.VAPID_SUBJECT || 'mailto:tabaccheria@example.com';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Le nuove Secret Key Supabase sono preferibili alla legacy service_role.
+// Entrambe restano supportate per consentire una migrazione senza interruzioni.
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SECRET_KEY
+  || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function richiestaDelCron(req) {
   const segreto = process.env.CRON_SECRET;
 
-  // Fail closed: lo user-agent del Cron si può imitare, il segreto no. Vercel
-  // aggiunge automaticamente questo header quando CRON_SECRET è configurato.
+  // Fail closed: cron-job.org invia questo valore come header personalizzato.
+  // Il segreto non deve mai essere inserito nell'URL, nel client o nel repo.
   return Boolean(segreto && req.headers.authorization === `Bearer ${segreto}`);
 }
 
