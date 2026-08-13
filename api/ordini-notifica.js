@@ -27,6 +27,41 @@ function richiestaDelCron(req) {
   return Boolean(segreto && req.headers.authorization === `Bearer ${segreto}`);
 }
 
+async function profiliDelTurnoMattina(db, dataLocale) {
+  const { data: turni, error: erroreTurni } = await db
+    .from('turni_lavoro')
+    .select('profilo_id')
+    .eq('data', dataLocale)
+    .eq('turno', 'mattina')
+    .eq('annullato', false)
+    .not('profilo_id', 'is', null);
+
+  if (erroreTurni) {
+    throw new Error(`Turno di mattina non leggibile: ${erroreTurni.message}`);
+  }
+
+  const profiliAssegnati = [...new Set((turni || [])
+    .map(turno => turno.profilo_id)
+    .filter(Boolean))];
+
+  if (profiliAssegnati.length === 0) return [];
+
+  // Un turno storico potrebbe puntare a un account poi disattivato. Il
+  // promemoria parte soltanto ai profili ancora abilitati e non amministratori.
+  const { data: profili, error: erroreProfili } = await db
+    .from('profili')
+    .select('id')
+    .in('id', profiliAssegnati)
+    .eq('accesso', true)
+    .eq('admin', false);
+
+  if (erroreProfili) {
+    throw new Error(`Profili del turno non leggibili: ${erroreProfili.message}`);
+  }
+
+  return (profili || []).map(profilo => profilo.id);
+}
+
 async function invia(subscription, messaggio) {
   return webpush.sendNotification(
     {
@@ -75,13 +110,36 @@ export default async function handler(req, res) {
   }
 
   if (!ordini || ordini.length === 0) {
-    res.status(200).json({ ordini: 0, inviate: 0, rimossi: 0 });
+    res.status(200).json({ ordini: 0, destinatari: 0, dispositivi: 0, inviate: 0, rimossi: 0 });
+    return;
+  }
+
+  const dataLocale = String(ordini[0].data_locale);
+  let profiliMattina;
+
+  try {
+    profiliMattina = await profiliDelTurnoMattina(db, dataLocale);
+  } catch (err) {
+    res.status(502).json({ errore: err.message });
+    return;
+  }
+
+  if (profiliMattina.length === 0) {
+    res.status(200).json({
+      ordini: ordini.length,
+      destinatari: 0,
+      dispositivi: 0,
+      inviate: 0,
+      fallite: 0,
+      rimossi: 0
+    });
     return;
   }
 
   const { data: iscrizioni, error: erroreIscrizioni } = await db
     .from('push_iscrizioni')
-    .select('endpoint,p256dh,auth');
+    .select('endpoint,p256dh,auth,profilo_id')
+    .in('profilo_id', profiliMattina);
 
   if (erroreIscrizioni) {
     res.status(502).json({ errore: `Destinatari non leggibili: ${erroreIscrizioni.message}` });
@@ -123,6 +181,8 @@ export default async function handler(req, res) {
 
   res.status(fallite > 0 ? 207 : 200).json({
     ordini: ordini.length,
+    destinatari: profiliMattina.length,
+    dispositivi: (iscrizioni || []).length,
     inviate,
     fallite,
     rimossi: scaduti.size
