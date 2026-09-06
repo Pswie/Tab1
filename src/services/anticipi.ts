@@ -296,8 +296,27 @@ export async function impostaBaristaAttivo(id: string, attivo: boolean): Promise
   return { valore: true, suCloud: false };
 }
 
+export function spostaMese(valore: string, delta: number): string {
+  const [anno, numero] = valore.split('-').map(Number);
+  const d = new Date(anno, numero - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function estremiMese(valore: string): [string, string] {
+  const [anno, numero] = valore.split('-').map(Number);
+  const ultimo = new Date(anno, numero, 0).getDate();
+  return [`${valore}-01`, `${valore}-${String(ultimo).padStart(2, '0')}`];
+}
+
+export function nomeMese(valore: string): string {
+  const [anno, numero] = valore.split('-').map(Number);
+  const testo = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' })
+    .format(new Date(anno, numero - 1, 1));
+  return testo.charAt(0).toLocaleUpperCase('it') + testo.slice(1);
+}
+
 /** Anticipi in un intervallo di date comprese. */
-export async function elencaAnticipi(dal: string, al: string): Promise<Anticipo[]> {
+export async function elencaAnticipi(dal: string, al: string, includiAzzerati = false): Promise<Anticipo[]> {
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
@@ -313,7 +332,7 @@ export async function elencaAnticipi(dal: string, al: string): Promise<Anticipo[
         const fuoriPeriodo = leggiLocale<Anticipo[]>(CHIAVE_ANTICIPI, [])
           .filter(a => a.data < dal || a.data > al);
         scriviLocale(CHIAVE_ANTICIPI, ordinaAnticipi([...fuoriPeriodo, ...scaricati]));
-        return scaricati.filter(a => !a.azzerato);
+        return includiAzzerati ? scaricati : scaricati.filter(a => !a.azzerato);
       }
 
       console.warn('Errore lettura anticipi:', error?.message);
@@ -322,10 +341,9 @@ export async function elencaAnticipi(dal: string, al: string): Promise<Anticipo[
     }
   }
 
-  return ordinaAnticipi(
-    leggiLocale<Anticipo[]>(CHIAVE_ANTICIPI, [])
-      .filter(a => a.data >= dal && a.data <= al && !a.azzerato)
-  );
+  const salvati = leggiLocale<Anticipo[]>(CHIAVE_ANTICIPI, [])
+    .filter(a => a.data >= dal && a.data <= al);
+  return ordinaAnticipi(includiAzzerati ? salvati : salvati.filter(a => !a.azzerato));
 }
 
 export async function registraAnticipo(
@@ -408,3 +426,156 @@ export async function azzeraAnticipo(id: string): Promise<boolean> {
 
   return false;
 }
+
+export async function modificaAnticipo(
+  id: string,
+  importo: number,
+  nota: string,
+  autore: string
+): Promise<EsitoAnticipi<Anticipo | null>> {
+  const importoValido = Math.round(importo * 100) / 100;
+  if (importoValido <= 0) {
+    const azz = await azzeraAnticipo(id);
+    return { valore: null, suCloud: azz };
+  }
+
+  const locali = leggiLocale<Anticipo[]>(CHIAVE_ANTICIPI, []);
+  const esistente = locali.find(a => a.id === id);
+  let nuovoCreatoDa = esistente?.creatoDa || autore;
+
+  // Se si modifica un riporto automatico, viene marcato come personalizzato manualmente
+  if (nuovoCreatoDa.startsWith('riporto:')) {
+    nuovoCreatoDa = nuovoCreatoDa.replace('riporto:', 'riporto_modificato:');
+  }
+
+  const notaPulita = nota.trim();
+  const aggiornato: Anticipo = esistente
+    ? { ...esistente, importo: importoValido, nota: notaPulita, creatoDa: nuovoCreatoDa }
+    : {
+        id,
+        baristaId: null,
+        baristaNome: '',
+        data: new Date().toISOString().slice(0, 10),
+        importo: importoValido,
+        nota: notaPulita,
+        creatoDa: nuovoCreatoDa,
+        creatoIl: new Date().toISOString(),
+        azzerato: false,
+        azzeratoIl: null
+      };
+
+  scriviLocale(CHIAVE_ANTICIPI, ordinaAnticipi(locali.map(a => a.id === id ? aggiornato : a)));
+
+  if (isSupabaseConfigured() && supabase && !id.startsWith('locale-') && !id.startsWith('iniziale-')) {
+    try {
+      const { data, error } = await supabase
+        .from('anticipi_baristi')
+        .update({
+          importo: importoValido,
+          nota: notaPulita,
+          creato_da: nuovoCreatoDa
+        })
+        .eq('id', id)
+        .select('id,barista_id,barista_nome,data,importo,nota,creato_da,creato_il,azzerato,azzerato_il')
+        .single();
+
+      if (!error && data) {
+        const daCloud = daRigaAnticipo(data);
+        scriviLocale(CHIAVE_ANTICIPI, ordinaAnticipi(locali.map(a => a.id === id ? daCloud : a)));
+        return { valore: daCloud, suCloud: true };
+      }
+      console.warn('Anticipo modificato solo in locale:', error?.message);
+    } catch (err) {
+      console.warn('Eccezione modifica anticipo:', err);
+    }
+  }
+
+  return { valore: aggiornato, suCloud: false };
+}
+
+async function sincronizzaMeseSingolo(targetMese: string, baristi: BaristaAnticipo[]): Promise<void> {
+  const mesePrec = spostaMese(targetMese, -1);
+  const [dalPrec, alPrec] = estremiMese(mesePrec);
+  const anticipiPrec = await elencaAnticipi(dalPrec, alPrec, false);
+
+  const [dalTarget, alTarget] = estremiMese(targetMese);
+  const anticipiTargetTutti = await elencaAnticipi(dalTarget, alTarget, true);
+
+  const prefissoRiporto = `riporto:${mesePrec}`;
+  const prefissoModificato = `riporto_modificato:${mesePrec}`;
+
+  for (const b of baristi) {
+    const compenso = Number(b.compensoMensile) || 0;
+    // Calcola il totale degli anticipi del barista nel mese precedente
+    const anticipiPersonaPrec = anticipiPrec.filter(a =>
+      !a.azzerato && (
+        (a.baristaId && a.baristaId === b.id) ||
+        a.baristaNome.localeCompare(b.nome, 'it', { sensitivity: 'base' }) === 0
+      )
+    );
+    const totaleAnticipatoPrec = anticipiPersonaPrec.reduce((s, a) => s + a.importo, 0);
+    const eccedenzaPrec = Math.round((totaleAnticipatoPrec - compenso) * 100) / 100;
+
+    // Cerca se esiste già un riporto (attivo o azzerato) per questo barista nel mese target da mesePrec
+    const riportoEsistente = anticipiTargetTutti.find(a =>
+      ((a.baristaId && a.baristaId === b.id) ||
+       a.baristaNome.localeCompare(b.nome, 'it', { sensitivity: 'base' }) === 0) &&
+      (a.creatoDa === prefissoRiporto ||
+       a.creatoDa === prefissoModificato ||
+       (a.creatoDa.startsWith('riporto:') && a.data.startsWith(targetMese)))
+    );
+
+    if (eccedenzaPrec > 0) {
+      if (!riportoEsistente) {
+        // Genera nuovo riporto automatico
+        const [annoP, numP] = mesePrec.split('-').map(Number);
+        const nomeMesePrec = new Intl.DateTimeFormat('it-IT', { month: 'long' })
+          .format(new Date(annoP, numP - 1, 1));
+        const etichettaMese = nomeMesePrec.charAt(0).toLocaleUpperCase('it') + nomeMesePrec.slice(1);
+        const nota = `Riporto anticipo mese precedente (${etichettaMese})`;
+        await registraAnticipo(
+          b,
+          `${targetMese}-01`,
+          eccedenzaPrec,
+          nota,
+          prefissoRiporto
+        );
+      } else if (!riportoEsistente.azzerato && riportoEsistente.creatoDa === prefissoRiporto) {
+        // Se è automatico e non modificato dall'utente, aggiorna l'importo se l'eccedenza è cambiata
+        if (Math.abs(riportoEsistente.importo - eccedenzaPrec) > 0.009) {
+          await modificaAnticipo(
+            riportoEsistente.id,
+            eccedenzaPrec,
+            riportoEsistente.nota,
+            prefissoRiporto
+          );
+        }
+      }
+    } else {
+      // Se non c'è più eccedenza nel mese precedente e c'era un riporto automatico attivo non modificato a mano, azzeralo
+      if (riportoEsistente && !riportoEsistente.azzerato && riportoEsistente.creatoDa === prefissoRiporto) {
+        await azzeraAnticipo(riportoEsistente.id);
+      }
+    }
+  }
+}
+
+/**
+ * Sincronizza i riporti automatici degli anticipi per il mese richiesto.
+ * Per garantire coerenza a catena, sincronizza prima il mese precedente.
+ */
+export async function sincronizzaRiportiMese(targetMese: string, baristi: BaristaAnticipo[]): Promise<void> {
+  const mesePrec = spostaMese(targetMese, -1);
+  try {
+    await sincronizzaMeseSingolo(mesePrec, baristi);
+  } catch (err) {
+    console.warn('Errore sincronizzazione riporti mese precedente:', err);
+  }
+
+  try {
+    await sincronizzaMeseSingolo(targetMese, baristi);
+  } catch (err) {
+    console.warn('Errore sincronizzazione riporti mese target:', err);
+  }
+}
+

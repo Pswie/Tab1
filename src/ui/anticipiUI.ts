@@ -8,7 +8,9 @@ import {
   elencaBaristiAnticipi,
   impostaBaristaAttivo,
   impostaCompensoBarista,
-  registraAnticipo
+  modificaAnticipo,
+  registraAnticipo,
+  sincronizzaRiportiMese
 } from '../services/anticipi';
 import {
   DebitoTurno,
@@ -45,6 +47,7 @@ let nomi: BaristaAnticipo[] = [];
 let anticipi: Anticipo[] = [];
 let debiti: DebitoTurno[] = [];
 let debitoInModifica = '';
+let anticipoInModifica = '';
 let baristaIdSelezionato = '';
 let mese = meseCorrente();
 let inizializzato = false;
@@ -171,7 +174,7 @@ function renderGestione(): void {
 
 function renderRegistro(): void {
   if (meseNome) meseNome.textContent = nomeMese(mese);
-  if (btnMeseAvanti) btnMeseAvanti.disabled = mese >= meseCorrente();
+  if (btnMeseAvanti) btnMeseAvanti.disabled = mese >= spostaMese(meseCorrente(), 1);
 
   const totaleAnticipiMese = anticipi.reduce((somma, a) => somma + a.importo, 0);
   if (totaleMese) totaleMese.textContent = euro(totaleAnticipiMese);
@@ -189,6 +192,9 @@ function renderRegistro(): void {
           a.baristaNome.localeCompare(b.nome, 'it', { sensitivity: 'base' }) === 0
         );
         const totaleAnticipato = anticipiPersona.reduce((s, a) => s + a.importo, 0);
+        const riportoPersona = anticipiPersona
+          .filter(a => a.creatoDa?.startsWith('riporto'))
+          .reduce((s, a) => s + a.importo, 0);
         const compenso = b.compensoMensile;
         const differenza = compenso - totaleAnticipato;
 
@@ -231,6 +237,12 @@ function renderRegistro(): void {
                 <span>Anticipi erogati nel mese:</span>
                 <span class="anticipi-card-valore">${euro(totaleAnticipato)}</span>
               </div>
+              ${riportoPersona > 0 ? `
+              <div class="anticipi-card-riga anticipi-card-riporto">
+                <span>Di cui riporto mese prec.:</span>
+                <span class="anticipi-card-valore anticipi-valore-riporto">${euro(riportoPersona)}</span>
+              </div>
+              ` : ''}
               <div class="anticipi-card-riga anticipi-card-saldo ${badgeClasse}">
                 <span>${badgeEtichetta}</span>
                 <strong>${badgeValore}</strong>
@@ -250,28 +262,66 @@ function renderRegistro(): void {
       <div class="anticipi-vuoto">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16"/><path d="M7 3v4M17 3v4"/><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 12h8M8 16h5"/></svg>
         <strong>Nessun anticipo in questo mese</strong>
-        <span>Quando ne registri uno comparirà qui. Le quote base mensili restano conservate.</span>
+        <span>Quando ne registri uno o ne viene ereditato uno dal mese precedente comparir&agrave; qui.</span>
       </div>`;
     return;
   }
 
-  lista.innerHTML = anticipi.map(a => `
-    <article class="anticipi-riga">
-      <div class="anticipi-riga-data">
-        <span>${dataItaliana(a.data)}</span>
-      </div>
-      <div class="anticipi-riga-persona">
-        <strong>${escapeHtml(a.baristaNome)}</strong>
-        ${a.nota ? `<span>${escapeHtml(a.nota)}</span>` : '<span>Senza nota</span>'}
-      </div>
-      <strong class="anticipi-riga-importo">${euro(a.importo)}</strong>
-      <button type="button" class="anticipi-azzera" data-anticipo-id="${escapeHtml(a.id)}"
-              aria-label="Azzera anticipo di ${escapeHtml(a.baristaNome)}" title="Azzera senza cancellare">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M8 12h8"/></svg>
-        <span>Azzera</span>
-      </button>
-    </article>
-  `).join('');
+  lista.innerHTML = anticipi.map(a => {
+    const eRiporto = a.creatoDa?.startsWith('riporto');
+    const modificato = a.creatoDa?.startsWith('riporto_modificato');
+
+    if (anticipoInModifica === a.id) {
+      return `
+        <article class="debiti-modifica anticipi-modifica" data-anticipo-riga="${escapeHtml(a.id)}">
+          <div class="debiti-modifica-testa">
+            <strong>${escapeHtml(a.baristaNome)}</strong>
+            <span>${dataItaliana(a.data)}${eRiporto ? ' · Riporto da mese precedente' : ''}</span>
+          </div>
+          <label class="anticipi-campo">
+            <span>Importo anticipo</span>
+            <span class="anticipi-input-euro">
+              <input type="text" class="todo-add-input" data-anticipo-campo="importo"
+                     inputmode="decimal" value="${String(a.importo).replace('.', ',')}" autocomplete="off" />
+              <span>&euro;</span>
+            </span>
+          </label>
+          <label class="anticipi-campo debiti-modifica-nota">
+            <span>Nota / Motivo</span>
+            <input type="text" class="todo-add-input" data-anticipo-campo="nota"
+                   value="${escapeHtml(a.nota)}" placeholder="Es. Restituiti 500 €" autocomplete="off" />
+          </label>
+          <div class="debiti-modifica-azioni">
+            <button type="button" class="btn-secondary-action" data-anticipo-action="annulla">Annulla</button>
+            <button type="button" class="todo-add-btn" data-anticipo-action="salva">Salva modifica</button>
+          </div>
+        </article>`;
+    }
+
+    return `
+      <article class="anticipi-riga${eRiporto ? ' is-riporto' : ''}">
+        <div class="anticipi-riga-data">
+          <span>${dataItaliana(a.data)}</span>
+          ${eRiporto ? `<small class="anticipi-badge-riporto"${modificato ? ' title="Modificato manualmente"' : ''}>Riporto${modificato ? '*' : ''}</small>` : ''}
+        </div>
+        <div class="anticipi-riga-persona">
+          <strong>${escapeHtml(a.baristaNome)}</strong>
+          ${a.nota ? `<span>${escapeHtml(a.nota)}</span>` : '<span>Senza nota</span>'}
+        </div>
+        <strong class="anticipi-riga-importo">${euro(a.importo)}</strong>
+        <div class="anticipi-riga-azioni">
+          <button type="button" class="btn-secondary-action anticipi-btn" data-anticipo-action="modifica"
+                  data-anticipo-id="${escapeHtml(a.id)}" title="Modifica cifra o nota">Modifica</button>
+          <button type="button" class="anticipi-azzera" data-anticipo-action="azzera"
+                  data-anticipo-id="${escapeHtml(a.id)}"
+                  aria-label="Azzera anticipo di ${escapeHtml(a.baristaNome)}" title="Azzera senza cancellare">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M8 12h8"/></svg>
+            <span>Azzera</span>
+          </button>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderDebiti(): void {
@@ -417,19 +467,70 @@ async function azzeraDebito(id: string): Promise<void> {
   );
 }
 
+async function salvaModificaAnticipo(riga: HTMLElement): Promise<void> {
+  const anticipo = anticipi.find(a => a.id === anticipoInModifica);
+  if (!anticipo) return;
+
+  const campoImporto = riga.querySelector('[data-anticipo-campo="importo"]') as HTMLInputElement | null;
+  const campoNota = riga.querySelector('[data-anticipo-campo="nota"]') as HTMLInputElement | null;
+  const importo = Number((campoImporto?.value || '').replace(',', '.'));
+
+  if (!Number.isFinite(importo) || importo < 0) {
+    mostraAvviso('Scrivi un importo valido uguale o maggiore di zero.', true);
+    campoImporto?.focus();
+    return;
+  }
+
+  const nota = campoNota?.value || '';
+  const esito = await modificaAnticipo(
+    anticipo.id,
+    Math.round(importo * 100) / 100,
+    nota,
+    nomeUtente()
+  );
+
+  anticipoInModifica = '';
+  if (importo === 0 || !esito.valore) {
+    anticipi = anticipi.filter(a => a.id !== anticipo.id);
+  } else {
+    anticipi = anticipi.map(a => a.id === anticipo.id ? esito.valore! : a);
+  }
+
+  renderRegistro();
+  mostraAvviso(
+    esito.suCloud
+      ? (importo === 0 ? 'Anticipo azzerato e conservato nello storico.' : 'Anticipo aggiornato con successo.')
+      : 'Modifica salvata solo su questo dispositivo: controlla la connessione.'
+  );
+}
+
+async function azzeraAnticipoVoce(id: string): Promise<void> {
+  const voce = anticipi.find(a => a.id === id);
+  if (!voce) return;
+  if (!window.confirm(`Azzerare l’anticipo di ${euro(voce.importo)} per ${voce.baristaNome}? Il dato resterà salvato nello storico amministrativo.`)) return;
+
+  const suCloud = await azzeraAnticipo(voce.id);
+  anticipi = anticipi.filter(a => a.id !== voce.id);
+  renderRegistro();
+  mostraAvviso(suCloud ? 'Anticipo azzerato. Il dato resta salvato in tabella.' : 'Azzerato solo su questo dispositivo: controlla la connessione.');
+}
+
 async function caricaRegistro(): Promise<void> {
   if (!pannello || !amministratore()) return;
   const versione = ++versioneCaricamento;
   pannello.classList.add('is-caricamento');
 
-  const [dal, al] = estremiMese(mese);
-  const [nomiLetti, anticipiLetti] = await Promise.all([
-    elencaBaristiAnticipi(),
-    elencaAnticipi(dal, al)
-  ]);
-
+  const nomiLetti = await elencaBaristiAnticipi();
   if (versione !== versioneCaricamento) return;
   nomi = nomiLetti;
+
+  await sincronizzaRiportiMese(mese, nomi);
+  if (versione !== versioneCaricamento) return;
+
+  const [dal, al] = estremiMese(mese);
+  const anticipiLetti = await elencaAnticipi(dal, al);
+  if (versione !== versioneCaricamento) return;
+
   anticipi = anticipiLetti;
   renderPersone();
   renderGestione();
@@ -606,14 +707,40 @@ export function initAnticipi(): void {
   });
 
   lista?.addEventListener('click', async e => {
-    const pulsante = (e.target as HTMLElement).closest('[data-anticipo-id]') as HTMLButtonElement | null;
+    const pulsante = (e.target as HTMLElement).closest('[data-anticipo-action], [data-anticipo-id]') as HTMLButtonElement | null;
     if (!pulsante) return;
-    const voce = anticipi.find(a => a.id === pulsante.dataset.anticipoId);
-    if (!voce || !window.confirm(`Azzerare l’anticipo di ${euro(voce.importo)} per ${voce.baristaNome}? Il dato resterà salvato nello storico amministrativo.`)) return;
-    const suCloud = await azzeraAnticipo(voce.id);
-    anticipi = anticipi.filter(a => a.id !== voce.id);
-    renderRegistro();
-    mostraAvviso(suCloud ? 'Anticipo azzerato. Il dato resta salvato in tabella.' : 'Azzerato solo su questo dispositivo: controlla la connessione.');
+
+    const azione = pulsante.dataset.anticipoAction || 'azzera';
+    const id = pulsante.dataset.anticipoId || pulsante.closest<HTMLElement>('[data-anticipo-riga]')?.dataset.anticipoRiga || '';
+
+    if (azione === 'modifica') {
+      anticipoInModifica = id;
+      mostraAvviso('');
+      renderRegistro();
+      lista.querySelector<HTMLInputElement>('[data-anticipo-campo="importo"]')?.focus();
+    } else if (azione === 'annulla') {
+      anticipoInModifica = '';
+      renderRegistro();
+    } else if (azione === 'salva') {
+      const riga = pulsante.closest('[data-anticipo-riga]') as HTMLElement | null;
+      if (riga) salvaModificaAnticipo(riga);
+    } else if (azione === 'azzera') {
+      azzeraAnticipoVoce(id);
+    }
+  });
+
+  lista?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const riga = (e.target as HTMLElement).closest('[data-anticipo-riga]') as HTMLElement | null;
+      if (!riga) return;
+      e.preventDefault();
+      salvaModificaAnticipo(riga);
+    } else if (e.key === 'Escape') {
+      if (anticipoInModifica) {
+        anticipoInModifica = '';
+        renderRegistro();
+      }
+    }
   });
 
   debitiLista?.addEventListener('click', e => {
@@ -654,7 +781,7 @@ export function initAnticipi(): void {
   });
 
   btnMeseAvanti?.addEventListener('click', async () => {
-    if (mese >= meseCorrente()) return;
+    if (mese >= spostaMese(meseCorrente(), 1)) return;
     mese = spostaMese(mese, 1);
     mostraAvviso('');
     await caricaRegistro();

@@ -464,6 +464,15 @@
   color: var(--text-primary);
 }
 
+.anticipi-card-riporto {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.anticipi-valore-riporto {
+  color: #b45309 !important;
+}
+
 .anticipi-card-saldo {
   margin-top: 0.2rem;
   padding: 0.4rem 0.55rem;
@@ -558,6 +567,33 @@
   color: var(--text-primary);
   font: 800 0.92rem var(--font-mono);
   white-space: nowrap;
+}
+
+.anticipi-badge-riporto {
+  display: inline-block;
+  margin-top: 0.18rem;
+  padding: 0.12rem 0.42rem;
+  border-radius: 4px;
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  width: fit-content;
+}
+
+.anticipi-riga-azioni {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.anticipi-btn {
+  height: 34px;
+  padding: 0 0.65rem;
+  font-size: 0.72rem;
 }
 
 .anticipi-azzera {
@@ -698,7 +734,8 @@
   font-size: 0.72rem;
 }
 
-.debiti-modifica {
+.debiti-modifica,
+.anticipi-modifica {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 145px minmax(220px, 1.2fr) auto;
   align-items: end;
@@ -707,6 +744,10 @@
   background: var(--surface-subtle);
   border: 1px solid rgba(225, 6, 0, 0.2);
   border-radius: 11px;
+}
+
+.anticipi-modifica {
+  border-color: rgba(217, 119, 6, 0.3);
 }
 
 .debiti-modifica-testa {
@@ -791,7 +832,8 @@
     font-size: 0.86rem;
   }
 
-  .anticipi-azzera {
+  .anticipi-azzera,
+  .anticipi-riga-azioni {
     grid-column: 1 / -1;
     justify-self: end;
   }
@@ -805,7 +847,8 @@
     justify-self: end;
   }
 
-  .debiti-modifica {
+  .debiti-modifica,
+  .anticipi-modifica {
     grid-template-columns: 1fr;
   }
 
@@ -815,7 +858,8 @@
 }
 
 @media (min-width: 561px) and (max-width: 920px) {
-  .debiti-modifica {
+  .debiti-modifica,
+  .anticipi-modifica {
     grid-template-columns: 1fr 1fr;
   }
 

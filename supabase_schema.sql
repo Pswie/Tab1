@@ -1365,7 +1365,9 @@ CREATE TABLE IF NOT EXISTS public.anticipi_baristi (
 
     data DATE NOT NULL,
     importo NUMERIC(12,2) NOT NULL CHECK (importo > 0),
-    nota TEXT NOT NULL DEFAULT '',
+    -- Autore della registrazione (username admin). Per i riporti ereditati
+    -- automaticamente dal mese precedente contiene 'riporto:YYYY-MM'
+    -- (o 'riporto_modificato:YYYY-MM' in caso di modifica manuale dell'importo o nota).
     creato_da TEXT NOT NULL DEFAULT '',
     creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
 
