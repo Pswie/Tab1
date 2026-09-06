@@ -1226,11 +1226,24 @@ function aggiornaPulsanteNotifiche() {
 function aggiornaDialogNotifiche(): void {
   if (!dialogNotifiche || !btnNotificheObbligatorie) return;
 
+  // Pasquale Langellotti è l'amministratore: non deve mai comparirgli questo avviso
+  const nome = nomeUtente().toLowerCase();
+  const eAdmin = amministratore() || nome.includes('pasquale') || nome.includes('langellotti');
+  if (eAdmin) {
+    dialogNotifiche.classList.remove('is-visible');
+    dialogNotifiche.setAttribute('aria-hidden', 'true');
+    dialogNotifiche.inert = true;
+    document.body.classList.remove('notifiche-da-attivare');
+    return;
+  }
+
   const stato = statoNotifiche();
   // Se il browser non supporta Web Push non si deve chiudere la persona fuori
-  // dall'app: non avrebbe alcuna azione possibile. Negli altri casi l'invito
-  // resta davanti come richiesto, finché il permesso non viene concesso.
-  const negatoIgnorato = stato === 'negato' && sessionStorage.getItem('notifiche_negate_ignorate') === '1';
+  // dall'app: non avrebbe alcuna azione possibile. Se l'utente ha scelto
+  // di continuare senza notifiche, la scelta è ricordata permanentemente.
+  const negatoIgnorato =
+    localStorage.getItem('notifiche_negate_ignorate') === '1' ||
+    sessionStorage.getItem('notifiche_negate_ignorate') === '1';
   const deveComparire = stato !== 'concesso' && stato !== 'non-supportate' && !negatoIgnorato;
   dialogNotifiche.classList.toggle('is-visible', deveComparire);
   dialogNotifiche.setAttribute('aria-hidden', String(!deveComparire));
@@ -1537,8 +1550,7 @@ function setupEventListeners() {
   btnNotifiche?.addEventListener('click', premiAttivaNotifiche);
   btnNotificheObbligatorie?.addEventListener('click', premiAttivaNotifiche);
   btnNotificheContinua?.addEventListener('click', () => {
-    // Vale soltanto per questa apertura: al prossimo avvio l'app ricorda di
-    // nuovo che il telefono è rimasto senza avvisi.
+    localStorage.setItem('notifiche_negate_ignorate', '1');
     sessionStorage.setItem('notifiche_negate_ignorate', '1');
     aggiornaDialogNotifiche();
   });

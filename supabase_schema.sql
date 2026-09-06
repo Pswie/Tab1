@@ -1329,6 +1329,7 @@ CREATE TABLE IF NOT EXISTS public.baristi_anticipi (
     nome TEXT NOT NULL,
     attivo BOOLEAN NOT NULL DEFAULT true,
     ordine INTEGER NOT NULL DEFAULT 0 CHECK (ordine >= 0),
+    compenso_mensile NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (compenso_mensile >= 0),
     creato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     aggiornato_il TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -1337,11 +1338,22 @@ CREATE TABLE IF NOT EXISTS public.baristi_anticipi (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_baristi_anticipi_nome
     ON public.baristi_anticipi (lower(nome));
 
--- I tre nomi di partenza. ON CONFLICT senza bersaglio rispetta anche l'indice
--- univoco su lower(nome), quindi il file resta rieseguibile.
-INSERT INTO public.baristi_anticipi (nome, ordine)
-VALUES ('Luigi', 0), ('Paolo', 1), ('Livio', 2)
+-- Colonna compenso_mensile aggiunta in modo sicuro se la tabella esiste già da una versione precedente.
+ALTER TABLE public.baristi_anticipi
+    ADD COLUMN IF NOT EXISTS compenso_mensile NUMERIC(12,2) DEFAULT 0.00;
+
+-- I tre nomi di partenza con le rispettive cifre base (Luigi: 1100, Paolo: 1000, Livio: 1000).
+INSERT INTO public.baristi_anticipi (nome, ordine, compenso_mensile)
+VALUES
+    ('Luigi', 0, 1100.00),
+    ('Paolo', 1, 1000.00),
+    ('Livio', 2, 1000.00)
 ON CONFLICT DO NOTHING;
+
+-- Se i record esistono già ma con compenso a 0 o non valorizzato, assegna i valori base concordati senza toccare altri dati.
+UPDATE public.baristi_anticipi SET compenso_mensile = 1100.00 WHERE lower(nome) = 'luigi' AND (compenso_mensile IS NULL OR compenso_mensile = 0);
+UPDATE public.baristi_anticipi SET compenso_mensile = 1000.00 WHERE lower(nome) = 'paolo' AND (compenso_mensile IS NULL OR compenso_mensile = 0);
+UPDATE public.baristi_anticipi SET compenso_mensile = 1000.00 WHERE lower(nome) = 'livio' AND (compenso_mensile IS NULL OR compenso_mensile = 0);
 
 CREATE TABLE IF NOT EXISTS public.anticipi_baristi (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

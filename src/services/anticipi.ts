@@ -6,6 +6,7 @@ export interface BaristaAnticipo {
   nome: string;
   attivo: boolean;
   ordine: number;
+  compensoMensile: number;
 }
 
 /** Un anticipo consegnato a una persona. */
@@ -32,7 +33,19 @@ export interface EsitoAnticipi<T> {
 const CHIAVE_NOMI = 'tabaccheria_anticipi_nomi_v1';
 const CHIAVE_ANTICIPI = 'tabaccheria_anticipi_v1';
 
-const NOMI_INIZIALI = ['Luigi', 'Paolo', 'Livio'];
+const NOMI_INIZIALI: { nome: string; compensoMensile: number }[] = [
+  { nome: 'Luigi', compensoMensile: 1100 },
+  { nome: 'Paolo', compensoMensile: 1000 },
+  { nome: 'Livio', compensoMensile: 1000 }
+];
+
+export function compensoPredefinito(nome: string): number {
+  const norm = nome.trim().toLowerCase();
+  if (norm === 'luigi') return 1100;
+  if (norm === 'paolo') return 1000;
+  if (norm === 'livio') return 1000;
+  return 0;
+}
 
 function nuovoId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -59,24 +72,52 @@ function scriviLocale<T>(chiave: string, valore: T): void {
 
 function nomiLocali(): BaristaAnticipo[] {
   const salvati = leggiLocale<BaristaAnticipo[]>(CHIAVE_NOMI, []);
-  if (salvati.length > 0) return salvati;
+  if (salvati.length > 0) {
+    let modificato = false;
+    const aggiornati = salvati.map(b => {
+      let compenso = Number(b.compensoMensile);
+      if (!Number.isFinite(compenso) || compenso <= 0) {
+        const predefinito = compensoPredefinito(b.nome);
+        if (predefinito > 0) {
+          compenso = predefinito;
+          modificato = true;
+        } else {
+          compenso = 0;
+        }
+      }
+      return { ...b, compensoMensile: compenso };
+    });
 
-  const iniziali = NOMI_INIZIALI.map((nome, ordine) => ({
-    id: `iniziale-${nome.toLocaleLowerCase('it')}`,
-    nome,
+    if (modificato) {
+      scriviLocale(CHIAVE_NOMI, aggiornati);
+    }
+    return aggiornati;
+  }
+
+  const iniziali = NOMI_INIZIALI.map((item, ordine) => ({
+    id: `iniziale-${item.nome.toLocaleLowerCase('it')}`,
+    nome: item.nome,
     attivo: true,
-    ordine
+    ordine,
+    compensoMensile: item.compensoMensile
   }));
   scriviLocale(CHIAVE_NOMI, iniziali);
   return iniziali;
 }
 
 function daRigaNome(riga: Record<string, unknown>): BaristaAnticipo {
+  const nome = String(riga.nome || '');
+  let compenso = Number(riga.compenso_mensile);
+  if (!Number.isFinite(compenso) || compenso <= 0) {
+    compenso = compensoPredefinito(nome);
+  }
+
   return {
     id: String(riga.id),
-    nome: String(riga.nome || ''),
+    nome,
     attivo: Boolean(riga.attivo),
-    ordine: Number(riga.ordine) || 0
+    ordine: Number(riga.ordine) || 0,
+    compensoMensile: compenso
   };
 }
 
@@ -113,7 +154,7 @@ export async function elencaBaristiAnticipi(): Promise<BaristaAnticipo[]> {
     try {
       const { data, error } = await supabase
         .from('baristi_anticipi')
-        .select('id,nome,attivo,ordine')
+        .select('id,nome,attivo,ordine,compenso_mensile')
         .order('ordine')
         .order('nome');
 
@@ -121,6 +162,21 @@ export async function elencaBaristiAnticipi(): Promise<BaristaAnticipo[]> {
         const nomi = ordinaNomi(data.map(daRigaNome));
         scriviLocale(CHIAVE_NOMI, nomi);
         return nomi;
+      }
+
+      // Se la colonna compenso_mensile non esiste ancora su Supabase, ripiega sulle colonne base
+      if (error && (error.message.includes('compenso_mensile') || error.code === '42703')) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('baristi_anticipi')
+          .select('id,nome,attivo,ordine')
+          .order('ordine')
+          .order('nome');
+
+        if (!fallbackError && fallbackData) {
+          const nomi = ordinaNomi(fallbackData.map(daRigaNome));
+          scriviLocale(CHIAVE_NOMI, nomi);
+          return nomi;
+        }
       }
 
       console.warn('Errore lettura nomi anticipi:', error?.message);
@@ -132,15 +188,19 @@ export async function elencaBaristiAnticipi(): Promise<BaristaAnticipo[]> {
   return ordinaNomi(nomiLocali());
 }
 
-export async function aggiungiBaristaAnticipi(nome: string): Promise<EsitoAnticipi<BaristaAnticipo>> {
+export async function aggiungiBaristaAnticipi(nome: string, compenso = 0): Promise<EsitoAnticipi<BaristaAnticipo>> {
   const pulito = nome.trim().replace(/\s+/g, ' ');
+  const compensoValido = Math.max(0, Math.round(compenso * 100) / 100) || compensoPredefinito(pulito);
   const locali = nomiLocali();
   const esistente = locali.find(n => n.nome.localeCompare(pulito, 'it', { sensitivity: 'base' }) === 0);
 
   if (esistente) {
-    const riattivato = { ...esistente, attivo: true };
+    const riattivato = { ...esistente, attivo: true, compensoMensile: compensoValido || esistente.compensoMensile };
     scriviLocale(CHIAVE_NOMI, locali.map(n => n.id === esistente.id ? riattivato : n));
     const esito = await impostaBaristaAttivo(esistente.id, true);
+    if (compensoValido > 0) {
+      await impostaCompensoBarista(esistente.id, compensoValido);
+    }
     return { valore: riattivato, suCloud: esito.suCloud };
   }
 
@@ -150,8 +210,8 @@ export async function aggiungiBaristaAnticipi(nome: string): Promise<EsitoAntici
     try {
       const { data, error } = await supabase
         .from('baristi_anticipi')
-        .insert({ nome: pulito, attivo: true, ordine })
-        .select('id,nome,attivo,ordine')
+        .insert({ nome: pulito, attivo: true, ordine, compenso_mensile: compensoValido })
+        .select('id,nome,attivo,ordine,compenso_mensile')
         .single();
 
       if (!error && data) {
@@ -160,15 +220,59 @@ export async function aggiungiBaristaAnticipi(nome: string): Promise<EsitoAntici
         return { valore: aggiunto, suCloud: true };
       }
 
+      // Se la colonna compenso_mensile non esiste ancora su Supabase, inserisci senza
+      if (error && (error.message.includes('compenso_mensile') || error.code === '42703')) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('baristi_anticipi')
+          .insert({ nome: pulito, attivo: true, ordine })
+          .select('id,nome,attivo,ordine')
+          .single();
+
+        if (!fallbackError && fallbackData) {
+          const aggiunto = daRigaNome({ ...fallbackData, compenso_mensile: compensoValido });
+          scriviLocale(CHIAVE_NOMI, ordinaNomi([...locali, aggiunto]));
+          return { valore: aggiunto, suCloud: true };
+        }
+      }
+
       console.warn('Nome anticipo salvato solo in locale:', error?.message);
     } catch (err) {
       console.warn('Eccezione aggiunta nome anticipi:', err);
     }
   }
 
-  const aggiunto: BaristaAnticipo = { id: nuovoId(), nome: pulito, attivo: true, ordine };
+  const aggiunto: BaristaAnticipo = {
+    id: nuovoId(),
+    nome: pulito,
+    attivo: true,
+    ordine,
+    compensoMensile: compensoValido
+  };
   scriviLocale(CHIAVE_NOMI, ordinaNomi([...locali, aggiunto]));
   return { valore: aggiunto, suCloud: false };
+}
+
+export async function impostaCompensoBarista(id: string, compenso: number): Promise<EsitoAnticipi<number>> {
+  const compensoValido = Math.max(0, Math.round(compenso * 100) / 100);
+  const locali = nomiLocali();
+  const aggiornati = locali.map(n => n.id === id ? { ...n, compensoMensile: compensoValido } : n);
+  scriviLocale(CHIAVE_NOMI, aggiornati);
+
+  if (isSupabaseConfigured() && supabase && !id.startsWith('iniziale-') && !id.startsWith('locale-')) {
+    try {
+      const { error } = await supabase
+        .from('baristi_anticipi')
+        .update({ compenso_mensile: compensoValido, aggiornato_il: new Date().toISOString() })
+        .eq('id', id);
+
+      if (!error) return { valore: compensoValido, suCloud: true };
+      console.warn('Compenso barista aggiornato solo in locale:', error.message);
+    } catch (err) {
+      console.warn('Eccezione aggiornamento compenso barista:', err);
+    }
+  }
+
+  return { valore: compensoValido, suCloud: false };
 }
 
 export async function impostaBaristaAttivo(id: string, attivo: boolean): Promise<EsitoAnticipi<boolean>> {

@@ -7,6 +7,7 @@ import {
   elencaAnticipi,
   elencaBaristiAnticipi,
   impostaBaristaAttivo,
+  impostaCompensoBarista,
   registraAnticipo
 } from '../services/anticipi';
 import {
@@ -124,12 +125,15 @@ function renderPersone(): void {
     <button type="button" class="anticipi-persona${n.id === baristaIdSelezionato ? ' is-active' : ''}"
             data-barista-id="${escapeHtml(n.id)}" aria-pressed="${n.id === baristaIdSelezionato}">
       <span class="anticipi-persona-avatar">${escapeHtml(n.nome.charAt(0).toLocaleUpperCase('it'))}</span>
-      <span>${escapeHtml(n.nome)}</span>
+      <span class="anticipi-persona-info">
+        <span class="anticipi-persona-nome">${escapeHtml(n.nome)}</span>
+        <span class="anticipi-persona-compenso">${n.compensoMensile > 0 ? euro(n.compensoMensile) : '0,00 €'}/mese</span>
+      </span>
     </button>
   `).join('');
 
   if (disponibili.length === 0) {
-    selettore.innerHTML = '<p class="anticipi-vuoto-inline">Aggiungi almeno un nome dalla rotellina.</p>';
+    selettore.innerHTML = '<p class="anticipi-vuoto-inline">Aggiungi almeno un barista dalla rotellina.</p>';
   }
 
   if (btnRegistra) btnRegistra.disabled = disponibili.length === 0;
@@ -139,12 +143,28 @@ function renderGestione(): void {
   if (!listaNomi) return;
 
   listaNomi.innerHTML = nomi.map(n => `
-    <div class="anticipi-nome-riga${n.attivo ? '' : ' is-inactive'}">
-      <span>${escapeHtml(n.nome)}</span>
-      <button type="button" class="anticipi-nome-stato" data-nome-id="${escapeHtml(n.id)}"
-              data-attivo="${n.attivo ? 'false' : 'true'}">
-        ${n.attivo ? 'Nascondi' : 'Riattiva'}
-      </button>
+    <div class="anticipi-nome-riga${n.attivo ? '' : ' is-inactive'}" data-nome-row="${escapeHtml(n.id)}">
+      <div class="anticipi-nome-sinistra">
+        <span class="anticipi-nome-label">${escapeHtml(n.nome)}</span>
+        <button type="button" class="anticipi-nome-stato" data-nome-id="${escapeHtml(n.id)}"
+                data-attivo="${n.attivo ? 'false' : 'true'}">
+          ${n.attivo ? 'Nascondi' : 'Riattiva'}
+        </button>
+      </div>
+      <div class="anticipi-nome-destra">
+        <label class="anticipi-compenso-label" title="Compenso mensile di riferimento">
+          <span>Quota/mese:</span>
+          <span class="anticipi-input-euro sm">
+            <input type="text" class="todo-add-input anticipi-input-compenso" data-compenso-id="${escapeHtml(n.id)}"
+                   inputmode="decimal" value="${n.compensoMensile > 0 ? n.compensoMensile : ''}" placeholder="0,00" autocomplete="off" />
+            <span>&euro;</span>
+          </span>
+        </label>
+        <button type="button" class="btn-secondary-action btn-salva-compenso" data-salva-compenso="${escapeHtml(n.id)}"
+                title="Salva la quota base mensile">
+          Salva
+        </button>
+      </div>
     </div>
   `).join('');
 }
@@ -153,22 +173,74 @@ function renderRegistro(): void {
   if (meseNome) meseNome.textContent = nomeMese(mese);
   if (btnMeseAvanti) btnMeseAvanti.disabled = mese >= meseCorrente();
 
-  const totale = anticipi.reduce((somma, a) => somma + a.importo, 0);
-  if (totaleMese) totaleMese.textContent = euro(totale);
+  const totaleAnticipiMese = anticipi.reduce((somma, a) => somma + a.importo, 0);
+  if (totaleMese) totaleMese.textContent = euro(totaleAnticipiMese);
 
-  const perPersona = new Map<string, number>();
-  anticipi.forEach(a => perPersona.set(a.baristaNome, (perPersona.get(a.baristaNome) || 0) + a.importo));
+  const personeAttive = attivi();
 
   if (riepilogo) {
-    riepilogo.innerHTML = [...perPersona.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([nome, importo]) => `
-        <div class="anticipi-riepilogo-voce">
-          <span>${escapeHtml(nome)}</span>
-          <strong>${euro(importo)}</strong>
-        </div>
-      `).join('');
-    riepilogo.classList.toggle('is-hidden', perPersona.size === 0);
+    if (personeAttive.length === 0) {
+      riepilogo.innerHTML = '';
+      riepilogo.classList.add('is-hidden');
+    } else {
+      riepilogo.innerHTML = personeAttive.map(b => {
+        const anticipiPersona = anticipi.filter(a =>
+          (a.baristaId && a.baristaId === b.id) ||
+          a.baristaNome.localeCompare(b.nome, 'it', { sensitivity: 'base' }) === 0
+        );
+        const totaleAnticipato = anticipiPersona.reduce((s, a) => s + a.importo, 0);
+        const compenso = b.compensoMensile;
+        const differenza = compenso - totaleAnticipato;
+
+        let badgeClasse = '';
+        let badgeEtichetta = '';
+        let badgeValore = '';
+
+        if (totaleAnticipato === 0) {
+          badgeClasse = 'badge-da-saldare';
+          badgeEtichetta = 'Da corrispondere:';
+          badgeValore = euro(compenso);
+        } else if (differenza > 0) {
+          badgeClasse = 'badge-residuo';
+          badgeEtichetta = 'Rimanente a saldo:';
+          badgeValore = euro(differenza);
+        } else if (differenza === 0) {
+          badgeClasse = 'badge-saldato';
+          badgeEtichetta = 'Saldo:';
+          badgeValore = 'Interamente saldato (0,00 €)';
+        } else {
+          badgeClasse = 'badge-supero';
+          badgeEtichetta = 'Anticipato in più:';
+          badgeValore = `+${euro(Math.abs(differenza))}`;
+        }
+
+        return `
+          <div class="anticipi-riepilogo-card">
+            <div class="anticipi-card-header">
+              <div class="anticipi-card-persona">
+                <span class="anticipi-persona-avatar sm">${escapeHtml(b.nome.charAt(0).toLocaleUpperCase('it'))}</span>
+                <strong>${escapeHtml(b.nome)}</strong>
+              </div>
+              <div class="anticipi-card-quota">
+                <span class="anticipi-card-sublabel">Quota base:</span>
+                <strong>${euro(compenso)}</strong>
+              </div>
+            </div>
+            <div class="anticipi-card-corpo">
+              <div class="anticipi-card-riga">
+                <span>Anticipi erogati nel mese:</span>
+                <span class="anticipi-card-valore">${euro(totaleAnticipato)}</span>
+              </div>
+              <div class="anticipi-card-riga anticipi-card-saldo ${badgeClasse}">
+                <span>${badgeEtichetta}</span>
+                <strong>${badgeValore}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      riepilogo.classList.remove('is-hidden');
+    }
   }
 
   if (!lista) return;
@@ -178,7 +250,7 @@ function renderRegistro(): void {
       <div class="anticipi-vuoto">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16"/><path d="M7 3v4M17 3v4"/><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 12h8M8 16h5"/></svg>
         <strong>Nessun anticipo in questo mese</strong>
-        <span>Quando ne registri uno comparirà qui.</span>
+        <span>Quando ne registri uno comparirà qui. Le quote base mensili restano conservate.</span>
       </div>`;
     return;
   }
@@ -479,12 +551,58 @@ export function initAnticipi(): void {
   });
 
   listaNomi?.addEventListener('click', async e => {
-    const pulsante = (e.target as HTMLElement).closest('[data-nome-id]') as HTMLButtonElement | null;
-    if (!pulsante) return;
-    await impostaBaristaAttivo(pulsante.dataset.nomeId || '', pulsante.dataset.attivo === 'true');
-    nomi = await elencaBaristiAnticipi();
-    renderPersone();
-    renderGestione();
+    const btnStato = (e.target as HTMLElement).closest('[data-nome-id]') as HTMLButtonElement | null;
+    if (btnStato) {
+      await impostaBaristaAttivo(btnStato.dataset.nomeId || '', btnStato.dataset.attivo === 'true');
+      nomi = await elencaBaristiAnticipi();
+      renderPersone();
+      renderGestione();
+      renderRegistro();
+      return;
+    }
+
+    const btnSalva = (e.target as HTMLElement).closest('[data-salva-compenso]') as HTMLButtonElement | null;
+    if (btnSalva) {
+      const id = btnSalva.dataset.salvaCompenso || '';
+      const riga = btnSalva.closest('[data-nome-row]');
+      const input = riga?.querySelector<HTMLInputElement>('.anticipi-input-compenso');
+      const importo = Number((input?.value || '').replace(',', '.'));
+
+      if (Number.isFinite(importo) && importo >= 0) {
+        btnSalva.disabled = true;
+        const esito = await impostaCompensoBarista(id, importo);
+        btnSalva.disabled = false;
+        nomi = await elencaBaristiAnticipi();
+        renderPersone();
+        renderGestione();
+        renderRegistro();
+        mostraAvviso(esito.suCloud ? 'Quota mensile base aggiornata con successo.' : 'Quota salvata solo su questo dispositivo.');
+      } else {
+        mostraAvviso('Inserisci una cifra valida per la quota mensile (0 o più).', true);
+        input?.focus();
+      }
+    }
+  });
+
+  listaNomi?.addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      const target = e.target as HTMLInputElement;
+      if (target && target.classList.contains('anticipi-input-compenso')) {
+        e.preventDefault();
+        const id = target.dataset.compensoId || '';
+        const importo = Number((target.value || '').replace(',', '.'));
+        if (Number.isFinite(importo) && importo >= 0) {
+          const esito = await impostaCompensoBarista(id, importo);
+          nomi = await elencaBaristiAnticipi();
+          renderPersone();
+          renderGestione();
+          renderRegistro();
+          mostraAvviso(esito.suCloud ? 'Quota mensile base aggiornata con successo.' : 'Quota salvata solo su questo dispositivo.');
+        } else {
+          mostraAvviso('Inserisci una cifra valida per la quota mensile (0 o più).', true);
+        }
+      }
+    }
   });
 
   lista?.addEventListener('click', async e => {
