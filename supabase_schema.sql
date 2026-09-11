@@ -2157,9 +2157,10 @@ REVOKE ALL ON FUNCTION private.inserisci_turno_automatico(DATE, TEXT, UUID, TEXT
 
 -- Motore del calendario. La settimana 24-30 agosto ha squadra 1 al pomeriggio
 -- e squadra 2 al mattino; ogni lunedi' le fasce si scambiano. Dal 1 ottobre
--- lavorano le squadre intere, senza la vecchia assegnazione giornaliera della
--- fascia festa: il 1-4 ottobre la squadra 1 e' al mattino e la squadra 2 al
--- pomeriggio, poi dal lunedi' 5 le fasce si scambiano.
+-- i giorni di festa continuano dal riferimento della settimana precedente.
+-- Se Anita o Cinzia sono in festa, una componente della squadra da tre copre
+-- la loro fascia per tutta la settimana: Marianna, Francesca e Maria Rosaria
+-- si alternano una settimana ciascuna.
 CREATE OR REPLACE FUNCTION private.genera_turni_periodo(
     p_dal DATE,
     p_al DATE,
@@ -2178,6 +2179,7 @@ DECLARE
     v_turno_squadra_2 TEXT;
     v_festa UUID;
     v_copertura UUID;
+    v_ordine_copertura SMALLINT;
     v_r RECORD;
     v_turno TEXT;
     v_totale INTEGER := 0;
@@ -2209,7 +2211,27 @@ BEGIN
         END IF;
 
         v_festa := CASE
-            WHEN v_data >= '2026-10-01'::DATE THEN NULL
+            -- Da ottobre si continua il riferimento della settimana 28
+            -- settembre-4 ottobre: quando la squadra 1 e' al mattino Cinzia
+            -- fa festa il martedi' e Maria Rosaria il venerdi'; nella
+            -- settimana invertita si scambiano quei due giorni.
+            WHEN v_data >= '2026-10-01'::DATE THEN
+                CASE EXTRACT(ISODOW FROM v_data)::INTEGER
+                    WHEN 1 THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID -- Marianna
+                    WHEN 2 THEN CASE
+                        WHEN v_turno_squadra_1 = 'pomeriggio'
+                            THEN '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID -- Maria Rosaria
+                        ELSE 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID     -- Cinzia
+                    END
+                    WHEN 3 THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
+                    WHEN 4 THEN '0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID -- Anita
+                    WHEN 5 THEN CASE
+                        WHEN v_turno_squadra_1 = 'pomeriggio'
+                            THEN 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID -- Cinzia
+                        ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+                    END
+                    ELSE NULL
+                END
             ELSE CASE EXTRACT(ISODOW FROM v_data)::INTEGER
                 WHEN 1 THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID -- Marianna
                 WHEN 2 THEN CASE
@@ -2229,9 +2251,14 @@ BEGIN
         END;
 
         -- Se la festa cade nella squadra 2, una persona della squadra 1 copre
-        -- l'altra fascia. La rotazione dipende dal giorno assoluto e dall'ordine
-        -- del roster, quindi e' deterministica anche dopo una rigenerazione.
+        -- l'altra fascia. Da ottobre la stessa persona copre tutta la settimana;
+        -- la settimana parziale del 1 ottobre continua con Maria Rosaria, poi
+        -- dal 5 ottobre partono Marianna, Francesca e Maria Rosaria a rotazione.
         v_copertura := NULL;
+        v_ordine_copertura := CASE
+            WHEN v_lunedi < '2026-10-05'::DATE THEN 3
+            ELSE (MOD(((v_lunedi - '2026-10-05'::DATE) / 7)::INTEGER, 3) + 1)::SMALLINT
+        END;
         IF v_festa IS NOT NULL AND EXISTS (
             SELECT 1
               FROM private.roster_turni_al(v_data) r
@@ -2243,17 +2270,28 @@ BEGIN
              WHERE r.squadra = 2
                AND r.profilo_id <> v_festa
         ) < 2 THEN
-            SELECT r.profilo_id
-              INTO v_copertura
-              FROM private.roster_turni_al(v_data) r
-             WHERE r.squadra = 1
-               AND r.profilo_id <> v_festa
-             ORDER BY MOD(
-                          (v_data - '2026-08-24'::DATE)::INTEGER + r.ordine_squadra - 1,
-                          GREATEST((SELECT COUNT(*) FROM private.roster_turni_al(v_data) q WHERE q.squadra = 1), 1)
-                      ),
-                      r.ordine_squadra
-             LIMIT 1;
+            IF v_data >= '2026-10-01'::DATE THEN
+                SELECT r.profilo_id
+                  INTO v_copertura
+                  FROM private.roster_turni_al(v_data) r
+                 WHERE r.squadra = 1
+                   AND r.profilo_id <> v_festa
+                 ORDER BY CASE WHEN r.ordine_squadra = v_ordine_copertura THEN 0 ELSE 1 END,
+                          r.ordine_squadra
+                 LIMIT 1;
+            ELSE
+                SELECT r.profilo_id
+                  INTO v_copertura
+                  FROM private.roster_turni_al(v_data) r
+                 WHERE r.squadra = 1
+                   AND r.profilo_id <> v_festa
+                 ORDER BY MOD(
+                              (v_data - '2026-08-24'::DATE)::INTEGER + r.ordine_squadra - 1,
+                              GREATEST((SELECT COUNT(*) FROM private.roster_turni_al(v_data) q WHERE q.squadra = 1), 1)
+                          ),
+                          r.ordine_squadra
+                 LIMIT 1;
+            END IF;
         END IF;
 
         FOR v_r IN SELECT * FROM private.roster_turni_al(v_data)
