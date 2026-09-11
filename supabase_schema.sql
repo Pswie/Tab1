@@ -1971,11 +1971,27 @@ CREATE TABLE IF NOT EXISTS public.turni_generazioni (
 INSERT INTO public.turni_squadre (
     profilo_id, squadra, ordine_squadra, valida_dal
 ) VALUES
+    -- Configurazione valida fino al 30 settembre 2026.
     ('8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID, 1, 1, '2026-08-24'::DATE),
     ('f5196428-c7b3-4900-af4d-28571064adbb'::UUID, 1, 2, '2026-08-24'::DATE),
     ('bbdea927-f41d-4593-8fba-43067b9f300b'::UUID, 1, 3, '2026-08-24'::DATE),
     ('0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID, 2, 1, '2026-08-24'::DATE),
     ('9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID, 2, 2, '2026-08-24'::DATE)
+ON CONFLICT DO NOTHING;
+
+-- Dal 1 ottobre 2026 la squadra 1 e' Marianna, Francesca e Maria Rosaria;
+-- la squadra 2 e' Anita e Cinzia. La prima settimana di ottobre parte con
+-- la squadra 1 al mattino e la squadra 2 al pomeriggio; dal lunedi' 5 le
+-- due fasce si scambiano come ogni lunedi'.
+INSERT INTO public.turni_squadre (
+    profilo_id, squadra, ordine_squadra, valida_dal
+)
+VALUES
+    ('8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID, 1, 1, '2026-10-01'::DATE),
+    ('f5196428-c7b3-4900-af4d-28571064adbb'::UUID, 1, 2, '2026-10-01'::DATE),
+    ('9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID, 1, 3, '2026-10-01'::DATE),
+    ('0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID, 2, 1, '2026-10-01'::DATE),
+    ('bbdea927-f41d-4593-8fba-43067b9f300b'::UUID, 2, 2, '2026-10-01'::DATE)
 ON CONFLICT DO NOTHING;
 
 ALTER TABLE public.turni_squadre ENABLE ROW LEVEL SECURITY;
@@ -2035,7 +2051,7 @@ $$;
 REVOKE ALL ON FUNCTION private.roster_turni_al(DATE) FROM PUBLIC, anon, authenticated;
 
 -- Inserisce una singola posizione automatica. Manuali e annullamenti espliciti
--- prevalgono; un automatico invalidato tecnicamente puo' essere rigenerato.
+-- prevalgono; gli automatici possono essere riallineati o rigenerati.
 CREATE OR REPLACE FUNCTION private.inserisci_turno_automatico(
     p_data DATE,
     p_turno TEXT,
@@ -2056,20 +2072,45 @@ BEGIN
     END IF;
 
     -- Un annullamento esplicito fatto da un gestore e una riga manuale sono
-    -- tombstone: il generatore li rispetta. Un automatico annullato senza autore
-    -- e' invece un'invalidazione tecnica e puo' essere riattivato in-place.
+    -- tombstone: il generatore li rispetta. Un automatico attivo puo' invece
+    -- essere riallineato se cambia il roster ricorrente.
     IF EXISTS (
         SELECT 1
           FROM public.turni_lavoro
          WHERE data = p_data
            AND profilo_id = p_profilo_id
            AND (
-               NOT annullato
-               OR origine = 'manuale'
+               origine = 'manuale'
                OR annullato_da IS NOT NULL
            )
     ) THEN
         RETURN 0;
+    END IF;
+
+    SELECT id
+      INTO v_id
+      FROM public.turni_lavoro
+     WHERE data = p_data
+       AND profilo_id = p_profilo_id
+       AND NOT annullato
+       AND origine = 'automatico'
+     ORDER BY aggiornato_il DESC, creato_il DESC
+     LIMIT 1;
+
+    IF v_id IS NOT NULL THEN
+        UPDATE public.turni_lavoro
+           SET turno = p_turno,
+               persona = p_persona,
+               nota = '',
+               creato_da = 'Generazione automatica',
+               aggiornato_il = CURRENT_TIMESTAMP
+         WHERE id = v_id
+           AND (turno IS DISTINCT FROM p_turno
+                OR persona IS DISTINCT FROM p_persona
+                OR nota IS DISTINCT FROM '');
+
+        GET DIAGNOSTICS v_righe = ROW_COUNT;
+        RETURN v_righe;
     END IF;
 
     SELECT id
@@ -2115,10 +2156,10 @@ REVOKE ALL ON FUNCTION private.inserisci_turno_automatico(DATE, TEXT, UUID, TEXT
     FROM PUBLIC, anon, authenticated;
 
 -- Motore del calendario. La settimana 24-30 agosto ha squadra 1 al pomeriggio
--- e squadra 2 al mattino; ogni lunedi' le fasce si scambiano. Nei feriali si
--- applica la festa fissa. Se manca una componente della squadra da due, una
--- componente della squadra da tre copre la fascia opposta a rotazione: chi si
--- sposta compare una volta sola. Sabato e domenica lavorano le squadre intere.
+-- e squadra 2 al mattino; ogni lunedi' le fasce si scambiano. Dal 1 ottobre
+-- lavorano le squadre intere, senza la vecchia assegnazione giornaliera della
+-- fascia festa: il 1-4 ottobre la squadra 1 e' al mattino e la squadra 2 al
+-- pomeriggio, poi dal lunedi' 5 le fasce si scambiano.
 CREATE OR REPLACE FUNCTION private.genera_turni_periodo(
     p_dal DATE,
     p_al DATE,
@@ -2167,21 +2208,24 @@ BEGIN
             v_turno_squadra_2 := 'pomeriggio';
         END IF;
 
-        v_festa := CASE EXTRACT(ISODOW FROM v_data)::INTEGER
-            WHEN 1 THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID -- Marianna
-            WHEN 2 THEN CASE
-                WHEN v_turno_squadra_1 = 'pomeriggio'
-                    THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
-                ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+        v_festa := CASE
+            WHEN v_data >= '2026-10-01'::DATE THEN NULL
+            ELSE CASE EXTRACT(ISODOW FROM v_data)::INTEGER
+                WHEN 1 THEN '8d0fcb4a-31b5-4adc-a97c-98642f07a3e8'::UUID -- Marianna
+                WHEN 2 THEN CASE
+                    WHEN v_turno_squadra_1 = 'pomeriggio'
+                        THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
+                    ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+                END
+                WHEN 3 THEN CASE
+                    WHEN v_turno_squadra_1 = 'mattina'
+                        THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
+                    ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
+                END
+                WHEN 4 THEN '0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID -- Anita
+                WHEN 5 THEN 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID -- Cinzia
+                ELSE NULL
             END
-            WHEN 3 THEN CASE
-                WHEN v_turno_squadra_1 = 'mattina'
-                    THEN 'f5196428-c7b3-4900-af4d-28571064adbb'::UUID -- Francesca
-                ELSE '9ff1c482-1e80-4fa8-aca6-0f17873abc87'::UUID     -- Maria Rosaria
-            END
-            WHEN 4 THEN '0e40e42a-67c1-4594-87c7-ec2df529e540'::UUID -- Anita
-            WHEN 5 THEN 'bbdea927-f41d-4593-8fba-43067b9f300b'::UUID -- Cinzia
-            ELSE NULL
         END;
 
         -- Se la festa cade nella squadra 2, una persona della squadra 1 copre
