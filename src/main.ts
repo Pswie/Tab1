@@ -1,4 +1,7 @@
 import './style.css';
+import './admin.css';
+import './admin-dashboard.css';
+import { initAdminUI, updateAdminPage } from './ui/adminUI';
 import { SaveStatus, ShiftKey, ShiftValues, TodoFilter, TodoItem, VoceFattura } from './types';
 import {
   calculateDayTotals,
@@ -1422,11 +1425,15 @@ function setupEventListeners() {
 
       apriScheda(targetTabId);
       closeHotdogMenu();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const reduceMotion = document.body.classList.contains('admin-ui') && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? 'instant' : 'smooth' });
     });
   });
 
   function apriScheda(targetTabId: string) {
+    // Shortcuts and search share the existing permission-aware navigation.
+    const destination = document.querySelector<HTMLElement>(`.nav-tab-item[data-tab="${targetTabId}"]`);
+    if (!destination || destination.hidden) return;
     ricordaScheda(targetTabId);
 
     tabButtons.forEach(b => {
@@ -1436,6 +1443,8 @@ function setupEventListeners() {
     tabPanes.forEach(pane => {
       pane.classList.toggle('active', pane.id === targetTabId);
     });
+
+    updateAdminPage(targetTabId);
 
     if (targetTabId === 'tab-todos') apriSchedaTodo();
     // I turni li scrive qualcun altro: a ogni apertura si rilegge la settimana
@@ -1690,6 +1699,10 @@ async function initApp() {
 
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();
+  initAdminUI(id => {
+    schedaDaAprire?.(id);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  });
 
   // I distributori sono roba di chi amministra: a un dipendente non deve
   // nemmeno accendersi il pallino di una scheda che non può aprire

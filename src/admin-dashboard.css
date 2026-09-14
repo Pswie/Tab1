@@ -1,0 +1,860 @@
+/* The admin overview keeps the shop's data and service colours, with a calmer
+   hierarchy. Screen-only rules leave the existing A4 document styles intact. */
+@media screen {
+  body.admin-ui #tab-dashboard {
+    --dash-marca: #667f99;
+    --dash-marca-parziale: #cf302b;
+    --dash-pista: 184px;
+    --dash-gutter: 3.5rem;
+    --dash-aria: 1.9rem;
+    min-width: 0;
+  }
+
+  body.admin-ui #tab-dashboard.active {
+    gap: 24px;
+  }
+
+  body.admin-ui #tab-dashboard .card-section {
+    min-width: 0;
+    margin: 0;
+    padding: 24px;
+    border: 1px solid #e5e8ed;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 2px 3px rgb(32 36 43 / 2%);
+  }
+
+  body.admin-ui #tab-dashboard .section-header {
+    gap: 16px;
+    align-items: flex-start;
+    flex-direction: row;
+    margin: 0 0 22px;
+    padding: 0;
+    border: 0;
+  }
+
+  body.admin-ui #tab-dashboard .section-header > div:not(.inv-total-box) {
+    min-width: 0;
+  }
+
+  body.admin-ui #tab-dashboard .section-title {
+    display: block;
+    margin: 0;
+    color: #20242b;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: -0.025em;
+    text-transform: none;
+  }
+
+  body.admin-ui #tab-dashboard .section-title::before,
+  body.admin-ui #tab-dashboard .section-title::after {
+    content: none;
+  }
+
+  body.admin-ui #tab-dashboard .admin-section-note {
+    margin: 4px 0 0;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month {
+    padding: 22px 26px 26px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month > .section-header {
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-mese-nav {
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid #e5e8ed;
+    border-radius: 9px;
+    background: #fff;
+  }
+
+  body.admin-ui #tab-dashboard .dash-mese-nav .date-arrow-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border: 0;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodo-nome {
+    min-width: 128px;
+    text-align: center;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month-body {
+    display: grid;
+    grid-template-columns: minmax(215px, 1.3fr) minmax(0, 3.7fr);
+    gap: 30px;
+    align-items: stretch;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month-body:has(#dash-riquadri-mese:empty) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero {
+    gap: 8px;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero-etichetta,
+  body.admin-ui #tab-dashboard .dash-riquadro-etichetta {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero-valore {
+    color: #20242b;
+    font-size: clamp(29px, 2.9vw, 44px);
+    font-weight: 750;
+    line-height: 1.15;
+    letter-spacing: -0.055em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero-nota {
+    max-width: 245px;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadri {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro {
+    min-width: 0;
+    gap: 6px;
+    padding: 0 20px;
+    border: 0;
+    border-left: 1px solid #e9ecf0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro:last-child {
+    padding-right: 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro-valore {
+    color: #20242b;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro-nota {
+    color: #667085;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese {
+    align-items: start;
+    padding-left: 24px;
+    border-left: 1px solid #e9ecf0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro {
+    padding: 0 13px;
+    border: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro:first-child {
+    padding-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro:last-child {
+    padding-right: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro-etichetta {
+    min-height: 36px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-delta {
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  body.admin-ui #tab-dashboard .dash-delta-nota {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 400;
+  }
+
+  body.admin-ui #tab-dashboard .admin-history-filter {
+    gap: 20px;
+    align-items: center;
+    flex-direction: row;
+    margin-top: 8px;
+    padding: 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-filtro-etichetta {
+    margin: 0;
+    color: #20242b;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.4;
+    text-transform: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodi {
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid #e5e8ed;
+    border-radius: 10px;
+    background: #eef0f3;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodo {
+    min-height: 34px;
+    padding: 7px 14px;
+    border-radius: 7px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodo.is-active {
+    color: #20242b;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(32 36 43 / 9%);
+  }
+
+  body.admin-ui #tab-dashboard .admin-analysis-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  body.admin-ui #tab-dashboard .admin-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+
+  body.admin-ui #tab-dashboard .inv-total-box {
+    gap: 3px;
+    min-width: fit-content;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  body.admin-ui #tab-dashboard .inv-total-label {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  body.admin-ui #tab-dashboard .inv-total-value {
+    color: #20242b;
+    font-family: var(--font-sans);
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  body.admin-ui #tab-dashboard .dash-figura {
+    margin: 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-bottom: 14px;
+    color: #667085;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  body.admin-ui #tab-dashboard .dash-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-chart-legend i {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--dash-marca);
+  }
+
+  body.admin-ui #tab-dashboard .dash-chart-legend i.is-current {
+    background: var(--dash-marca-parziale);
+  }
+
+  body.admin-ui #tab-dashboard .dash-colonne {
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+
+  body.admin-ui #tab-dashboard .dash-colonna {
+    min-width: 40px;
+    gap: 10px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-colonna-barra {
+    max-width: 30px;
+    border-radius: 5px 5px 0 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-colonna-etichetta,
+  body.admin-ui #tab-dashboard .dash-livello-valore {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 400;
+  }
+
+  body.admin-ui #tab-dashboard .dash-colonna-valore {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid #edf0f3;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:first-child {
+    padding-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:last-child {
+    padding-right: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
+    min-height: 36px;
+    font-size: 10px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-valore {
+    font-size: 19px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-nota {
+    font-size: 10px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barre,
+  body.admin-ui #tab-dashboard #dash-settimana {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 16px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra-nome {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra-nome small {
+    color: #667085;
+    font-size: 10px;
+    font-weight: 400;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra-pista {
+    grid-column: 1 / -1;
+    order: 3;
+    height: 6px;
+    border-radius: 3px;
+    background: #f0f2f5;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra-riempimento {
+    border-radius: 3px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-barra-valore {
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  body.admin-ui #tab-dashboard .admin-chart-note {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #edf0f3;
+    color: #667085;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance {
+    padding: 2px 4px 6px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro {
+    gap: 6px;
+    padding: 6px 24px;
+    border-color: #dde2e8;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro:first-child {
+    padding-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail {
+    margin-top: 20px;
+    border-top: 1px solid #edf0f3;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 44px;
+    padding: 16px 0 0;
+    border-radius: 4px;
+    color: #475467;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail > summary::marker {
+    content: '';
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail > summary:hover {
+    color: #cf302b;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail > summary > svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    transition: transform 150ms ease;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail[open] > summary > svg {
+    transform: rotate(90deg);
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail[open] > summary {
+    margin-bottom: 20px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-accounting {
+    padding-top: 19px;
+    padding-bottom: 19px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-accounting .admin-detail {
+    margin: 0;
+    border: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-accounting .admin-detail > summary {
+    padding: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail summary strong {
+    color: #20242b;
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  body.admin-ui #tab-dashboard .admin-detail summary small {
+    display: block;
+    margin-top: 3px;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-extra {
+    gap: 24px 0;
+    padding-top: 6px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-extra .dash-riquadro:nth-child(4n + 1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .is-forte .dash-riquadro-valore {
+    color: #20242b;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-pulizie .is-forte .dash-riquadro-valore {
+    color: #b42318;
+  }
+
+  body.admin-ui #tab-dashboard .admin-section-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 9px;
+    color: #667085;
+    background: #f5f6f8;
+  }
+
+  body.admin-ui #tab-dashboard .admin-section-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tabella-guscio {
+    max-width: 100%;
+    scrollbar-width: thin;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tabella {
+    font-size: 12px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tabella-titolo {
+    margin-bottom: 12px;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tabella th,
+  body.admin-ui #tab-dashboard .dash-tabella td {
+    padding: 12px 10px;
+    border-color: #edf0f3;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tabella thead th {
+    color: #667085;
+    background: #f8f9fb;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-tag {
+    padding: 3px 7px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  body.admin-ui #tab-dashboard .dash-stato {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  body.admin-ui #tab-dashboard #dash-pulizie-stato:not(.is-hidden) {
+    margin-bottom: 20px;
+  }
+
+  body.admin-ui #tab-dashboard .empty-state {
+    grid-column: 1 / -1;
+    min-height: 160px;
+    padding: 28px 16px;
+    background: #fafbfc;
+    border-radius: 10px;
+  }
+
+  body.admin-ui #tab-dashboard .empty-state-icon {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 12px;
+    color: #98a2b3;
+  }
+
+  body.admin-ui #tab-dashboard .empty-state-text {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.7;
+  }
+
+  body.admin-ui #tab-dashboard :is(button, summary, [tabindex="0"]):focus-visible {
+    outline: 2px solid #cf302b;
+    outline-offset: 4px;
+  }
+}
+
+@media screen and (max-width: 1270px) {
+  body.admin-ui #tab-dashboard .admin-month-body {
+    grid-template-columns: minmax(210px, 0.9fr) minmax(0, 1.7fr);
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 16px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro {
+    padding: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro-etichetta {
+    min-height: auto;
+  }
+
+  body.admin-ui #tab-dashboard .admin-analysis-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
+    min-height: auto;
+  }
+
+  body.admin-ui #tab-dashboard .admin-trend > .section-header {
+    flex-wrap: wrap;
+  }
+
+  body.admin-ui #tab-dashboard .admin-trend .inv-total-box {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+@media screen and (max-width: 1000px) {
+  body.admin-ui #tab-dashboard .admin-analysis-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.admin-ui #tab-dashboard .admin-trend > .section-header {
+    flex-wrap: nowrap;
+  }
+
+  body.admin-ui #tab-dashboard .admin-trend .inv-total-box {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(3) {
+    padding-left: 12px;
+    border-left: 1px solid #e9ecf0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
+    min-height: 36px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 32px;
+  }
+}
+
+@media screen and (max-width: 680px) {
+  body.admin-ui #tab-dashboard {
+    --dash-pista: 160px;
+    --dash-gutter: 3rem;
+  }
+
+  body.admin-ui #tab-dashboard.active {
+    gap: 18px;
+  }
+
+  body.admin-ui #tab-dashboard .card-section {
+    padding: 20px;
+    border-radius: 13px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month > .section-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-month-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero-valore {
+    font-size: 40px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-hero-nota {
+    max-width: none;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-mese {
+    gap: 22px 20px;
+    padding: 20px 0 0;
+    border-top: 1px solid #e9ecf0;
+    border-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-history-filter {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodi {
+    width: 100%;
+  }
+
+  body.admin-ui #tab-dashboard .dash-periodo {
+    padding-right: 8px;
+    padding-left: 8px;
+    font-size: 11px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-trend > .section-header {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  body.admin-ui #tab-dashboard .section-title {
+    font-size: 14px;
+  }
+
+  body.admin-ui #tab-dashboard .inv-total-value {
+    font-size: 20px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-insights-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadri,
+  body.admin-ui #tab-dashboard #dash-riquadri-medie {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 0;
+  }
+
+  body.admin-ui #tab-dashboard .dash-riquadro:nth-child(odd),
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
+    min-height: auto;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro:nth-child(odd) {
+    padding-left: 0;
+  }
+
+  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro-valore {
+    font-size: 24px;
+  }
+
+  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre {
+    display: flex;
+    gap: 20px;
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro:last-child {
+    grid-column: 1 / -1;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecf0;
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  body.admin-ui #tab-dashboard .admin-detail > summary > svg {
+    transition: none;
+  }
+}

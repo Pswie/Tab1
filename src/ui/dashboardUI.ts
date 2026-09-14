@@ -61,7 +61,7 @@ const pannello = document.getElementById('tab-dashboard') as HTMLDivElement;
 const stato = document.getElementById('dash-stato') as HTMLParagraphElement;
 
 const nomeMeseCorrente = document.getElementById('dash-mese-nome') as HTMLSpanElement;
-const titoloMese = document.getElementById('dash-mese-titolo') as HTMLSpanElement;
+const titoloMese = document.getElementById('dash-mese-titolo') as HTMLHeadingElement;
 const etichettaHero = document.getElementById('dash-hero-etichetta') as HTMLSpanElement;
 const totaleMese = document.getElementById('dash-mese-totale') as HTMLSpanElement;
 const notaMese = document.getElementById('dash-mese-nota') as HTMLSpanElement;
@@ -317,7 +317,7 @@ function renderMeseAperto(): void {
         nota: 'Se il passo resta questo'
       },
       {
-        etichetta: 'Stesso periodo del mese prima',
+        etichetta: 'Mese prima, stesso periodo',
         valore: euroTondo(scorsoStessoPeriodo),
         nota: `Fino al ${numero(giorno)} del mese`,
         delta: variazione(mese.totale, scorsoStessoPeriodo, 'sul mese prima')
@@ -420,6 +420,15 @@ function renderIncassiMensili(elenco: MeseIncasso[]): void {
       valoreInVista: m === piuAlto || m.inCorso,
       titolo: `${m.etichetta}: ${euro(m.totale)} su ${m.giornate} giornate${m.inCorso ? ' (mese ancora in corso)' : ''}`
     })));
+
+    // Lo storico può superare la larghezza del pannello: anche chi usa solo
+    // la tastiera deve poter scorrere i mesi e aprire la tabella di dettaglio.
+    const colonne = graficoMesi.querySelector<HTMLElement>('.dash-colonne');
+    if (colonne) {
+      colonne.tabIndex = 0;
+      colonne.setAttribute('role', 'region');
+      colonne.setAttribute('aria-label', 'Grafico degli incassi mensili, scorribile. Valori completi nel dettaglio mensile.');
+    }
   }
 
   if (!tabellaMesi) return;
@@ -614,7 +623,7 @@ function render(): void {
   pulsantiPeriodo.forEach(btn => {
     const attivo = btn.getAttribute('data-periodo') === periodo;
     btn.classList.toggle('is-active', attivo);
-    btn.setAttribute('aria-selected', String(attivo));
+    btn.setAttribute('aria-pressed', String(attivo));
   });
 
   renderMeseAperto();
@@ -645,6 +654,7 @@ export async function caricaDashboard(): Promise<void> {
 
   const versione = ++versioneCaricamento;
   pannello.classList.add('is-caricamento');
+  pannello.setAttribute('aria-busy', 'true');
 
   try {
     // Le pulizie hanno uno stato proprio: un loro errore non deve nascondere
@@ -690,7 +700,10 @@ export async function caricaDashboard(): Promise<void> {
     console.error('Errore lettura dati dashboard:', err);
     mostraStato('Non è stato possibile leggere i registri. Controlla la connessione e riprova.', true);
   } finally {
-    if (versione === versioneCaricamento) pannello.classList.remove('is-caricamento');
+    if (versione === versioneCaricamento) {
+      pannello.classList.remove('is-caricamento');
+      pannello.setAttribute('aria-busy', 'false');
+    }
   }
 }
 
