@@ -1,9 +1,13 @@
+import '../admin.css';
+import '../admin-entry.css';
+import '../admin-dashboard.css';
 import { amministratore, nomeUtente } from '../services/auth';
 import { caricaDashboard } from './dashboardUI';
 import { caricaDashboardH24 } from './h24DashboardUI';
+import { initAdminEntryUI } from './adminEntryUI';
 
 const pages: Record<string, { title: string; description: string; group: string }> = {
-  'tab-dashboard': { title: 'Panoramica', description: 'Uno sguardo ai numeri e alle attività del tuo negozio.', group: 'Tabaccheria' },
+  'tab-dashboard': { title: 'Panoramica', description: 'Incassi, andamento e controlli del negozio.', group: 'Tabaccheria' },
   'tab-incassi': { title: 'Incassi giornalieri', description: 'Chiusure, movimenti e controllo della cassa.', group: 'Tabaccheria' },
   'tab-turni': { title: 'Turni di lavoro', description: 'La settimana della tua squadra, giorno per giorno.', group: 'Organizzazione' },
   'tab-pulizie': { title: 'Pulizie', description: 'Attività, scadenze e cura degli spazi.', group: 'Organizzazione' },
@@ -29,7 +33,9 @@ const paths = {
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   wallet: '<path d="M20 8V5a2 2 0 0 0-2-2H6a3 3 0 0 0 0 6h14v12H6a3 3 0 0 1-3-3V6"/><path d="M20 12h-5v5h5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
-  close: '<path d="m6 6 12 12M6 18 18 6"/>'
+  close: '<path d="m6 6 12 12M6 18 18 6"/>',
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16m5-12-3 4 3 4"/>',
+  shield: '<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m9 12 2 2 4-4"/>'
 };
 
 function icon(name: keyof typeof paths): string {
@@ -47,6 +53,10 @@ export function initAdminUI(openPage: (id: string) => void): void {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff');
   // Allow browser zoom in this version without changing the employee viewport.
   document.querySelector('meta[name="viewport"]')?.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+  const mobileBrand = document.querySelector('.brand-title-group h1');
+  const mobileSubtitle = document.querySelector('.brand-title-group p');
+  if (mobileBrand) mobileBrand.textContent = 'iNES caffè';
+  if (mobileSubtitle) mobileSubtitle.textContent = 'Amministrazione';
 
   const nav = document.querySelector<HTMLElement>('.app-nav-tabs');
   const container = document.querySelector<HTMLElement>('.nav-tabs-container');
@@ -60,9 +70,10 @@ export function initAdminUI(openPage: (id: string) => void): void {
   document.body.prepend(skip);
 
   nav.setAttribute('aria-label', 'Navigazione principale');
+  nav.id = 'admin-sidebar';
   const brand = document.createElement('div');
   brand.className = 'admin-sidebar-brand';
-  brand.innerHTML = '<img src="/icon-192.png" alt="" width="42" height="42"><div><strong>iNES caffè</strong><span>Il tuo spazio di gestione</span></div>';
+  brand.innerHTML = '<img src="/icon-192.png" alt="iNES caffè" width="40" height="40"><div><strong>iNES caffè</strong><span>Gestione del negozio</span></div>';
   nav.prepend(brand);
 
   // Move the existing buttons, retaining their listeners, permissions and badges.
@@ -81,9 +92,12 @@ export function initAdminUI(openPage: (id: string) => void): void {
     group.ids.forEach(id => {
       const button = container.querySelector<HTMLButtonElement>(`[data-tab="${id}"]`);
       if (!button) return;
-      button.childNodes.forEach(node => {
-        if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) node.textContent = ` ${pages[id].title} `;
-      });
+      button.childNodes.forEach(node => { if (node.nodeType === Node.TEXT_NODE) node.textContent = ''; });
+      const text = document.createElement('span');
+      text.className = 'admin-nav-text';
+      text.textContent = pages[id].title;
+      button.querySelector('.tab-icon')?.after(text);
+      button.setAttribute('aria-label', pages[id].title);
       container.append(button);
     });
   });
@@ -116,7 +130,7 @@ export function initAdminUI(openPage: (id: string) => void): void {
   const userName = nomeUtente() || 'Amministratore';
   const profile = document.createElement('div');
   profile.className = 'admin-profile';
-  profile.innerHTML = '<span class="admin-avatar"></span><div><strong></strong><span>Amministratore</span></div><span class="admin-profile-mark" aria-hidden="true">A</span>';
+  profile.innerHTML = `<span class="admin-avatar"></span><div><strong></strong><span>Amministratore</span></div>${icon('shield')}`;
   profile.querySelector('.admin-avatar')!.textContent = userName.split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
   profile.querySelector('strong')!.textContent = userName;
   nav.append(profile);
@@ -129,14 +143,17 @@ export function initAdminUI(openPage: (id: string) => void): void {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'admin-toolbar';
-  toolbar.innerHTML = `<button type="button" class="admin-search-trigger" aria-label="Cerca una sezione" aria-haspopup="dialog">${icon('search')}<span>Cerca una sezione</span><kbd>Ctrl K</kbd></button><span class="admin-role">Area admin</span>`;
+  toolbar.innerHTML = `<time class="admin-today"></time><button type="button" class="admin-search-trigger" aria-label="Cerca una sezione" aria-haspopup="dialog">${icon('search')}<span>Cerca nel gestionale</span><kbd>Ctrl K</kbd></button><span class="admin-role">${icon('shield')}<span>Area admin</span></span>`;
   header.insertBefore(toolbar, header.querySelector('.header-actions'));
+  initSidebar(nav, header);
 
   const heading = document.createElement('div');
   heading.className = 'admin-page-heading';
-  heading.innerHTML = `<div><h1 id="admin-page-title" tabindex="-1">Panoramica</h1><p id="admin-page-description"></p></div><div class="admin-page-actions"><span class="admin-today"></span><button type="button" class="admin-icon-button" id="admin-refresh" aria-label="Aggiorna dashboard" title="Aggiorna dashboard">${icon('refresh')}</button><button type="button" class="admin-primary-button" id="admin-register">${icon('plus')}<span>Registra incassi</span></button></div>`;
+  heading.innerHTML = `<div class="admin-page-intro"><h1 id="admin-page-title" tabindex="-1">Panoramica</h1><p id="admin-page-description"></p></div><div class="admin-page-actions"><button type="button" class="admin-icon-button" id="admin-refresh" aria-label="Aggiorna dashboard" title="Aggiorna dashboard">${icon('refresh')}</button><button type="button" class="admin-primary-button" id="admin-register">${icon('plus')}<span>Registra incassi</span></button></div>`;
   main.prepend(heading);
-  heading.querySelector('.admin-today')!.textContent = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Rome' }).format(new Date());
+  const today = toolbar.querySelector('time')!;
+  today.textContent = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Rome' }).format(new Date());
+  today.dateTime = new Date().toISOString();
   heading.querySelector('#admin-register')!.addEventListener('click', () => navigate(currentPage === 'tab-h24-dashboard' ? 'tab-h24-incassi' : 'tab-incassi'));
   heading.querySelector('#admin-refresh')!.addEventListener('click', async event => {
     const button = event.currentTarget as HTMLButtonElement;
@@ -159,30 +176,38 @@ export function initAdminUI(openPage: (id: string) => void): void {
   document.body.append(mobileNav);
 
   initSearch(toolbar.querySelector('button')!, container);
-  initAdminEntry();
+  initAdminEntryUI();
   initMobileDrawer();
   updateAdminPage(document.querySelector('.tab-pane.active')?.id || 'tab-dashboard');
 }
 
-function initAdminEntry(): void {
-  const form = document.getElementById('daily-log-form');
-  if (!form) return;
-  const serviceFields = ['input-mooney', 'input-lis', 'input-printer'].map(id => document.getElementById(id)?.closest('.field-item'));
-  if (serviceFields.every(Boolean)) {
-    const services = document.createElement('div');
-    services.className = 'admin-services-grid';
-    serviceFields[0]!.before(services);
-    serviceFields.forEach(field => services.append(field!));
+function initSidebar(nav: HTMLElement, header: Element): void {
+  const storageKey = 'tabaccheria_admin_menu_compatto';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.id = 'admin-collapse-nav';
+  toggle.className = 'admin-icon-button admin-sidebar-toggle';
+  toggle.innerHTML = icon('panel');
+  toggle.setAttribute('aria-controls', nav.id);
+  header.prepend(toggle);
+  function setCollapsed(collapsed: boolean): void {
+    document.body.classList.toggle('admin-nav-compact', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', collapsed ? 'Espandi menu laterale' : 'Riduci menu laterale');
+    toggle.title = collapsed ? 'Espandi menu laterale' : 'Riduci menu laterale';
+    nav.querySelectorAll<HTMLButtonElement>('.nav-tab-item').forEach(button => {
+      if (collapsed) button.title = pages[button.dataset.tab!].title;
+      else button.removeAttribute('title');
+    });
   }
-  form.querySelectorAll<HTMLElement>('.field-item').forEach((field, index) => {
-    const label = field.querySelector<HTMLElement>('.field-label');
-    const input = field.querySelector('input');
-    if (!label || !input || input.hasAttribute('aria-label')) return;
-    if (!label.id) label.id = `admin-entry-label-${index}`;
-    input.setAttribute('aria-labelledby', label.id);
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(storageKey) === 'true'; } catch { /* Layout works without storage. */ }
+  setCollapsed(collapsed);
+  toggle.addEventListener('click', () => {
+    collapsed = !collapsed;
+    setCollapsed(collapsed);
+    try { localStorage.setItem(storageKey, String(collapsed)); } catch { /* Keep the current session preference. */ }
   });
-  const title = document.querySelector('#tab-incassi .section-title > span');
-  if (title) title.textContent = 'Registro della giornata';
 }
 
 export function updateAdminPage(id: string): void {
@@ -197,11 +222,15 @@ export function updateAdminPage(id: string): void {
   const dashboard = id === 'tab-dashboard' || id === 'tab-h24-dashboard';
   document.getElementById('admin-refresh')!.hidden = !dashboard;
   document.getElementById('admin-register')!.hidden = !dashboard;
+  document.querySelector('.admin-page-actions')?.classList.toggle('is-empty', !dashboard);
   document.querySelectorAll<HTMLElement>('.nav-tab-item, .hotdog-menu-item, [data-admin-page]').forEach(button => {
     const active = (button.dataset.tab || button.dataset.adminPage) === id;
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
+  const more = document.getElementById('admin-more');
+  if (!['tab-dashboard', 'tab-incassi', 'tab-turni'].includes(id)) more?.setAttribute('aria-current', 'page');
+  else more?.removeAttribute('aria-current');
 }
 
 function initSearch(trigger: HTMLButtonElement, nav: HTMLElement): void {

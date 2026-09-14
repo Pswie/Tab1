@@ -1,470 +1,315 @@
-/* The admin overview keeps the shop's data and service colours, with a calmer
-   hierarchy. Screen-only rules leave the existing A4 document styles intact. */
+﻿/* Administrative dashboard only. The employee interface and A4 print layout
+   continue to use their existing styles. */
 @media screen {
   body.admin-ui #tab-dashboard {
-    --dash-marca: #667f99;
-    --dash-marca-parziale: #cf302b;
-    --dash-pista: 184px;
-    --dash-gutter: 3.5rem;
-    --dash-aria: 1.9rem;
+    --dash-marca: #7087a0;
+    --dash-marca-parziale: #c52f2b;
+    --adm-chart-height: 208px;
     min-width: 0;
+    color: var(--text-primary);
+    font-size: 13px;
   }
 
-  body.admin-ui #tab-dashboard.active {
-    gap: 24px;
-  }
-
+  body.admin-ui #tab-dashboard.active { gap: 24px; }
+  body.admin-ui #tab-dashboard [hidden] { display: none !important; }
   body.admin-ui #tab-dashboard .card-section {
     min-width: 0;
     margin: 0;
-    padding: 24px;
-    border: 1px solid #e5e8ed;
+    padding: 26px;
+    border: 1px solid var(--border-pearl);
     border-radius: 16px;
     background: #fff;
-    box-shadow: 0 2px 3px rgb(32 36 43 / 2%);
+    box-shadow: 0 2px 4px rgb(32 39 48 / 2%);
   }
-
   body.admin-ui #tab-dashboard .section-header {
-    gap: 16px;
-    align-items: flex-start;
     flex-direction: row;
-    margin: 0 0 22px;
+    align-items: center;
+    gap: 18px;
+    margin: 0 0 24px;
     padding: 0;
     border: 0;
   }
-
-  body.admin-ui #tab-dashboard .section-header > div:not(.inv-total-box) {
-    min-width: 0;
-  }
-
+  body.admin-ui #tab-dashboard .section-header > div { min-width: 0; }
   body.admin-ui #tab-dashboard .section-title {
     display: block;
     margin: 0;
-    color: #20242b;
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1.5;
-    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.4;
+    letter-spacing: -.025em;
     text-transform: none;
   }
-
   body.admin-ui #tab-dashboard .section-title::before,
-  body.admin-ui #tab-dashboard .section-title::after {
-    content: none;
-  }
-
+  body.admin-ui #tab-dashboard .section-title::after { content: none; }
   body.admin-ui #tab-dashboard .admin-section-note {
-    margin: 4px 0 0;
-    color: #667085;
+    margin: 5px 0 0;
+    color: var(--text-secondary);
     font-size: 12px;
-    font-weight: 400;
+    font-weight: 450;
     line-height: 1.6;
   }
 
-  body.admin-ui #tab-dashboard .admin-month {
-    padding: 22px 26px 26px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-month > .section-header {
-    align-items: center;
-    margin-bottom: 24px;
-  }
-
+  /* One monthly total, one comparison, two useful secondary measures. */
+  body.admin-ui #tab-dashboard .admin-month { padding: 22px 26px 0; }
+  body.admin-ui #tab-dashboard .admin-month > .section-header { margin-bottom: 16px; }
+  body.admin-ui #tab-dashboard #dash-mese-titolo { font-size: 14px; font-weight: 650; }
   body.admin-ui #tab-dashboard .dash-mese-nav {
-    gap: 4px;
-    padding: 3px;
-    border: 1px solid #e5e8ed;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border-pearl);
     border-radius: 9px;
     background: #fff;
   }
-
   body.admin-ui #tab-dashboard .dash-mese-nav .date-arrow-btn {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     border: 0;
     border-radius: 6px;
+    background: transparent;
     box-shadow: none;
   }
-
+  body.admin-ui #tab-dashboard .dash-mese-nav .date-arrow-btn:hover:not(:disabled) { background: var(--surface-subtle); }
   body.admin-ui #tab-dashboard .dash-periodo-nome {
-    min-width: 128px;
+    min-width: 136px;
+    padding: 0 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 650;
     text-align: center;
-    color: #344054;
-    font-size: 12px;
-    font-weight: 600;
+    white-space: nowrap;
   }
-
   body.admin-ui #tab-dashboard .admin-month-body {
     display: grid;
-    grid-template-columns: minmax(215px, 1.3fr) minmax(0, 3.7fr);
-    gap: 30px;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 36px;
+    padding-bottom: 20px;
   }
-
-  body.admin-ui #tab-dashboard .admin-month-body:has(#dash-riquadri-mese:empty) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  body.admin-ui #tab-dashboard .admin-month-body:has(#dash-riquadri-mese:empty) { grid-template-columns: minmax(0, 1fr); }
   body.admin-ui #tab-dashboard .dash-hero {
-    gap: 8px;
-    justify-content: center;
+    gap: 7px;
     margin: 0;
     padding: 0;
+    border: 0;
     border-radius: 0;
     background: transparent;
   }
-
   body.admin-ui #tab-dashboard .dash-hero-etichetta,
   body.admin-ui #tab-dashboard .dash-riquadro-etichetta {
-    color: #667085;
-    font-size: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
     font-weight: 500;
-    line-height: 1.5;
+    line-height: 1.4;
     letter-spacing: 0;
     text-transform: none;
   }
-
+  body.admin-ui #tab-dashboard .admin-month-amount {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+  }
   body.admin-ui #tab-dashboard .dash-hero-valore {
-    color: #20242b;
-    font-size: clamp(29px, 2.9vw, 44px);
+    color: var(--text-primary);
+    font-size: clamp(34px, 3vw, 48px);
     font-weight: 750;
     line-height: 1.15;
-    letter-spacing: -0.055em;
+    letter-spacing: -.045em;
     font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
   }
-
   body.admin-ui #tab-dashboard .dash-hero-nota {
-    max-width: 245px;
-    color: #667085;
-    font-size: 11px;
-    font-weight: 400;
-    line-height: 1.6;
+    max-width: 64ch;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 450;
+    line-height: 1.5;
   }
+  body.admin-ui #tab-dashboard .dash-delta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 3px 5px;
+    align-items: baseline;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  body.admin-ui #tab-dashboard .dash-delta.is-su { color: #18744f; }
+  body.admin-ui #tab-dashboard .dash-delta.is-giu { color: #b32d29; }
+  body.admin-ui #tab-dashboard .dash-delta-nota { color: var(--text-secondary); font-size: 12px; font-weight: 450; }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta {
+    display: block;
+    padding: 4px 9px;
+    border-radius: 7px;
+    background: #edf7f1;
+  }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta.is-giu { background: #fcf0ef; }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta-nota { display: block; font-size: 12px; }
 
   body.admin-ui #tab-dashboard .dash-riquadri {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
+    gap: 24px;
     margin: 0;
   }
-
+  body.admin-ui #tab-dashboard .dash-riquadri:empty { display: none; }
   body.admin-ui #tab-dashboard .dash-riquadro {
     min-width: 0;
     gap: 6px;
-    padding: 0 20px;
+    margin: 0;
+    padding: 0;
     border: 0;
-    border-left: 1px solid #e9ecf0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
-
-  body.admin-ui #tab-dashboard .dash-riquadro:first-child {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard .dash-riquadro:last-child {
-    padding-right: 0;
-  }
-
   body.admin-ui #tab-dashboard .dash-riquadro-valore {
-    color: #20242b;
-    font-size: 25px;
-    font-weight: 700;
-    line-height: 1.25;
-    letter-spacing: -0.045em;
+    color: var(--text-primary);
+    font-size: 28px;
+    font-weight: 750;
+    line-height: 1.2;
+    letter-spacing: -.035em;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
-
   body.admin-ui #tab-dashboard .dash-riquadro-nota {
-    color: #667085;
-    font-size: 11px;
-    font-weight: 400;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 450;
     line-height: 1.6;
   }
-
   body.admin-ui #tab-dashboard #dash-riquadri-mese {
-    align-items: start;
-    padding-left: 24px;
-    border-left: 1px solid #e9ecf0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 30px;
+    border-left: 1px solid var(--border-pearl);
   }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese-extra { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro {
-    padding: 0 13px;
-    border: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro:first-child {
-    padding-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro:last-child {
-    padding-right: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro-etichetta {
-    min-height: 36px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-delta {
-    gap: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.5;
-  }
-
-  body.admin-ui #tab-dashboard .dash-delta-nota {
-    color: #667085;
-    font-size: 10px;
-    font-weight: 400;
-  }
-
+  /* The historical period is deliberately separate from month navigation. */
   body.admin-ui #tab-dashboard .admin-history-filter {
-    gap: 20px;
-    align-items: center;
     flex-direction: row;
-    margin-top: 8px;
+    align-items: center;
+    gap: 14px 24px;
+    margin: 0;
     padding: 0;
   }
-
   body.admin-ui #tab-dashboard .dash-filtro-etichetta {
     margin: 0;
-    color: #20242b;
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 750;
     line-height: 1.4;
+    letter-spacing: -.025em;
     text-transform: none;
   }
-
   body.admin-ui #tab-dashboard .dash-periodi {
-    gap: 3px;
+    display: inline-flex;
+    gap: 2px;
     padding: 4px;
-    border: 1px solid #e5e8ed;
+    border: 1px solid var(--border-pearl);
     border-radius: 10px;
-    background: #eef0f3;
+    background: #edf0f3;
   }
-
   body.admin-ui #tab-dashboard .dash-periodo {
-    min-height: 34px;
-    padding: 7px 14px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 0;
     border-radius: 7px;
-    color: #667085;
-    font-size: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
     font-weight: 600;
   }
-
-  body.admin-ui #tab-dashboard .dash-periodo.is-active {
-    color: #20242b;
-    background: #fff;
-    box-shadow: 0 1px 3px rgb(32 36 43 / 9%);
-  }
-
+  body.admin-ui #tab-dashboard .dash-periodo.is-active { color: var(--text-primary); background: #fff; box-shadow: 0 1px 3px rgb(32 39 48 / 9%); }
   body.admin-ui #tab-dashboard .admin-analysis-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
+  body.admin-ui #tab-dashboard .admin-trend > .section-header { margin-bottom: 22px; align-items: flex-start; }
+  body.admin-ui #tab-dashboard .inv-total-box { align-items: flex-end; gap: 3px; padding: 0; border: 0; background: transparent; }
+  body.admin-ui #tab-dashboard .inv-total-label { color: var(--text-secondary); font-size: 12px; font-weight: 450; letter-spacing: 0; text-transform: none; }
+  body.admin-ui #tab-dashboard .inv-total-value { color: var(--text-primary); font-family: var(--font-sans); font-size: 26px; font-weight: 750; letter-spacing: -.035em; overflow-wrap: anywhere; }
+  body.admin-ui #tab-dashboard .dash-figura { min-width: 0; margin: 0; }
+  body.admin-ui #tab-dashboard .dash-chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0 0 20px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+  body.admin-ui #tab-dashboard .dash-chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  body.admin-ui #tab-dashboard .dash-chart-legend i { width: 8px; height: 8px; border-radius: 2px; background: var(--dash-marca); }
+  body.admin-ui #tab-dashboard .dash-chart-legend i.is-current { background: var(--dash-marca-parziale); }
 
-  body.admin-ui #tab-dashboard .admin-insights-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-    align-items: start;
-  }
-
-  body.admin-ui #tab-dashboard .inv-total-box {
-    gap: 3px;
-    min-width: fit-content;
-    padding: 0;
-    border: 0;
-    background: none;
-  }
-
-  body.admin-ui #tab-dashboard .inv-total-label {
-    color: #667085;
-    font-size: 10px;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  body.admin-ui #tab-dashboard .inv-total-value {
-    color: #20242b;
-    font-family: var(--font-sans);
-    font-size: 23px;
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    font-variant-numeric: tabular-nums;
-  }
-
-  body.admin-ui #tab-dashboard .dash-figura {
-    margin: 0;
-  }
-
-  body.admin-ui #tab-dashboard .dash-chart-legend {
+  /* A selectable chart: its data readout stays visible for touch and keyboard. */
+  body.admin-ui #tab-dashboard .adm-chart-plot { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: start; padding-top: 8px; }
+  body.admin-ui #tab-dashboard .adm-chart-axis { position: relative; height: var(--adm-chart-height); }
+  body.admin-ui #tab-dashboard .adm-chart-tick { position: absolute; right: 9px; transform: translateY(50%); color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  body.admin-ui #tab-dashboard .adm-chart-scroll { min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #c7cfd8 transparent; padding-bottom: 6px; }
+  body.admin-ui #tab-dashboard .adm-chart-canvas { position: relative; width: 100%; }
+  body.admin-ui #tab-dashboard .adm-chart-grid { position: absolute; top: 0; left: 0; right: 0; height: var(--adm-chart-height); pointer-events: none; }
+  body.admin-ui #tab-dashboard .adm-chart-gridline,
+  body.admin-ui #tab-dashboard .adm-chart-zero { position: absolute; right: 0; left: 0; height: 1px; background: #e9edf1; }
+  body.admin-ui #tab-dashboard .adm-chart-zero { background: #c6cdd6; }
+  body.admin-ui #tab-dashboard .adm-chart-columns { position: relative; display: flex; width: 100%; }
+  body.admin-ui #tab-dashboard .adm-chart-column {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px 18px;
-    margin-bottom: 14px;
-    color: #667085;
-    font-size: 10px;
-    line-height: 1.5;
-  }
-
-  body.admin-ui #tab-dashboard .dash-chart-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-chart-legend i {
-    width: 7px;
-    height: 7px;
-    border-radius: 2px;
-    background: var(--dash-marca);
-  }
-
-  body.admin-ui #tab-dashboard .dash-chart-legend i.is-current {
-    background: var(--dash-marca-parziale);
-  }
-
-  body.admin-ui #tab-dashboard .dash-colonne {
-    padding-bottom: 6px;
-    scrollbar-width: thin;
-  }
-
-  body.admin-ui #tab-dashboard .dash-colonna {
-    min-width: 40px;
-    gap: 10px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-colonna-barra {
-    max-width: 30px;
-    border-radius: 5px 5px 0 0;
-  }
-
-  body.admin-ui #tab-dashboard .dash-colonna-etichetta,
-  body.admin-ui #tab-dashboard .dash-livello-valore {
-    color: #667085;
-    font-size: 10px;
-    font-weight: 400;
-  }
-
-  body.admin-ui #tab-dashboard .dash-colonna-valore {
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie {
-    margin-top: 22px;
-    padding-top: 20px;
-    border-top: 1px solid #edf0f3;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:first-child {
-    padding-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:last-child {
-    padding-right: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
-    min-height: 36px;
-    font-size: 10px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-valore {
-    font-size: 19px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-nota {
-    font-size: 10px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-barre,
-  body.admin-ui #tab-dashboard #dash-settimana {
-    display: flex;
+    flex: 1 0 44px;
     flex-direction: column;
-    gap: 20px;
+    align-items: stretch;
+    min-width: 44px;
+    padding: 0 5px 6px;
+    border: 0;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    background: transparent;
+    cursor: pointer;
+    touch-action: pan-x pan-y;
   }
-
-  body.admin-ui #tab-dashboard .dash-barra {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px 16px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-barra-nome {
-    flex-direction: row;
-    flex-wrap: wrap;
+  body.admin-ui #tab-dashboard .adm-chart-track { position: relative; display: block; height: var(--adm-chart-height); width: 100%; }
+  body.admin-ui #tab-dashboard .adm-chart-bar { position: absolute; right: 3px; left: 3px; border-radius: 4px 4px 0 0; background: var(--dash-marca); transition: background-color 140ms; }
+  body.admin-ui #tab-dashboard .adm-chart-column.is-partial .adm-chart-bar { background: var(--dash-marca-parziale); }
+  body.admin-ui #tab-dashboard .adm-chart-column.is-negative .adm-chart-bar { border-radius: 0 0 4px 4px; background: #b44a48; }
+  body.admin-ui #tab-dashboard .adm-chart-label { display: block; margin-top: 12px; color: inherit; font-family: var(--font-sans); font-size: 12px; font-weight: 550; line-height: 1.35; white-space: normal; }
+  body.admin-ui #tab-dashboard .adm-chart-label-year { display: block; margin-top: 2px; color: var(--text-secondary); font-size: 12px; font-weight: 450; }
+  body.admin-ui #tab-dashboard .adm-chart-column:hover { background: rgb(112 135 160 / 8%); }
+  body.admin-ui #tab-dashboard .adm-chart-column.is-selected .adm-chart-bar { box-shadow: inset 0 0 0 2px rgb(32 39 48 / 18%); }
+  body.admin-ui #tab-dashboard .adm-chart-column.is-selected .adm-chart-label { color: var(--text-primary); font-weight: 800; text-decoration: underline; text-underline-offset: 5px; }
+  body.admin-ui #tab-dashboard .adm-chart-column:focus-visible { outline: 2px solid #c52f2b; outline-offset: -2px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 4px 16px;
     align-items: baseline;
-    gap: 4px 8px;
-    color: #344054;
-    font-size: 12px;
-    font-weight: 500;
-    overflow-wrap: anywhere;
+    min-height: 76px;
+    margin-top: 18px;
+    padding: 15px 17px;
+    border: 1px solid #e6ebf0;
+    border-radius: 10px;
+    background: #f7f9fb;
   }
+  body.admin-ui #tab-dashboard .adm-chart-readout-period { font-size: 13px; font-weight: 700; }
+  body.admin-ui #tab-dashboard .adm-chart-readout-value { grid-column: 2; grid-row: 1 / 3; align-self: center; min-width: 0; text-align: right; font-size: 21px; font-weight: 750; letter-spacing: -.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  body.admin-ui #tab-dashboard .adm-chart-readout-days { color: var(--text-secondary); font-size: 12px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout-partial { grid-column: 1 / -1; color: var(--text-secondary); font-size: 12px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout.is-partial .adm-chart-readout-partial { color: #a73733; }
+  body.admin-ui #tab-dashboard .adm-chart-hint { margin: 10px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 
-  body.admin-ui #tab-dashboard .dash-barra-nome small {
-    color: #667085;
-    font-size: 10px;
-    font-weight: 400;
-  }
+  /* Service colours stay tied to the service, independent of ranking. */
+  body.admin-ui #tab-dashboard .dash-barre,
+  body.admin-ui #tab-dashboard #dash-settimana { display: flex; flex-direction: column; gap: 23px; }
+  body.admin-ui #tab-dashboard .dash-barra { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
+  body.admin-ui #tab-dashboard .dash-barra-nome { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; color: var(--text-primary); font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+  body.admin-ui #tab-dashboard .dash-barra-nome small { color: var(--text-secondary); font-size: 12px; font-weight: 450; }
+  body.admin-ui #tab-dashboard .dash-barra-pista { grid-column: 1 / -1; order: 3; height: 7px; border-radius: 4px; background: #eef1f4; }
+  body.admin-ui #tab-dashboard .dash-barra-riempimento { border-radius: 4px; }
+  body.admin-ui #tab-dashboard .dash-barra-valore { font-size: 13px; font-weight: 700; }
+  body.admin-ui #tab-dashboard .admin-chart-note { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--border-pearl); color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+  body.admin-ui #tab-dashboard .dash-figura-titolo { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin: 0 0 22px; color: var(--text-primary); font-size: 16px; font-weight: 700; line-height: 1.5; }
+  body.admin-ui #tab-dashboard .dash-figura-nota { color: var(--text-secondary); font-size: 12px; font-weight: 450; }
 
-  body.admin-ui #tab-dashboard .dash-barra-pista {
-    grid-column: 1 / -1;
-    order: 3;
-    height: 6px;
-    border-radius: 3px;
-    background: #f0f2f5;
-  }
-
-  body.admin-ui #tab-dashboard .dash-barra-riempimento {
-    border-radius: 3px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-barra-valore {
-    font-size: 12px;
-    font-weight: 650;
-  }
-
-  body.admin-ui #tab-dashboard .admin-chart-note {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid #edf0f3;
-    color: #667085;
-    font-size: 11px;
-    line-height: 1.7;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance {
-    padding: 2px 4px 6px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro {
-    gap: 6px;
-    padding: 6px 24px;
-    border-color: #dde2e8;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro:first-child {
-    padding-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail {
-    margin-top: 20px;
-    border-top: 1px solid #edf0f3;
-  }
-
+  /* The rest of the financial detail remains a deliberate second reading. */
+  body.admin-ui #tab-dashboard .admin-detail { margin: 20px 0 0; border-top: 1px solid var(--border-pearl); }
   body.admin-ui #tab-dashboard .admin-detail > summary {
     display: flex;
     align-items: center;
@@ -472,389 +317,160 @@
     gap: 16px;
     min-height: 44px;
     padding: 16px 0 0;
-    border-radius: 4px;
-    color: #475467;
-    font-size: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
     font-weight: 600;
-    line-height: 1.6;
+    line-height: 1.5;
     list-style: none;
     cursor: pointer;
   }
+  body.admin-ui #tab-dashboard .admin-detail > summary::-webkit-details-marker { display: none; }
+  body.admin-ui #tab-dashboard .admin-detail > summary::marker { content: ''; }
+  body.admin-ui #tab-dashboard .admin-detail > summary:hover { color: var(--ferrari-red); }
+  body.admin-ui #tab-dashboard .admin-detail > summary > svg { width: 17px; height: 17px; flex: 0 0 auto; transition: transform 150ms; }
+  body.admin-ui #tab-dashboard .admin-detail[open] > summary > svg { transform: rotate(90deg); }
+  body.admin-ui #tab-dashboard .admin-detail[open] > summary { margin-bottom: 24px; }
+  body.admin-ui #tab-dashboard .admin-month-detail { margin: 0; }
+  body.admin-ui #tab-dashboard .admin-month-detail > summary { min-height: 40px; padding: 9px 0; font-size: 12px; }
+  body.admin-ui #tab-dashboard .admin-month-detail[open] { padding-bottom: 24px; }
+  body.admin-ui #tab-dashboard .admin-month-detail[open] > summary { margin-bottom: 16px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-medie { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 26px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-valore { font-size: 24px; }
+  body.admin-ui #tab-dashboard .admin-channels { display: grid; grid-template-columns: minmax(160px, .9fr) minmax(0, 2.7fr); gap: 30px; align-items: center; }
+  body.admin-ui #tab-dashboard .admin-channels > .section-header { margin: 0; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro { padding-left: 22px; border-left: 1px solid var(--border-pearl); }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro-valore { font-size: 26px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .is-forte .dash-riquadro-valore { color: var(--text-primary); }
+  body.admin-ui #tab-dashboard .admin-deep-dive { padding-bottom: 0; }
+  body.admin-ui #tab-dashboard .admin-deep-dive > .section-header { margin-bottom: 22px; }
+  body.admin-ui #tab-dashboard .admin-insight-detail { margin: 0; }
+  body.admin-ui #tab-dashboard .admin-insight-detail > summary { padding: 20px 0; }
+  body.admin-ui #tab-dashboard .admin-detail-heading { display: flex; align-items: center; gap: 15px; min-width: 0; }
+  body.admin-ui #tab-dashboard .admin-detail-heading > span:last-child { min-width: 0; }
+  body.admin-ui #tab-dashboard .admin-detail-heading strong { display: block; color: var(--text-primary); font-size: 15px; font-weight: 700; }
+  body.admin-ui #tab-dashboard .admin-detail-heading small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 12px; font-weight: 450; line-height: 1.5; }
+  body.admin-ui #tab-dashboard .admin-detail-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid var(--border-pearl); border-radius: 10px; background: #fafbfc; color: #667789; }
+  body.admin-ui #tab-dashboard .admin-detail-icon svg { width: 21px; height: 21px; }
+  body.admin-ui #tab-dashboard .admin-insight-detail[open] > summary { margin-bottom: 8px; }
+  body.admin-ui #tab-dashboard .admin-detail-content { padding: 0 0 28px; }
+  body.admin-ui #tab-dashboard .admin-week-figure { margin-top: 32px; padding-top: 25px; border-top: 1px solid var(--border-pearl); }
+  body.admin-ui #tab-dashboard #dash-settimana { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; }
+  body.admin-ui #tab-dashboard .admin-accounting-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 36px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-extra { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px; padding-left: 30px; border-left: 1px solid var(--border-pearl); }
+  body.admin-ui #tab-dashboard #dash-riquadri-extra .dash-riquadro-valore { font-size: 24px; }
+  body.admin-ui #tab-dashboard #dash-cleaning-summary.is-attention { color: #b32d29; font-weight: 600; }
+  body.admin-ui #tab-dashboard #dash-riquadri-pulizie { margin-bottom: 24px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-pulizie .is-forte .dash-riquadro-valore { color: #b32d29; }
 
-  body.admin-ui #tab-dashboard .admin-detail > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail > summary::marker {
-    content: '';
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail > summary:hover {
-    color: #cf302b;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail > summary > svg {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    transition: transform 150ms ease;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail[open] > summary > svg {
-    transform: rotate(90deg);
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail[open] > summary {
-    margin-bottom: 20px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-accounting {
-    padding-top: 19px;
-    padding-bottom: 19px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-accounting .admin-detail {
-    margin: 0;
-    border: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-accounting .admin-detail > summary {
-    padding: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail summary strong {
-    color: #20242b;
-    font-size: 14px;
-    font-weight: 650;
-  }
-
-  body.admin-ui #tab-dashboard .admin-detail summary small {
-    display: block;
-    margin-top: 3px;
-    color: #667085;
-    font-size: 11px;
-    font-weight: 400;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-extra {
-    gap: 24px 0;
-    padding-top: 6px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-extra .dash-riquadro:nth-child(4n + 1) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-insieme {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-insieme .is-forte .dash-riquadro-valore {
-    color: #20242b;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-pulizie .is-forte .dash-riquadro-valore {
-    color: #b42318;
-  }
-
-  body.admin-ui #tab-dashboard .admin-section-icon {
-    display: grid;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-    place-items: center;
-    border-radius: 9px;
-    color: #667085;
-    background: #f5f6f8;
-  }
-
-  body.admin-ui #tab-dashboard .admin-section-icon svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-tabella-guscio {
-    max-width: 100%;
-    scrollbar-width: thin;
-  }
-
-  body.admin-ui #tab-dashboard .dash-tabella {
-    font-size: 12px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-tabella-titolo {
-    margin-bottom: 12px;
-    color: #667085;
-    font-size: 11px;
-    font-weight: 400;
-  }
-
+  body.admin-ui #tab-dashboard .dash-tabella-guscio { max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+  body.admin-ui #tab-dashboard .dash-tabella { font-size: 13px; }
+  body.admin-ui #tab-dashboard .dash-tabella-titolo { margin-bottom: 14px; color: var(--text-secondary); font-size: 12px; font-weight: 450; }
   body.admin-ui #tab-dashboard .dash-tabella th,
-  body.admin-ui #tab-dashboard .dash-tabella td {
-    padding: 12px 10px;
-    border-color: #edf0f3;
-  }
-
-  body.admin-ui #tab-dashboard .dash-tabella thead th {
-    color: #667085;
-    background: #f8f9fb;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  body.admin-ui #tab-dashboard .dash-tag {
-    padding: 3px 7px;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  body.admin-ui #tab-dashboard .dash-stato {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.6;
-  }
-
-  body.admin-ui #tab-dashboard #dash-pulizie-stato:not(.is-hidden) {
-    margin-bottom: 20px;
-  }
-
-  body.admin-ui #tab-dashboard .empty-state {
-    grid-column: 1 / -1;
-    min-height: 160px;
-    padding: 28px 16px;
-    background: #fafbfc;
-    border-radius: 10px;
-  }
-
-  body.admin-ui #tab-dashboard .empty-state-icon {
-    width: 30px;
-    height: 30px;
-    margin-bottom: 12px;
-    color: #98a2b3;
-  }
-
-  body.admin-ui #tab-dashboard .empty-state-text {
-    color: #667085;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.7;
-  }
-
-  body.admin-ui #tab-dashboard :is(button, summary, [tabindex="0"]):focus-visible {
-    outline: 2px solid #cf302b;
-    outline-offset: 4px;
-  }
+  body.admin-ui #tab-dashboard .dash-tabella td { padding: 13px 12px; border-color: var(--border-pearl); }
+  body.admin-ui #tab-dashboard .dash-tabella thead th { color: var(--text-secondary); background: #f6f8fa; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  body.admin-ui #tab-dashboard .dash-tag { margin-left: 6px; padding: 3px 7px; font-size: 12px; font-weight: 550; letter-spacing: 0; text-transform: none; }
+  body.admin-ui #tab-dashboard .dash-stato { margin: 0; font-size: 13px; font-weight: 450; line-height: 1.6; }
+  body.admin-ui #tab-dashboard #dash-pulizie-stato:not(.is-hidden) { margin-bottom: 22px; }
+  body.admin-ui #tab-dashboard .empty-state { grid-column: 1 / -1; min-height: 175px; padding: 30px 20px; border-radius: 10px; background: #f8fafb; }
+  body.admin-ui #tab-dashboard .empty-state-icon { width: 32px; height: 32px; margin-bottom: 14px; color: #8795a4; }
+  body.admin-ui #tab-dashboard .empty-state-text { color: var(--text-secondary); font-size: 13px; font-weight: 450; line-height: 1.6; }
+  body.admin-ui #tab-dashboard :is(button, summary, [tabindex="0"]):focus-visible { outline: 2px solid #c52f2b; outline-offset: 4px; }
+  body.admin-ui #tab-dashboard .adm-chart-column:focus-visible { outline-offset: -2px; }
 }
 
-@media screen and (max-width: 1270px) {
-  body.admin-ui #tab-dashboard .admin-month-body {
-    grid-template-columns: minmax(210px, 0.9fr) minmax(0, 1.7fr);
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px 16px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro {
-    padding: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro-etichetta {
-    min-height: auto;
-  }
-
-  body.admin-ui #tab-dashboard .admin-analysis-grid {
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(odd) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
-    min-height: auto;
-  }
-
-  body.admin-ui #tab-dashboard .admin-trend > .section-header {
-    flex-wrap: wrap;
-  }
-
-  body.admin-ui #tab-dashboard .admin-trend .inv-total-box {
-    align-items: flex-start;
-    text-align: left;
-  }
+@media screen and (max-width: 1220px) {
+  body.admin-ui #tab-dashboard .admin-month-body { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; }
+  body.admin-ui #tab-dashboard .admin-month-amount { gap: 6px 12px; }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta-nota { display: inline; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese { padding-left: 24px; gap: 20px; }
+  body.admin-ui #tab-dashboard .admin-analysis-grid { grid-template-columns: minmax(0, 1fr); }
+  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 38px; }
+  body.admin-ui #tab-dashboard .admin-service-mix .section-header { margin-bottom: 24px; }
+  body.admin-ui #tab-dashboard .admin-channels { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro:first-child { padding-left: 0; border-left: 0; }
 }
 
-@media screen and (max-width: 1000px) {
-  body.admin-ui #tab-dashboard .admin-analysis-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.admin-ui #tab-dashboard .admin-trend > .section-header {
-    flex-wrap: nowrap;
-  }
-
-  body.admin-ui #tab-dashboard .admin-trend .inv-total-box {
-    align-items: flex-end;
-    text-align: right;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(3) {
-    padding-left: 12px;
-    border-left: 1px solid #e9ecf0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
-    min-height: 36px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px 32px;
-  }
+@media screen and (max-width: 760px) {
+  body.admin-ui #tab-dashboard .admin-month-body { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-bottom: 14px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--border-pearl); }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta { padding: 3px 7px; }
+  body.admin-ui #tab-dashboard .dash-hero-valore { font-size: 40px; }
+  body.admin-ui #tab-dashboard .admin-history-filter { flex-direction: column; align-items: stretch; }
+  body.admin-ui #tab-dashboard .dash-periodi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.admin-ui #tab-dashboard .dash-riquadri { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.admin-ui #tab-dashboard .admin-accounting-grid { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-extra { padding: 26px 0 0; border-top: 1px solid var(--border-pearl); border-left: 0; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese-extra { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme { gap: 18px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro { padding-left: 18px; }
 }
 
-@media screen and (max-width: 680px) {
-  body.admin-ui #tab-dashboard {
-    --dash-pista: 160px;
-    --dash-gutter: 3rem;
-  }
+@media screen and (max-width: 520px) {
+  body.admin-ui #tab-dashboard { --adm-chart-height: 175px; }
+  body.admin-ui #tab-dashboard.active { gap: 20px; }
+  body.admin-ui #tab-dashboard .card-section { padding: 20px; border-radius: 13px; }
+  body.admin-ui #tab-dashboard .section-title { font-size: 17px; }
+  body.admin-ui #tab-dashboard .section-header { gap: 12px; margin-bottom: 20px; }
+  body.admin-ui #tab-dashboard .admin-month { padding: 16px 18px 0; }
+  body.admin-ui #tab-dashboard .admin-month > .section-header { gap: 8px; margin-bottom: 12px; }
+  body.admin-ui #tab-dashboard #dash-mese-titolo { font-size: 12px; }
+  body.admin-ui #tab-dashboard .dash-periodo-nome { min-width: 116px; padding: 0 2px; font-size: 12px; }
+  body.admin-ui #tab-dashboard .dash-mese-nav .date-arrow-btn { width: 30px; min-width: 30px; height: 30px; }
+  body.admin-ui #tab-dashboard .dash-hero { gap: 5px; }
+  body.admin-ui #tab-dashboard .dash-hero-valore { font-size: clamp(31px, 9vw, 37px); }
+  body.admin-ui #tab-dashboard .admin-month-amount { gap: 4px 10px; }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta { padding: 2px 6px; }
+  body.admin-ui #tab-dashboard .admin-month-comparison .dash-delta-nota { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  body.admin-ui #tab-dashboard .dash-hero-nota { line-height: 1.45; }
+  body.admin-ui #tab-dashboard .admin-month-body { gap: 12px; padding-bottom: 10px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese { gap: 16px; padding-top: 12px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro { gap: 5px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-mese .dash-riquadro-valore { font-size: 27px; }
+  body.admin-ui #tab-dashboard .admin-month-detail > summary { min-height: 36px; padding: 8px 0; }
+  body.admin-ui #tab-dashboard .dash-filtro-etichetta { font-size: 19px; }
+  body.admin-ui #tab-dashboard .admin-history-filter { gap: 12px; }
+  body.admin-ui #tab-dashboard .admin-history-filter .admin-section-note { display: none; }
+  body.admin-ui #tab-dashboard .dash-periodo { min-height: 38px; padding: 8px 5px; font-size: 12px; }
+  body.admin-ui #tab-dashboard .admin-trend > .section-header { flex-wrap: wrap; gap: 5px 16px; margin-bottom: 18px; }
+  body.admin-ui #tab-dashboard .admin-trend .inv-total-box { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 9px; text-align: left; }
+  body.admin-ui #tab-dashboard .inv-total-value { font-size: 22px; }
+  body.admin-ui #tab-dashboard .dash-chart-legend { gap: 6px 13px; margin-bottom: 16px; font-size: 12px; }
+  body.admin-ui #tab-dashboard .dash-chart-legend i { width: 7px; height: 7px; }
+  body.admin-ui #tab-dashboard .adm-chart-plot { grid-template-columns: 49px minmax(0, 1fr); }
+  body.admin-ui #tab-dashboard .adm-chart-tick { right: 7px; font-size: 12px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout { padding: 13px; gap: 4px 9px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout-value { font-size: 18px; }
+  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre { display: flex; gap: 22px; }
+  body.admin-ui #tab-dashboard .admin-detail[open] > summary { margin-bottom: 20px; }
+  body.admin-ui #tab-dashboard .admin-channels { gap: 22px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 15px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro { padding-left: 15px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro:last-child { grid-column: 1 / -1; padding: 18px 0 0; border-top: 1px solid var(--border-pearl); border-left: 0; }
+  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro-valore { font-size: 25px; }
+  body.admin-ui #tab-dashboard .admin-deep-dive { padding-bottom: 0; }
+  body.admin-ui #tab-dashboard .admin-detail-heading { gap: 12px; }
+  body.admin-ui #tab-dashboard .admin-detail-icon { width: 32px; height: 32px; flex-basis: 32px; border-radius: 8px; }
+  body.admin-ui #tab-dashboard .admin-detail-icon svg { width: 19px; height: 19px; }
+  body.admin-ui #tab-dashboard .admin-detail-heading strong { font-size: 14px; }
+  body.admin-ui #tab-dashboard .admin-insight-detail > summary { padding: 18px 0; gap: 10px; }
+  body.admin-ui #tab-dashboard #dash-settimana { grid-template-columns: minmax(0, 1fr); }
+  body.admin-ui #tab-dashboard .dash-riquadro-valore { font-size: 25px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-extra { gap: 24px 18px; }
+  body.admin-ui #tab-dashboard #dash-riquadri-extra .dash-riquadro-valore { font-size: 23px; }
+}
 
-  body.admin-ui #tab-dashboard.active {
-    gap: 18px;
-  }
-
-  body.admin-ui #tab-dashboard .card-section {
-    padding: 20px;
-    border-radius: 13px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-month > .section-header {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 22px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-month-body {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-hero-valore {
-    font-size: 40px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-hero-nota {
-    max-width: none;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-mese {
-    gap: 22px 20px;
-    padding: 20px 0 0;
-    border-top: 1px solid #e9ecf0;
-    border-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-history-filter {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-periodi {
-    width: 100%;
-  }
-
-  body.admin-ui #tab-dashboard .dash-periodo {
-    padding-right: 8px;
-    padding-left: 8px;
-    font-size: 11px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-trend > .section-header {
-    flex-direction: row;
-    gap: 12px;
-  }
-
-  body.admin-ui #tab-dashboard .section-title {
-    font-size: 14px;
-  }
-
-  body.admin-ui #tab-dashboard .inv-total-value {
-    font-size: 20px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-insights-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
-  }
-
-  body.admin-ui #tab-dashboard .dash-riquadri,
-  body.admin-ui #tab-dashboard #dash-riquadri-medie {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px 0;
-  }
-
-  body.admin-ui #tab-dashboard .dash-riquadro:nth-child(odd),
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro:nth-child(3) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-medie .dash-riquadro-etichetta {
-    min-height: auto;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro {
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro:nth-child(odd) {
-    padding-left: 0;
-  }
-
-  body.admin-ui #tab-dashboard .admin-performance .dash-riquadro-valore {
-    font-size: 24px;
-  }
-
-  body.admin-ui #tab-dashboard .admin-service-mix .dash-barre {
-    display: flex;
-    gap: 20px;
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-insieme {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  body.admin-ui #tab-dashboard #dash-riquadri-insieme .dash-riquadro:last-child {
-    grid-column: 1 / -1;
-    padding-top: 20px;
-    border-top: 1px solid #e9ecf0;
-  }
+@media screen and (max-width: 359px) {
+  body.admin-ui #tab-dashboard .card-section { padding-left: 16px; padding-right: 16px; }
+  body.admin-ui #tab-dashboard .admin-month { padding-left: 14px; padding-right: 14px; }
+  body.admin-ui #tab-dashboard #dash-mese-titolo { max-width: 55px; }
+  body.admin-ui #tab-dashboard .dash-periodo-nome { min-width: 110px; }
+  body.admin-ui #tab-dashboard .adm-chart-readout { grid-template-columns: minmax(0, 1fr); }
+  body.admin-ui #tab-dashboard .adm-chart-readout-value { grid-column: 1; grid-row: 2; text-align: left; }
+  body.admin-ui #tab-dashboard .admin-detail-icon { display: none; }
 }
 
 @media screen and (prefers-reduced-motion: reduce) {
-  body.admin-ui #tab-dashboard .admin-detail > summary > svg {
-    transition: none;
-  }
+  body.admin-ui #tab-dashboard .admin-detail > summary > svg,
+  body.admin-ui #tab-dashboard .adm-chart-bar { transition: none; }
 }

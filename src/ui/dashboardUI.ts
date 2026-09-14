@@ -21,9 +21,6 @@ import { PuliziaNonFatta, elencaPulizieNonFatte } from '../services/pulizie';
 import {
   barreOrizzontali,
   escapeHtml,
-  euro,
-  euroTondo,
-  graficoColonne,
   meseIndietro,
   nomeMese,
   numero,
@@ -31,6 +28,7 @@ import {
   riquadriHtml,
   variazione
 } from './grafici';
+import { renderAdminMonthlyChart } from './adminCharts';
 import { formatDateItalian, getTodayDateString } from '../utils/calculations';
 import { amministratore } from '../services/auth';
 
@@ -42,6 +40,17 @@ import { amministratore } from '../services/auth';
  */
 
 type Periodo = '12' | 'anno' | 'tutto';
+
+// Explicit grouping keeps four-digit amounts readable in this admin view.
+// Shared currency helpers retain the employee interface's existing format.
+const valutaCompleta = new Intl.NumberFormat('it-IT', {
+  style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true
+});
+const valutaArrotondata = new Intl.NumberFormat('it-IT', {
+  style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: true
+});
+const euro = (valore: number): string => valutaCompleta.format(isNaN(valore) ? 0 : valore);
+const euroTondo = (valore: number): string => valutaArrotondata.format(isNaN(valore) ? 0 : valore);
 
 let giornate: GiornataIncasso[] = [];
 let mesi: MeseIncasso[] = [];
@@ -65,7 +74,10 @@ const titoloMese = document.getElementById('dash-mese-titolo') as HTMLHeadingEle
 const etichettaHero = document.getElementById('dash-hero-etichetta') as HTMLSpanElement;
 const totaleMese = document.getElementById('dash-mese-totale') as HTMLSpanElement;
 const notaMese = document.getElementById('dash-mese-nota') as HTMLSpanElement;
+const confrontoMese = document.getElementById('dash-mese-confronto') as HTMLSpanElement;
 const riquadriMese = document.getElementById('dash-riquadri-mese') as HTMLDivElement;
+const riquadriMeseExtra = document.getElementById('dash-riquadri-mese-extra') as HTMLDivElement;
+const dettagliMese = document.getElementById('dash-mese-dettagli') as HTMLDetailsElement;
 const btnMeseIndietro = document.getElementById('btn-mese-indietro') as HTMLButtonElement;
 const btnMeseAvanti = document.getElementById('btn-mese-avanti') as HTMLButtonElement;
 
@@ -83,6 +95,7 @@ const riquadriInsieme = document.getElementById('dash-riquadri-insieme') as HTML
 const statoPulizie = document.getElementById('dash-pulizie-stato') as HTMLParagraphElement;
 const riquadriPulizie = document.getElementById('dash-riquadri-pulizie') as HTMLDivElement;
 const tabellaPulizie = document.getElementById('dash-tabella-pulizie') as HTMLTableSectionElement;
+const riepilogoPulizie = document.getElementById('dash-cleaning-summary') as HTMLElement;
 
 const pulsantiPeriodo = Array.from(
   document.querySelectorAll('#tab-dashboard .dash-periodo')
@@ -183,6 +196,16 @@ function renderPulizieNonFatte(): void {
   const elenco = pulizieDelPeriodo();
   const senzaDatiAttendibili = Boolean(errorePulizie) && !pulizieCaricate;
 
+  if (riepilogoPulizie) {
+    const scadenze = elenco.length === 0
+      ? 'Nessuna scadenza saltata nel periodo'
+      : `${numero(elenco.length)} ${elenco.length === 1 ? 'scadenza saltata' : 'scadenze saltate'} nel periodo`;
+    riepilogoPulizie.textContent = senzaDatiAttendibili
+      ? 'Dati non disponibili. Apri per i dettagli.'
+      : `${scadenze}${errorePulizie ? '. Aggiornamento non riuscito.' : ''}`;
+    riepilogoPulizie.classList.toggle('is-attention', elenco.length > 0 || Boolean(errorePulizie));
+  }
+
   if (statoPulizie) {
     statoPulizie.textContent = errorePulizie;
     statoPulizie.classList.toggle('is-hidden', !errorePulizie);
@@ -265,7 +288,7 @@ function renderMeseAperto(): void {
   if (nomeMeseCorrente) nomeMeseCorrente.textContent = nomeMese(meseAperto);
   if (titoloMese) titoloMese.textContent = inCorso ? 'Mese in corso' : 'Mese concluso';
   if (etichettaHero) {
-    etichettaHero.textContent = inCorso ? 'Incasso del mese finora' : 'Incasso del mese';
+    etichettaHero.textContent = inCorso ? 'Incasso registrato finora' : 'Incasso del mese';
   }
 
   // Indietro fino al primo mese registrato, avanti non oltre quello in corso
@@ -281,18 +304,23 @@ function renderMeseAperto(): void {
         : `Nessuna chiusura registrata in ${nomeMese(meseAperto)}.`;
     }
     if (riquadriMese) riquadriMese.innerHTML = '';
+    if (riquadriMeseExtra) riquadriMeseExtra.innerHTML = '';
+    if (confrontoMese) confrontoMese.innerHTML = '';
+    if (dettagliMese) dettagliMese.hidden = true;
     return;
   }
 
   if (totaleMese) totaleMese.textContent = euroTondo(mese.totale);
+  if (dettagliMese) dettagliMese.hidden = false;
 
   const delMese = giornate.filter(g => g.data.slice(0, 7) === meseAperto);
   const ultima = delMese[delMese.length - 1];
 
   if (notaMese) {
+    const giornateRegistrate = `${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`;
     notaMese.textContent = inCorso && ultima
-      ? `Aggiornato all'ultima chiusura registrata: ${dataBreve(ultima.data)}`
-      : `${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`;
+      ? `${giornateRegistrate}. Ultima chiusura: ${dataBreve(ultima.data)}.`
+      : giornateRegistrate;
   }
 
   const scorso = mesePrecedente(meseAperto);
@@ -305,27 +333,34 @@ function renderMeseAperto(): void {
     const scorsoStessoPeriodo = totaleFinoAlGiorno(giornate, scorso, giorno);
     const proiezione = proiezioneMese(mese, oggi);
 
+    if (confrontoMese) {
+      confrontoMese.innerHTML = variazione(mese.totale, scorsoStessoPeriodo, 'sullo stesso periodo');
+    }
     riquadriMese.innerHTML = riquadriHtml([
       {
         etichetta: 'Media al giorno',
-        valore: euroTondo(mese.mediaGiornaliera),
-        nota: `Su ${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`
+        valore: euroTondo(mese.mediaGiornaliera)
       },
       {
-        etichetta: 'Proiezione a fine mese',
-        valore: proiezione === null ? '—' : euroTondo(proiezione),
-        nota: 'Se il passo resta questo'
-      },
+        etichetta: 'Stima fine mese',
+        valore: proiezione === null ? '—' : euroTondo(proiezione)
+      }
+    ]);
+    if (riquadriMeseExtra) riquadriMeseExtra.innerHTML = riquadriHtml([
       {
         etichetta: 'Mese prima, stesso periodo',
         valore: euroTondo(scorsoStessoPeriodo),
-        nota: `Fino al ${numero(giorno)} del mese`,
-        delta: variazione(mese.totale, scorsoStessoPeriodo, 'sul mese prima')
+        nota: `${nomeMese(scorso)}, fino al giorno ${numero(giorno)}`
       },
       {
         etichetta: 'Giornate registrate',
         valore: numero(mese.giornate),
         nota: `Su ${numero(giorno)} ${giorno === 1 ? 'giorno trascorso' : 'giorni trascorsi'}`
+      },
+      {
+        etichetta: 'Stima fine mese',
+        valore: proiezione === null ? '—' : euroTondo(proiezione),
+        nota: 'Proiezione se il ritmo delle giornate registrate resta invariato'
       }
     ]);
     return;
@@ -334,22 +369,30 @@ function renderMeseAperto(): void {
   // Mese chiuso: si può confrontare per intero, e la giornata migliore è certa
   const { migliore } = estremi(delMese);
 
+  if (confrontoMese) {
+    confrontoMese.innerHTML = meseScorso ? variazione(mese.totale, meseScorso.totale, 'sul mese precedente') : '';
+  }
+
   riquadriMese.innerHTML = riquadriHtml([
     {
       etichetta: 'Media al giorno',
-      valore: euroTondo(mese.mediaGiornaliera),
-      nota: `Su ${numero(mese.giornate)} ${mese.giornate === 1 ? 'giornata registrata' : 'giornate registrate'}`
+      valore: euroTondo(mese.mediaGiornaliera)
     },
     {
-      etichetta: 'Mese prima',
-      valore: meseScorso ? euroTondo(meseScorso.totale) : '—',
-      nota: meseScorso ? meseScorso.etichetta : 'Nessun dato sul mese prima',
-      delta: meseScorso ? variazione(mese.totale, meseScorso.totale, 'sul mese prima') : ''
-    },
+      etichetta: 'Giornata migliore',
+      valore: migliore ? euroTondo(migliore.totale) : '—'
+    }
+  ]);
+  if (riquadriMeseExtra) riquadriMeseExtra.innerHTML = riquadriHtml([
     {
       etichetta: 'Giornata migliore',
       valore: migliore ? euroTondo(migliore.totale) : '—',
       nota: migliore ? formatDateItalian(migliore.data) : 'Nessuna giornata registrata'
+    },
+    {
+      etichetta: 'Mese prima',
+      valore: meseScorso ? euroTondo(meseScorso.totale) : '—',
+      nota: meseScorso ? meseScorso.etichetta : 'Nessun dato sul mese prima'
     },
     {
       etichetta: 'Distributori H24',
@@ -405,31 +448,7 @@ function renderIncassiMensili(elenco: MeseIncasso[]): void {
     ]);
   }
 
-  // Il mese più alto e quello in corso portano la scritta: gli altri si
-  // leggono sulle tacche e nella tabella
-  const piuAlto = elenco.reduce<MeseIncasso | null>(
-    (top, m) => (!top || m.totale > top.totale ? m : top),
-    null
-  );
-
-  if (graficoMesi) {
-    graficoMesi.innerHTML = graficoColonne(elenco.map(m => ({
-      etichetta: m.etichettaBreve,
-      valore: m.totale,
-      evidenzia: m.inCorso,
-      valoreInVista: m === piuAlto || m.inCorso,
-      titolo: `${m.etichetta}: ${euro(m.totale)} su ${m.giornate} giornate${m.inCorso ? ' (mese ancora in corso)' : ''}`
-    })));
-
-    // Lo storico può superare la larghezza del pannello: anche chi usa solo
-    // la tastiera deve poter scorrere i mesi e aprire la tabella di dettaglio.
-    const colonne = graficoMesi.querySelector<HTMLElement>('.dash-colonne');
-    if (colonne) {
-      colonne.tabIndex = 0;
-      colonne.setAttribute('role', 'region');
-      colonne.setAttribute('aria-label', 'Grafico degli incassi mensili, scorribile. Valori completi nel dettaglio mensile.');
-    }
-  }
+  if (graficoMesi) renderAdminMonthlyChart(graficoMesi, elenco);
 
   if (!tabellaMesi) return;
 
@@ -491,7 +510,7 @@ function renderInsieme(elenco: MeseIncasso[]): void {
         : `${percentuale(insieme === 0 ? 0 : (distributori / insieme) * 100)} del totale`
     },
     {
-      etichetta: 'Tutto insieme',
+      etichetta: 'Totale dei canali',
       valore: euroTondo(insieme),
       nota: 'Negozio e distributori sommati',
       forte: true
@@ -534,6 +553,7 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
       ripartizionePerVoce(elencoGiornate).map(v => ({
         etichetta: v.etichetta,
         valore: v.valore,
+        testoValore: euroTondo(v.valore),
         nota: percentuale(v.quota),
         serie: SERIE_DELLE_VOCI[v.etichetta]
       })),
@@ -550,6 +570,7 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
       spese.slice(0, 12).map(v => ({
         etichetta: v.nome,
         valore: v.totale,
+        testoValore: euroTondo(v.totale),
         nota: v.quante === 1 ? 'una volta' : `${numero(v.quante)} volte`
       })),
       'Nessuna fattura registrata nel periodo scelto.'
@@ -563,6 +584,7 @@ function renderStatistiche(elencoGiornate: GiornataIncasso[]): void {
         .map(g => ({
           etichetta: g.giorno,
           valore: g.media,
+          testoValore: euroTondo(g.media),
           nota: `${numero(g.giornate)} ${g.giornate === 1 ? 'giornata' : 'giornate'}`
         })),
       'Nessuna giornata registrata nel periodo scelto.'

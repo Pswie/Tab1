@@ -371,17 +371,27 @@
         <div class="admin-month-body">
           <div class="dash-hero">
             <span class="dash-hero-etichetta" id="dash-hero-etichetta">Incasso del mese finora</span>
-            <span class="dash-hero-valore" id="dash-mese-totale">&mdash;</span>
+            <div class="admin-month-amount">
+              <span class="dash-hero-valore" id="dash-mese-totale">&mdash;</span>
+              <span id="dash-mese-confronto" class="admin-month-comparison"></span>
+            </div>
             <span class="dash-hero-nota" id="dash-mese-nota"></span>
           </div>
           <div class="dash-riquadri" id="dash-riquadri-mese"></div>
         </div>
+        <details class="admin-detail admin-month-detail" id="dash-mese-dettagli">
+          <summary>
+            <span>Confronto e dettagli del mese</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </summary>
+          <div class="dash-riquadri" id="dash-riquadri-mese-extra"></div>
+        </details>
       </section>
 
       <div class="dash-filtro admin-history-filter">
         <div>
           <h2 class="dash-filtro-etichetta">Storico e analisi</h2>
-          <p class="admin-section-note">Il periodo si applica a tutte le sezioni qui sotto.</p>
+          <p class="admin-section-note">Incassi e controlli nel periodo selezionato.</p>
         </div>
         <div class="dash-periodi" role="group" aria-label="Periodo dello storico">
           <button type="button" class="dash-periodo is-active" data-periodo="12" aria-pressed="true">Ultimi 12 mesi</button>
@@ -394,8 +404,7 @@
         <section class="card-section admin-trend" aria-labelledby="dash-trend-title">
           <div class="section-header">
             <div>
-              <h3 class="section-title" id="dash-trend-title">Andamento degli incassi</h3>
-              <p class="admin-section-note">Il negozio, mese per mese</p>
+              <h3 class="section-title" id="dash-trend-title">Incassi nel tempo</h3>
             </div>
             <div class="inv-total-box">
               <span class="inv-total-label">Totale del periodo</span>
@@ -409,12 +418,12 @@
             </figcaption>
             <div class="dash-grafico" id="dash-grafico-mesi"></div>
           </figure>
-          <div class="dash-riquadri" id="dash-riquadri-medie"></div>
           <details class="admin-detail">
             <summary>
-              <span>Dettaglio mensile</span>
+              <span>Medie e dettaglio mensile</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
             </summary>
+            <div class="dash-riquadri" id="dash-riquadri-medie"></div>
             <div class="dash-tabella-guscio" tabindex="0" role="region" aria-label="Dettaglio mensile degli incassi">
               <table class="dash-tabella">
                 <caption class="dash-tabella-titolo">Incassi e confronto con il mese precedente</caption>
@@ -436,8 +445,8 @@
         <section class="card-section admin-service-mix" aria-labelledby="dash-mix-title">
           <div class="section-header">
             <div>
-              <h3 class="section-title" id="dash-mix-title">Composizione degli incassi</h3>
-              <p class="admin-section-note">Il contributo di ogni servizio</p>
+              <h3 class="section-title" id="dash-mix-title">Incassi per servizio</h3>
+              <p class="admin-section-note">Importi e quota sul totale dei servizi</p>
             </div>
           </div>
           <figure class="dash-figura">
@@ -447,71 +456,65 @@
         </section>
       </div>
 
-      <section class="admin-performance" aria-label="Statistiche delle giornate nel periodo">
-        <div class="dash-riquadri" id="dash-riquadri-statistiche"></div>
-      </section>
-
-      <div class="admin-insights-grid">
-        <section class="card-section" aria-labelledby="dash-week-title">
-          <div class="section-header">
-            <div>
-              <h3 class="section-title" id="dash-week-title">Il ritmo della settimana</h3>
-              <p class="admin-section-note">Incasso medio per giornata registrata</p>
-            </div>
-          </div>
-          <figure class="dash-figura" aria-labelledby="dash-week-title">
-            <div class="dash-grafico" id="dash-settimana"></div>
-          </figure>
-        </section>
-
-        <section class="card-section" aria-labelledby="dash-invoices-title">
-          <div class="section-header">
-            <div>
-              <h3 class="section-title" id="dash-invoices-title">Spese per fatture</h3>
-              <p class="admin-section-note">Le prime 12 voci per importo complessivo</p>
-            </div>
-          </div>
-          <figure class="dash-figura" aria-labelledby="dash-invoices-title">
-            <div class="dash-barre" id="dash-fatture"></div>
-          </figure>
-        </section>
-      </div>
-
-      <section class="card-section admin-accounting" aria-label="Turni e voci contabili aggiuntive">
-        <details class="admin-detail">
-          <summary>
-            <span><strong>Turni e altre voci contabili</strong><small>Mattina, pomeriggio, Lotto, bar e importi fuori dal totale</small></span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-          </summary>
-          <div class="dash-riquadri" id="dash-riquadri-extra"></div>
-        </details>
-      </section>
-
       <section class="card-section admin-channels" aria-labelledby="dash-channels-title">
         <div class="section-header">
           <div>
             <h3 class="section-title" id="dash-channels-title">Negozio e distributori</h3>
-            <p class="admin-section-note">Incassi distinti, una visione d'insieme</p>
+            <p class="admin-section-note">Il totale dei due canali nel periodo</p>
           </div>
         </div>
         <div class="dash-riquadri" id="dash-riquadri-insieme"></div>
       </section>
 
-      <section class="card-section admin-cleaning" aria-labelledby="dash-cleaning-title">
+      <section class="card-section admin-deep-dive" aria-labelledby="dash-details-title">
         <div class="section-header">
-          <div>
-            <h3 class="section-title" id="dash-cleaning-title">Pulizie non completate</h3>
-            <p class="admin-section-note">Scadenze saltate e conservate nello storico</p>
-          </div>
-          <span class="admin-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 11h6M9 15h3"/></svg></span>
+          <h3 class="section-title" id="dash-details-title">Approfondimenti e controlli</h3>
         </div>
-        <p class="dash-stato is-hidden" id="dash-pulizie-stato" role="status"></p>
-        <div class="dash-riquadri" id="dash-riquadri-pulizie"></div>
-        <details class="admin-detail">
+        <details class="admin-detail admin-insight-detail">
           <summary>
-            <span>Consulta lo storico delle pulizie</span>
+            <span class="admin-detail-heading">
+              <span class="admin-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 15V9M12 15V5M17 15v-4"/></svg></span>
+              <span><strong>Giornate e settimana</strong><small>Medie, giornate migliori e ritmo settimanale</small></span>
+            </span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
           </summary>
+          <div class="admin-detail-content">
+            <div class="dash-riquadri" id="dash-riquadri-statistiche"></div>
+            <figure class="dash-figura admin-week-figure">
+              <figcaption class="dash-figura-titolo" id="dash-week-title">Media per giorno della settimana<span class="dash-figura-nota">Sulle sole giornate registrate</span></figcaption>
+              <div class="dash-grafico" id="dash-settimana"></div>
+            </figure>
+          </div>
+        </details>
+
+        <details class="admin-detail admin-insight-detail">
+          <summary>
+            <span class="admin-detail-heading">
+              <span class="admin-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6"/></svg></span>
+              <span><strong>Spese e voci contabili</strong><small>Fatture, turni, Lotto e importi fuori dal totale</small></span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </summary>
+          <div class="admin-detail-content admin-accounting-grid">
+            <figure class="dash-figura">
+              <figcaption class="dash-figura-titolo" id="dash-invoices-title">Spese per fatture<span class="dash-figura-nota">Le prime 12 voci per importo</span></figcaption>
+              <div class="dash-barre" id="dash-fatture"></div>
+            </figure>
+            <div class="dash-riquadri" id="dash-riquadri-extra"></div>
+          </div>
+        </details>
+
+        <details class="admin-detail admin-insight-detail admin-cleaning">
+          <summary>
+            <span class="admin-detail-heading">
+              <span class="admin-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 11h6M9 15h3"/></svg></span>
+              <span><strong id="dash-cleaning-title">Pulizie non completate</strong><small id="dash-cleaning-summary" aria-live="polite">Lettura delle scadenze in corso&hellip;</small></span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </summary>
+          <div class="admin-detail-content">
+          <p class="dash-stato is-hidden" id="dash-pulizie-stato" role="status"></p>
+          <div class="dash-riquadri" id="dash-riquadri-pulizie"></div>
           <div class="dash-tabella-guscio" tabindex="0" role="region" aria-label="Storico delle pulizie non completate">
             <table class="dash-tabella">
               <caption class="dash-tabella-titolo">Scadenze saltate nel periodo</caption>
@@ -526,6 +529,7 @@
               </thead>
               <tbody id="dash-tabella-pulizie"></tbody>
             </table>
+          </div>
           </div>
         </details>
       </section>
@@ -867,6 +871,12 @@
           <button type="button" class="shift-tab" data-shift="pomeriggio" role="tab" aria-selected="false">
             Turno Pomeriggio
           </button>
+        </div>
+
+        <div class="solo-admin" hidden>
+          <div id="auto-save-badge" class="auto-save-badge" role="status" aria-live="polite" aria-atomic="true">
+            <span id="auto-save-text">Auto-salvataggio attivo</span>
+          </div>
         </div>
 
         <form id="daily-log-form" class="entry-form-grid" onsubmit="event.preventDefault();">

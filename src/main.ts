@@ -1,7 +1,4 @@
 import './style.css';
-import './admin.css';
-import './admin-dashboard.css';
-import { initAdminUI, updateAdminPage } from './ui/adminUI';
 import { SaveStatus, ShiftKey, ShiftValues, TodoFilter, TodoItem, VoceFattura } from './types';
 import {
   calculateDayTotals,
@@ -194,6 +191,7 @@ const aiutoNotificheObbligatorie = document.getElementById('notifiche-obbligator
  * dalla pagina di inserimento, che a lui non serve per prima.
  */
 let schedaDaAprire: ((tabId: string) => void) | null = null;
+let aggiornaPaginaAdmin: ((tabId: string) => void) | null = null;
 
 /**
  * L'ultima scheda aperta.
@@ -1444,7 +1442,7 @@ function setupEventListeners() {
       pane.classList.toggle('active', pane.id === targetTabId);
     });
 
-    updateAdminPage(targetTabId);
+    aggiornaPaginaAdmin?.(targetTabId);
 
     if (targetTabId === 'tab-todos') apriSchedaTodo();
     // I turni li scrive qualcun altro: a ogni apertura si rilegge la settimana
@@ -1699,10 +1697,15 @@ async function initApp() {
 
   // Scopre le voci riservate: senza admin nel profilo non c'è niente da mostrare
   initDashboard();
-  initAdminUI(id => {
-    schedaDaAprire?.(id);
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  });
+  if (amministratore()) {
+    // The new layout, styles and font are requested only by the admin role.
+    const { initAdminUI, updateAdminPage } = await import('./ui/adminUI');
+    aggiornaPaginaAdmin = updateAdminPage;
+    initAdminUI(id => {
+      schedaDaAprire?.(id);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  }
 
   // I distributori sono roba di chi amministra: a un dipendente non deve
   // nemmeno accendersi il pallino di una scheda che non può aprire

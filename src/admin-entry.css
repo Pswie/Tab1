@@ -1,0 +1,162 @@
+/* A working register and its live reconciliation, only for administrators. */
+@media screen {
+  body.admin-ui #tab-incassi > .card-section { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  body.admin-ui #tab-incassi > .card-section > .section-header { flex-wrap: wrap; align-items: center; margin-bottom: 20px; padding: 0; border: 0; gap: 16px; }
+  body.admin-ui #tab-incassi .section-title { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+  body.admin-ui #tab-incassi .entry-date-blocco { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
+  body.admin-ui #tab-incassi .entry-date { margin: 0; }
+  body.admin-ui #tab-incassi .entry-date-valore { font-size: 13px; font-weight: 600; }
+  body.admin-ui #tab-incassi .data-nav { gap: 5px; }
+  body.admin-ui #tab-incassi .date-arrow-btn { min-width: 38px; width: 38px; height: 40px; border-radius: 9px; flex-shrink: 0; }
+  body.admin-ui #tab-incassi .date-input { width: 148px; min-width: 0; height: 40px; padding: 8px; font: 600 13px var(--font-sans); background: white; border-radius: 9px; }
+  body.admin-ui #tab-incassi .date-oggi-btn { min-height: 40px; padding: 8px 12px; font-size: 12px; border-radius: 9px; }
+  body.admin-ui #tab-incassi .shift-selector { max-width: 390px; margin: 0 0 22px; padding: 4px; gap: 4px; border: 1px solid var(--border-pearl); border-radius: 11px; background: #eaeef2; }
+  body.admin-ui #tab-incassi .shift-tab { min-height: 42px; border: 0; padding: 9px 16px; font: 650 13px var(--font-sans); background: transparent; border-radius: 8px; color: var(--text-secondary); box-shadow: none; }
+  body.admin-ui #tab-incassi .shift-tab.is-active { color: var(--text-primary); background: white; box-shadow: 0 2px 5px #2027300c; }
+  body.admin-ui #tab-incassi .entry-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; gap: 26px; }
+  body.admin-ui .admin-entry-fields { min-width: 0; display: grid; gap: 20px; container-type: inline-size; }
+  body.admin-ui #tab-incassi .admin-entry-section { min-width: 0; margin: 0; padding: 23px; border: 1px solid var(--border-pearl); border-radius: 15px; background: #fff; box-shadow: none; }
+  body.admin-ui .admin-entry-section h2 { margin: 0 0 20px; font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  body.admin-ui .admin-entry-income-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+  body.admin-ui #tab-incassi .field-item { min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; display: flex; flex-direction: column; align-items: stretch; gap: 9px; }
+  body.admin-ui #tab-incassi .field-item:focus-within { border-color: transparent; box-shadow: none; }
+  body.admin-ui #tab-incassi .field-label-group { min-width: 0; flex: initial; }
+  body.admin-ui #tab-incassi .field-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  body.admin-ui #tab-incassi .field-subtext { font-size: 12px; line-height: 1.45; color: var(--text-secondary); margin-top: 4px; }
+  body.admin-ui .admin-entry-input-label { display: block; cursor: pointer; }
+  body.admin-ui #tab-incassi .input-currency-wrapper { width: 100%; flex: 1 1 auto; min-width: 0; }
+  body.admin-ui #tab-incassi .currency-input { width: 100%; height: 48px; border: 1px solid #dce2e8; border-radius: 9px; background: #fbfcfd; padding: 10px 12px 10px 30px; color: var(--text-primary); font: 600 18px var(--font-sans); font-variant-numeric: tabular-nums; box-shadow: none; transition: border-color 150ms, background-color 150ms, box-shadow 150ms; }
+  body.admin-ui #tab-incassi .currency-input:focus { background: white; border-color: var(--ferrari-red); box-shadow: 0 0 0 3px #c52f2b12; }
+  body.admin-ui #tab-incassi .currency-symbol { left: 12px; color: #84909c; font: 500 15px var(--font-sans); }
+  body.admin-ui #tab-incassi .input-with-sign { min-width: 0; gap: 7px; }
+  body.admin-ui #tab-incassi .btn-sign-toggle { width: 44px; height: 48px; border-radius: 9px; background: #fff; border-color: var(--border-pearl); font: 600 18px var(--font-sans); }
+  body.admin-ui #tab-incassi .currency-input.is-negative { color: #b12c29; }
+  body.admin-ui #tab-incassi .admin-entry-movements { display: grid; gap: 24px; }
+  body.admin-ui #tab-incassi :is(.sisal-box-container, .lotto-box-container) { min-width: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; gap: 16px; }
+  body.admin-ui #tab-incassi .lotto-box-container { padding-top: 23px; border-top: 1px solid var(--border-pearl); }
+  body.admin-ui #tab-incassi :is(.sisal-box-header, .lotto-box-header, .fatture-box-header, .stat-box-header) { padding: 0; margin: 0 0 2px; border: 0; text-transform: none; letter-spacing: -.1px; font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  body.admin-ui #tab-incassi :is(.sisal-box-container, .lotto-box-container) .field-item { display: grid; grid-template-columns: minmax(0, 1fr) 145px; align-items: center; gap: 14px; border-left: 0 !important; background: transparent !important; }
+  body.admin-ui #tab-incassi :is(.label-lotto-green, .label-sisal-green, .label-lotto-red, .label-sisal-red) { color: var(--text-primary) !important; font-weight: 600 !important; }
+  body.admin-ui #tab-incassi :is(.symbol-lotto-green, .symbol-sisal-green, .symbol-lotto-red, .symbol-sisal-red) { color: #84909c !important; }
+  body.admin-ui #tab-incassi :is(.input-lotto-green, .input-sisal-green, .input-lotto-red, .input-sisal-red) { color: var(--text-primary) !important; }
+  body.admin-ui #tab-incassi .subtotal-calculated-row { min-width: 0; margin: 2px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid #edf0f3; background: transparent; border-radius: 0; }
+  body.admin-ui #tab-incassi .subtotal-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: none; letter-spacing: 0; }
+  body.admin-ui #tab-incassi .subtotal-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  body.admin-ui #tab-incassi .lotto-aggio-subtext { margin: 0; padding: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  body.admin-ui #tab-incassi .lotto-aggio-subtext.is-hidden { display: none; }
+  body.admin-ui #tab-incassi :is(.admin-entry-invoices, .admin-entry-statistics) { display: grid; gap: 18px; }
+  body.admin-ui #tab-incassi .stat-box-nota { font-size: 12px; font-weight: 500; letter-spacing: 0; }
+  body.admin-ui #tab-incassi .stat-field { display: grid; grid-template-columns: minmax(0, 1fr) 145px; align-items: center; gap: 14px; border-left: 0; }
+  body.admin-ui #tab-incassi .fatture-aggiungi { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 9px; margin: 0; }
+  body.admin-ui #tab-incassi .fatture-aggiungi .todo-add-input { min-width: 0; height: 48px; padding: 11px 12px; font-size: 13px; border-radius: 9px; background: #fbfcfd; }
+  body.admin-ui #tab-incassi .fatture-aggiungi .todo-add-btn { min-height: 48px; padding: 10px 14px; font-size: 13px; border-radius: 9px; }
+  body.admin-ui #tab-incassi .fatture-nome { font-size: 13px; }
+  body.admin-ui #tab-incassi .fatture-importo { font-size: 14px; }
+  body.admin-ui #tab-incassi .fatture-vuoto { padding: 10px 0; font-size: 12px; }
+  body.admin-ui #tab-incassi .fatture-avviso { margin: 0; font-size: 12px; }
+  body.admin-ui #tab-incassi .fatture-avviso.is-hidden { display: none; }
+
+  body.admin-ui .admin-entry-summary { position: sticky; top: calc(var(--admin-topbar-height, 80px) + 18px); min-width: 0; padding: 22px; border: 1px solid #dce2e8; border-radius: 15px; background: #fff; box-shadow: 0 5px 18px #20273004; align-self: start; }
+  body.admin-ui #tab-incassi .totale-grand-block { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 7px; min-width: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  body.admin-ui #tab-incassi .totale-grand-title { color: var(--text-secondary); font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  body.admin-ui #tab-incassi .totale-grand-value { color: var(--text-primary); font: 750 34px/1.15 var(--font-sans); letter-spacing: -1.1px; overflow-wrap: anywhere; }
+  body.admin-ui .admin-entry-summary .auto-save-badge { display: flex; align-items: flex-start; padding: 0; margin: 12px 0 20px; gap: 7px; font-size: 11.5px; line-height: 1.5; font-weight: 500; background: transparent; border: 0; border-radius: 0; color: var(--text-secondary); white-space: normal; }
+  body.admin-ui .admin-entry-summary .auto-save-badge::before { content: ''; width: 6px; height: 6px; margin-top: 5px; flex-shrink: 0; border-radius: 50%; background: #7f8c99; }
+  body.admin-ui .admin-entry-summary .auto-save-badge.status-saved::before { background: #21835c; }
+  body.admin-ui .admin-entry-summary .auto-save-badge.status-local { color: #956113; }
+  body.admin-ui .admin-entry-summary .auto-save-badge.status-local::before { background: #b77c19; }
+  body.admin-ui .admin-entry-summary .auto-save-badge.status-saving { color: var(--text-secondary); }
+  body.admin-ui .admin-entry-summary-actions { display: flex; gap: 8px; }
+  body.admin-ui .admin-entry-review-toggle { display: none; }
+  body.admin-ui #tab-incassi #btn-print-document { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: 10px 12px; gap: 8px; border: 1px solid var(--border-pearl); border-radius: 9px; color: var(--text-primary); background: #f7f9fb; box-shadow: none; font-size: 13px; font-weight: 650; transform: none; }
+  body.admin-ui #tab-incassi #btn-print-document:hover { background: #eef1f5; border-color: #bfc8d1; }
+  body.admin-ui #tab-incassi #btn-print-document .icon { width: 17px; height: 17px; }
+  body.admin-ui .admin-entry-review { margin-top: 23px; padding-top: 21px; border-top: 1px solid var(--border-pearl); }
+  body.admin-ui .admin-entry-review[hidden] { display: none; }
+  body.admin-ui .admin-entry-reconcile-title { margin: 0 0 17px; font-size: 14px; font-weight: 700; }
+  body.admin-ui .admin-entry-reconcile-fields { display: grid; grid-template-columns: minmax(0, 1fr) 84px; gap: 12px; margin-bottom: 22px; }
+  body.admin-ui #tab-incassi .admin-entry-reconcile-fields .field-subtext { display: none; }
+  body.admin-ui #tab-incassi .admin-entry-reconcile-fields .field-label { font-size: 12px; }
+  body.admin-ui #tab-incassi .admin-entry-reconcile-fields .currency-input { font-size: 16px; padding-right: 8px; padding-left: 24px; height: 44px; }
+  body.admin-ui #tab-incassi .admin-entry-reconcile-fields .currency-symbol { left: 9px; font-size: 13px; }
+  body.admin-ui #tab-incassi .totali-turni-block { gap: 18px; }
+  body.admin-ui #tab-incassi .totale-turno-gruppo { gap: 9px; }
+  body.admin-ui #tab-incassi .totale-turno-gruppo.is-hidden { display: none; }
+  body.admin-ui #tab-incassi :is(.totale-turno-row, .totale-dettaglio-row) { margin: 0; padding: 0; gap: 12px; background: transparent; border: 0; border-radius: 0; }
+  body.admin-ui #tab-incassi :is(.totale-turno-label, .totale-dettaglio-label) { font-size: 12px; font-weight: 500; line-height: 1.5; }
+  body.admin-ui #tab-incassi .totale-turno-label { color: var(--text-primary); font-weight: 650; }
+  body.admin-ui #tab-incassi :is(.totale-turno-value, .totale-dettaglio-value, .totale-differenza-value) { font-size: 13px; font-weight: 650; letter-spacing: -.2px; }
+  body.admin-ui #tab-incassi .totale-dettaglio-row.is-differenza { margin-top: 2px; padding-top: 9px; border-top: 1px dashed #e4e8ed; }
+  body.admin-ui #tab-incassi .totale-dettaglio-row.is-differenza .totale-dettaglio-label { font-size: 12px; font-weight: 650; }
+  body.admin-ui #tab-incassi :is(button, input, summary) { scroll-margin-top: 250px; scroll-margin-bottom: 110px; }
+}
+
+@media screen and (min-width: 1200px) {
+  body.admin-ui #tab-incassi :is(button, input, summary) { scroll-margin-top: 120px; }
+  body.admin-ui .admin-entry-summary { max-height: calc(100dvh - var(--admin-topbar-height, 80px) - 38px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+}
+
+@container (min-width: 680px) {
+  @media screen {
+    body.admin-ui #tab-incassi .admin-entry-movements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.admin-ui #tab-incassi .lotto-box-container { padding-top: 0; padding-left: 22px; border-top: 0; border-left: 1px solid var(--border-pearl); }
+    body.admin-ui #tab-incassi :is(.sisal-box-container, .lotto-box-container) .field-item { grid-template-columns: minmax(0, 1fr) 120px; }
+    body.admin-ui #tab-incassi .admin-entry-statistics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    body.admin-ui #tab-incassi .stat-box-header { grid-column: 1 / -1; }
+    body.admin-ui #tab-incassi .stat-field { display: flex; align-items: stretch; }
+  }
+}
+
+@media screen and (max-width: 1199px) {
+  body.admin-ui #tab-incassi .entry-form-grid { display: flex; flex-direction: column; gap: 20px; }
+  body.admin-ui .admin-entry-fields { width: 100%; }
+  body.admin-ui .admin-entry-summary { order: -1; width: 100%; top: calc(var(--admin-topbar-height, 80px) + 8px); padding: 17px 20px; z-index: 25; box-shadow: 0 4px 18px #20273007; }
+  body.admin-ui #tab-incassi .totale-grand-block { flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; }
+  body.admin-ui #tab-incassi .totale-grand-value { font-size: 29px; }
+  body.admin-ui .admin-entry-summary .auto-save-badge { margin: 7px 0 13px; }
+  body.admin-ui .admin-entry-review-toggle { display: flex; justify-content: space-between; align-items: center; flex: 1; gap: 12px; min-height: 42px; padding: 10px 12px; background: #fff; border: 1px solid var(--border-pearl); border-radius: 9px; color: var(--text-primary); font: 600 13px var(--font-sans); cursor: pointer; }
+  body.admin-ui .admin-entry-review-toggle svg { height: 15px; width: 15px; transition: transform 160ms; }
+  body.admin-ui .admin-entry-review-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  body.admin-ui .admin-entry-review-toggle:hover { background: #f7f9fb; }
+  body.admin-ui #tab-incassi #btn-print-document { width: auto; min-height: 42px; }
+  body.admin-ui .admin-entry-summary.is-expanded { max-height: calc(100dvh - var(--admin-topbar-height, 80px) - 108px); overflow-y: auto; overscroll-behavior: contain; }
+  body.admin-ui .admin-entry-review { margin-top: 16px; padding-top: 16px; }
+  body.admin-ui .admin-entry-reconcile-title { display: none; }
+  body.admin-ui .admin-entry-reconcile-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media screen and (max-width: 600px) {
+  body.admin-ui #tab-incassi > .card-section > .section-header { align-items: stretch; gap: 13px; }
+  body.admin-ui #tab-incassi .entry-date-blocco { justify-content: flex-start; gap: 12px; }
+  body.admin-ui #tab-incassi .entry-date { width: 100%; }
+  body.admin-ui #tab-incassi .entry-date-valore { font-size: 13px; }
+  body.admin-ui #tab-incassi .data-nav { display: flex; flex-wrap: nowrap; width: 100%; gap: 5px; }
+  body.admin-ui #tab-incassi .date-input { flex: 1; width: 130px; font-size: 13px; }
+  body.admin-ui #tab-incassi .date-arrow-btn { width: 36px; min-width: 36px; }
+  body.admin-ui #tab-incassi .date-oggi-btn { padding: 8px; }
+  body.admin-ui #tab-incassi .shift-selector { max-width: none; margin-bottom: 18px; }
+  body.admin-ui #tab-incassi .admin-entry-section { padding: 19px; border-radius: 13px; }
+  body.admin-ui .admin-entry-income-grid { gap: 18px 14px; }
+  body.admin-ui .admin-entry-summary { padding: 14px 17px; border-radius: 13px; }
+  body.admin-ui #tab-incassi .totale-grand-value { font-size: 27px; }
+  body.admin-ui #tab-incassi #btn-print-document span { display: none; }
+  body.admin-ui #tab-incassi #btn-print-document { width: 44px; flex-shrink: 0; padding: 10px; }
+  body.admin-ui #tab-incassi .fatture-aggiungi { grid-template-columns: minmax(0, 1fr) 105px; }
+  body.admin-ui #tab-incassi .fatture-aggiungi .todo-add-input { grid-column: 1 / -1; }
+  body.admin-ui #tab-incassi .fatture-aggiungi .todo-add-btn { grid-column: 2; }
+  body.admin-ui #tab-incassi :is(.sisal-box-container, .lotto-box-container) .field-item,
+  body.admin-ui #tab-incassi .stat-field { grid-template-columns: minmax(0, 1fr) 122px; gap: 10px; }
+}
+
+@media screen and (max-width: 360px) {
+  body.admin-ui #tab-incassi .data-nav { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; }
+  body.admin-ui #tab-incassi .data-nav .date-input { width: 100%; }
+  body.admin-ui #tab-incassi .date-oggi-btn { grid-column: 1 / -1; }
+  body.admin-ui .admin-entry-income-grid { grid-template-columns: 1fr; }
+  body.admin-ui #tab-incassi :is(.sisal-box-container, .lotto-box-container) .field-item,
+  body.admin-ui #tab-incassi .stat-field { grid-template-columns: minmax(0, 1fr) 110px; }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  body.admin-ui #tab-incassi *, body.admin-ui #tab-incassi *::before { transition: none; scroll-behavior: auto; }
+}
