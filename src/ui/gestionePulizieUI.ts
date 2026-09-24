@@ -45,7 +45,7 @@ export function initGestionePulizie(pannello: HTMLElement, ricarica: () => Promi
 
   function modificabile(voce: Pulizia): boolean {
     const oggi = getTodayDateString();
-    return !voce.completata && !voce.nonFatta && voce.periodoInizio <= oggi && voce.periodoFine >= oggi;
+    return !voce.completata && !voce.nonFatta && voce.periodoFine >= oggi;
   }
 
   function comandi(): void {
@@ -74,8 +74,8 @@ export function initGestionePulizie(pannello: HTMLElement, ricarica: () => Promi
       button.type = 'button';
       button.className = 'pulizia-gestione-btn';
       button.dataset.modificaPulizia = voce.id;
-      button.textContent = messaggi.length ? 'Correggi pulizia' : 'Modifica pulizia';
-      button.setAttribute('aria-label', `${button.textContent}: ${voce.voce}`);
+      button.textContent = voce.tipo === 'bagno' ? 'Modifica giorno e responsabili' : messaggi.length ? 'Correggi pulizia' : 'Modifica pulizia';
+      button.setAttribute('aria-label', `${button.textContent}: ${voce.tipo === 'bagno' ? `bagno ${voce.previstaIl ?? voce.voce}` : voce.voce}`);
       box.append(button);
       riga.querySelector('.pulizia-corpo')?.append(box);
     });
@@ -121,7 +121,7 @@ export function initGestionePulizie(pannello: HTMLElement, ricarica: () => Promi
     dataPrevista.required = voce.tipo === 'bagno';
     dataPrevista.value = voce.previstaIl ?? '';
     dialog.querySelector('.pulizia-assegna-data-nota')!.textContent = voce.tipo === 'bagno'
-      ? 'Scegli un giorno della settimana di questa attività.'
+      ? 'Puoi spostare la pulizia in un altro giorno di questa settimana. La modifica vale solo per questa attività.'
       : 'Facoltativo: scegli un giorno nel periodo di questa attività.';
     const problemi = dialog.querySelector<HTMLElement>('.pulizia-assegna-avvisi')!;
     problemi.textContent = (avvisi.get(voce.id) ?? []).join(' ');

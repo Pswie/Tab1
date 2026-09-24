@@ -11,12 +11,17 @@ Applicare in un'unica transazione, nell'ordine:
 1. `sql/turni_schede_admin.sql`
 2. `sql/pulizie_assegnazioni_admin.sql`
 3. `sql/pulizie_collegate_turni.sql`
+4. `sql/permessi_registro_gestione.sql`
+5. `sql/pulizie_programmazione_futura.sql`
 
 Gli stessi blocchi sono inclusi in `supabase_schema.sql`, prima della prima
 generazione del calendario. Le patch incrementali non avviano una rigenerazione
 all'applicazione e non cambiano le assegnazioni esistenti. La preparazione delle
 pulizie o la successiva modifica dei turni riallinea le sole voci automatiche
-ancora aperte. I tre file possono essere riapplicati.
+ancora aperte. I file possono essere riapplicati nello stesso ordine. Se le
+prime quattro patch sono gia' presenti, applicare soltanto la quinta: abilita
+la programmazione futura e aggiunge il sabato alla successiva apertura della
+checklist, senza modificare i dati durante l'applicazione.
 
 ## Ricorrenze
 
@@ -46,13 +51,27 @@ scheda abituale e coperture degli altri dipendenti restano invariate.
 Le settimanali seguono la fascia in cui la persona lavora piu' giorni; in parita'
 conta il lunedi'. Le mensili seguono la squadra effettiva di oggi, mantenendo la
 rotazione delle attivita' tra i gruppi. La responsabilita' abituale del bagno
-resta quella preesistente: eventuali assenze vengono segnalate all'amministratore.
+resta quella preesistente: eventuali assenze vengono segnalate a chi gestisce le
+pulizie. Dalla settimana del 21 settembre 2026 il bagno comprende anche il sabato,
+inizialmente senza responsabile: il gestore puo' assegnarlo dalla gestione pulizie.
+Le settimane precedenti mantengono le cinque voci originarie.
 
 L'amministratore, e dopo la patch dei [permessi](permessi-e-storico.md) anche
 i dipendenti da lui autorizzati, puo' assegnare manualmente una voce aperta del
-periodo corrente oppure ripristinare il calcolo automatico. Una scelta manuale non viene sovrascritta
+periodo corrente o futuro oppure ripristinare il calcolo automatico. Il gestore
+puo' navigare nelle settimane e nei mesi successivi, cambiare il giorno del
+bagno nella sua settimana e fissare una data per le settimanali e mensili entro
+il rispettivo periodo. Giorno e responsabili vengono salvati insieme e registrati
+nello storico delle modifiche. Una scelta manuale non viene sovrascritta
 da cambio turno, generazione o apertura della checklist. I responsabili delle
 pulizie completate e dei periodi conclusi restano invariati.
+
+La preparazione dei periodi futuri richiede il permesso di gestione pulizie anche
+sul server. Le settimane per cui non esistono ancora turni restano da assegnare:
+quando il calendario viene generato si aggiornano soltanto le voci automatiche
+ancora aperte. Il ripristino automatico del bagno del sabato ripristina sabato
+come giorno previsto e lascia vuoti i responsabili. Il completamento di una voce
+resta consentito soltanto durante il suo periodo operativo.
 
 Gli avvisi segnalano assenza di responsabili, profili non approvati, bagno
 assegnato a chi non lavora quel giorno e differenze rispetto al gruppo previsto.
@@ -92,3 +111,19 @@ turni, 6 scenari pulizie, 66 verifiche browser e build di produzione completata.
 I controlli browser usano dati di prova isolati; le nuove funzioni di modifica
 non sono state provate scrivendo assegnazioni reali. Il frontend e' pronto nel
 progetto; questa attivita' non comprende una pubblicazione dell'interfaccia.
+
+### Aggiornamento: sabato e periodi futuri
+
+La migrazione `pulizie_sabato_e_programmazione_futura` e' stata applicata al
+database collegato. Le tre funzioni installate coincidono con la patch locale;
+le impronte delle 119 voci pulizie, dei 582 turni e dei 7 profili sono rimaste
+invariate. Nessun nuovo avviso di sicurezza dall'advisor. Il sabato viene creato
+alla successiva apertura della checklist dalla settimana del 21 settembre 2026.
+
+Verifiche: sette scenari SQL isolati, caricamento e riapplicazione dello schema,
+107 controlli browser con dati di prova (desktop e telefoni da 320/390 pixel),
+typecheck e build di produzione superati. Il test locale dello schema esclude
+soltanto l'installazione di Supabase Vault, non disponibile in PGlite. Le prove
+coprono permessi, salvataggi futuri, date bagno, ripristino, cambio anno,
+navigazione rapida e revoca della delega. L'interfaccia aggiornata e' nel progetto;
+non e' stata pubblicata durante questa modifica.

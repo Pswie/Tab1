@@ -8,7 +8,7 @@ accesso approvato:
   annullamenti e spostamenti delle feste. Le schede dei turni abituali rimangono
   riservate all’amministratore.
 - **Gestire giorni e responsabili delle pulizie**: programma delle attività
-  ancora aperte nel periodo corrente, avvisi sulle incongruenze e ripristino del
+  ancora aperte nel periodo corrente o futuro, avvisi sulle incongruenze e ripristino del
   programma automatico. Il giorno scelto deve rientrare nella settimana o nel
   mese dell’attività. Per il bagno è obbligatorio; per le altre pulizie è
   facoltativo.
@@ -60,6 +60,10 @@ tre patch descritte in [Turni e pulizie](turni-e-pulizie.md). Non concede nuove
 deleghe e non cambia le assegnazioni esistenti durante l’applicazione.
 La successiva `sql/autori_registro_gestione.sql` completa l’elenco degli autori
 storici, indipendentemente dalla prima pagina caricata e dallo stato dei profili.
+La patch `sql/pulizie_programmazione_futura.sql`, da applicare dopo quella dei
+permessi, estende la gestione alle settimane e ai mesi futuri e aggiunge il bagno
+del sabato dalla settimana del 21 settembre 2026. Non modifica le deleghe e non
+riscrive le checklist esistenti durante l'applicazione.
 
 Le due migrazioni sono state applicate al database il 24 settembre 2026:
 `permessi_delegati_e_registro_modifiche` e `autori_storici_registro_gestione`.

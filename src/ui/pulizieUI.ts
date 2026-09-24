@@ -23,6 +23,9 @@ let mese = getTodayDateString().slice(0, 7);
 let pulizie: Pulizia[] = [];
 let idInSalvataggio = '';
 let recuperoStoricoFatto = false;
+let recuperoStoricoInCorso: Promise<void> | null = null;
+let richiestaCaricamento = 0;
+let caricamentoInCorso = false;
 let gestionePulizie: GestionePulizie | null = null;
 let gestioneInCaricamento: Promise<void> | null = null;
 
@@ -102,7 +105,7 @@ function periodo(): PeriodoPulizie {
 
 /**
  * Ricostruisce eventuali periodi in cui nessun dispositivo ha aperto l'app.
- * Le chiamate sono idempotenti e il database accetta soltanto date comprese
+ * Le chiamate sono idempotenti; il recupero riguarda soltanto le date comprese
  * fra l'attivazione del registro e il periodo corrente.
  */
 async function recuperaPeriodiMancanti(): Promise<void> {
@@ -141,7 +144,9 @@ function mostraAvviso(testo: string): void {
 }
 
 function voci(tipo: TipoPulizia): Pulizia[] {
-  return pulizie.filter(v => v.tipo === tipo);
+  return pulizie.filter(v => v.tipo === tipo && v.periodoInizio === (
+    tipo === 'mensile' ? `${mese}-01` : settimana
+  ));
 }
 
 function dataOra(iso: string): string {
@@ -215,7 +220,7 @@ function rigaHtml(voce: Pulizia): string {
 function listaHtml(elenco: Pulizia[]): string {
   return elenco.length > 0
     ? elenco.map(rigaHtml).join('')
-    : '<p class="pulizie-vuoto">Checklist non ancora disponibile.</p>';
+    : `<p class="pulizie-vuoto">${caricamentoInCorso ? 'Caricamento delle pulizie…' : 'Checklist non ancora disponibile.'}</p>`;
 }
 
 function aggiornaConteggi(): void {
@@ -269,11 +274,13 @@ function render(): void {
       : settimana === getInizioSettimanaString();
   }
   if (btnAvanti) {
-    btnAvanti.disabled = vista === 'mensili'
+    btnAvanti.setAttribute('aria-label', vista === 'mensili' ? 'Mese successivo' : 'Settimana successiva');
+    btnAvanti.disabled = !puoGestirePulizie() && (vista === 'mensili'
       ? mese >= getTodayDateString().slice(0, 7)
-      : settimana >= getInizioSettimanaString();
+      : settimana >= getInizioSettimanaString());
   }
   if (btnIndietro) {
+    btnIndietro.setAttribute('aria-label', vista === 'mensili' ? 'Mese precedente' : 'Settimana precedente');
     btnIndietro.disabled = vista === 'mensili'
       ? mese <= PRIMO_MESE_PULIZIE
       : settimana <= PRIMA_SETTIMANA_PULIZIE;
@@ -291,20 +298,53 @@ function render(): void {
 export async function caricaPulizie(): Promise<void> {
   if (!pannello) return;
 
-  await aggiornaPermessi();
-  await preparaGestionePulizie();
-
+  const richiesta = ++richiestaCaricamento;
+  caricamentoInCorso = true;
   pannello.classList.add('is-caricamento');
+  pannello.setAttribute('aria-busy', 'true');
   mostraAvviso('');
-  await recuperaPeriodiMancanti();
-  pulizie = await elencaPulizie(periodo());
-
-  if (pulizie.length === 0) {
-    mostraAvviso('Le checklist non sono ancora sincronizzate. Controlla la connessione e riprova.');
-  }
-
-  pannello.classList.remove('is-caricamento');
   render();
+  try {
+    await aggiornaPermessi();
+    if (richiesta !== richiestaCaricamento) return;
+    limitaPeriodoAiPermessi();
+    await preparaGestionePulizie();
+    if (richiesta !== richiestaCaricamento) return;
+    const periodoRichiesto = periodo();
+    render();
+    recuperoStoricoInCorso ??= recuperaPeriodiMancanti().finally(() => { recuperoStoricoInCorso = null; });
+    await recuperoStoricoInCorso;
+    if (richiesta !== richiestaCaricamento) return;
+    const elenco = await elencaPulizie(periodoRichiesto);
+    if (richiesta !== richiestaCaricamento) return;
+    pulizie = elenco;
+
+    if (pulizie.length === 0) {
+      mostraAvviso('Le checklist non sono ancora sincronizzate. Controlla la connessione e riprova.');
+    }
+  } catch {
+    if (richiesta === richiestaCaricamento) {
+      mostraAvviso('Impossibile caricare le pulizie. Controlla la connessione e riprova.');
+    }
+  } finally {
+    if (richiesta === richiestaCaricamento) {
+      caricamentoInCorso = false;
+      pannello.classList.remove('is-caricamento');
+      pannello.setAttribute('aria-busy', 'false');
+      render();
+    }
+  }
+}
+
+function limitaPeriodoAiPermessi(): boolean {
+  if (puoGestirePulizie()) return false;
+  const settimanaCorrente = getInizioSettimanaString();
+  const meseCorrente = getTodayDateString().slice(0, 7);
+  const fuoriLimite = settimana > settimanaCorrente || mese > meseCorrente;
+  if (settimana > settimanaCorrente) settimana = settimanaCorrente;
+  if (mese > meseCorrente) mese = meseCorrente;
+  if (fuoriLimite) pulizie = [];
+  return fuoriLimite;
 }
 
 async function cambiaPeriodo(direzione: number): Promise<void> {
@@ -315,7 +355,7 @@ async function cambiaPeriodo(direzione: number): Promise<void> {
     const oltreCorrente = vista === 'mensili'
       ? prossimoMese > getTodayDateString().slice(0, 7)
       : prossimaSettimana > getInizioSettimanaString();
-    if (oltreCorrente) return;
+    if (oltreCorrente && !puoGestirePulizie()) return;
   }
 
   if (direzione < 0) {
@@ -327,7 +367,6 @@ async function cambiaPeriodo(direzione: number): Promise<void> {
 
   if (vista === 'mensili') mese = prossimoMese;
   else settimana = prossimaSettimana;
-  render();
   await caricaPulizie();
 }
 
@@ -337,7 +376,8 @@ export function initPulizie(): void {
   void preparaGestionePulizie();
   window.addEventListener('permessi-aggiornati', () => {
     void preparaGestionePulizie();
-    render();
+    if (limitaPeriodoAiPermessi()) void caricaPulizie();
+    else render();
   });
 
   pulsantiVista.forEach(btn => {
@@ -385,7 +425,8 @@ export function initPulizie(): void {
 
     const id = btn.dataset.id || '';
     const esistente = pulizie.find(v => v.id === id);
-    if (!esistente) return;
+    const oggi = getTodayDateString();
+    if (!esistente || btn.disabled || oggi < esistente.periodoInizio || oggi > esistente.periodoFine) return;
 
     idInSalvataggio = id;
     mostraAvviso('');
