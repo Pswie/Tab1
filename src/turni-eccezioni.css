@@ -1,0 +1,56 @@
+/* Additional controls exist only while an authorized calendar manager edits.
+   The employee's ordinary calendar keeps its original presentation. */
+@media screen {
+  .turni-eccezioni-hint { margin: 0 0 16px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+  .turni-griglia.is-gestione .turni-sposta-festa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 4px 7px;
+    border: 1px solid var(--border-pearl);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--surface-subtle);
+    font: 600 12px var(--font-sans);
+    cursor: pointer;
+  }
+  .turni-griglia.is-gestione .turni-sposta-festa svg { width: 15px; height: 15px; flex: 0 0 auto; }
+  .turni-griglia.is-gestione .turni-sposta-festa:hover { color: var(--ferrari-red); border-color: var(--ferrari-red); }
+  .turni-griglia.is-gestione .turni-chip:has(.turni-sposta-festa) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 6px 8px; border-radius: 10px; }
+  .turni-griglia.is-gestione .turni-chip:has(.turni-sposta-festa) .turni-chip-nome { grid-area: 1 / 1; overflow-wrap: anywhere; }
+  .turni-griglia.is-gestione .turni-chip:has(.turni-sposta-festa) .turni-chip-x { grid-area: 1 / 2; }
+  .turni-griglia.is-gestione .turni-chip:has(.turni-sposta-festa) .turni-chip-nota { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+  .turni-griglia.is-gestione .turni-chip:has(.turni-sposta-festa) .turni-sposta-festa { grid-column: 1 / -1; justify-self: start; }
+  .turni-griglia.is-gestione .turni-festa-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+    color: var(--text-primary);
+    background: #fff;
+    border: 1px solid var(--border-pearl);
+    border-radius: 12px;
+    text-align: left;
+  }
+  .turni-festa-form .turni-festa-form-titolo { font-size: 15px; line-height: 1.5; }
+  .turni-festa-form .turni-festa-spiegazione { margin: 0; font-size: 12px; font-weight: 450; line-height: 1.65; color: var(--text-secondary); }
+  .turni-festa-form .turni-festa-data { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; font-weight: 600; }
+  .turni-festa-form .turni-campo { flex: 0 0 auto; width: 100%; max-width: 100%; min-width: 0; height: 44px; box-sizing: border-box; font-family: var(--font-sans); }
+  .turni-festa-form .turni-festa-errore { margin: 0; color: #a52825; font-size: 12px; font-weight: 550; line-height: 1.6; }
+  .turni-festa-form .turni-festa-errore.is-hidden { display: none; }
+  .turni-festa-form .turni-form-azioni { display: flex; flex-wrap: wrap; gap: 8px; }
+  .turni-festa-form :is(button, input):focus-visible,
+  .turni-sposta-festa:focus-visible { outline: 2px solid var(--ferrari-red); outline-offset: 3px; }
+  .turni-festa-form button:disabled { cursor: wait; opacity: .65; }
+}
+
+@media screen and (max-width: 640px) {
+  .turni-festa-form .turni-campo { font-size: 16px; }
+}
+
+@media screen and (min-width: 900px) {
+  .turni-griglia.is-gestione .turni-cella .turni-festa-form { width: 296px; max-width: calc(100vw - 40px); }
+}

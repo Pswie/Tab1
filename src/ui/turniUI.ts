@@ -9,9 +9,10 @@ import {
   elencaTurni,
   impostaPeriodoDipendente,
   impostaTurnoDipendente,
-  preparaTurniAutomatici
+  preparaTurniAutomatici,
+  spostaFestaDipendente
 } from '../services/turni';
-import { idUtente, nomeUtente, puoGestireTurni } from '../services/auth';
+import { amministratore, idUtente, nomeUtente, puoGestireTurni } from '../services/auth';
 import {
   formatDateLocalISO,
   getInizioSettimanaString,
@@ -23,7 +24,15 @@ interface CellaAperta {
   fascia: FasciaTurno;
   profiloId: string | null;
   nota: string;
-  chiediSquadra: boolean;
+}
+
+interface SpostamentoFesta {
+  profiloId: string;
+  persona: string;
+  dal: string;
+  al: string;
+  nota: string;
+  errore: string;
 }
 
 /** Lunedì della settimana mostrata. */
@@ -38,6 +47,8 @@ let dipendentiInCaricamento = false;
  */
 let modalitaGestione = false;
 let cellaAperta: CellaAperta | null = null;
+let spostamentoFesta: SpostamentoFesta | null = null;
+let salvataggioFesta = false;
 
 let ferieAperte = false;
 let profiloFerieId: string | null = null;
@@ -158,14 +169,55 @@ function chipHtml(turno: TurnoLavoro, puoModificare: boolean): string {
   const nota = turno.nota
     ? `<span class="turni-chip-nota">${escapeHtml(turno.nota)}</span>`
     : '';
+  const sposta = puoModificare && turno.fascia === 'festa' && turno.profiloId
+    ? `<button type="button" class="turni-sposta-festa" data-action="sposta-festa"
+         data-id="${escapeHtml(turno.id)}" aria-label="Sposta la festa di ${escapeHtml(turno.persona)}">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"/></svg>
+         <span>Sposta festa</span>
+       </button>`
+    : '';
 
   return `
     <span class="turni-chip${mio ? ' is-mio' : ''}${puoModificare ? ' con-comando' : ''}">
       <span class="turni-chip-nome">${escapeHtml(turno.persona)}</span>
       ${nota}
       ${rimuovi}
+      ${sposta}
     </span>
   `;
+}
+
+function dataFesta(iso: string): string {
+  return new Intl.DateTimeFormat('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
+    .format(comeData(iso));
+}
+
+function descrizioneSpostamento(): string {
+  if (!spostamentoFesta) return '';
+  const { persona, dal, al } = spostamentoFesta;
+  const destinazione = al ? dataFesta(al) : 'il giorno scelto';
+  return `La festa di ${persona} passa da ${dataFesta(dal)} a ${destinazione}. ` +
+    `Il ${dataFesta(dal)} torna il turno di lavoro previsto. Il cambio vale solo per questa settimana.`;
+}
+
+function formSpostamentoHtml(): string {
+  if (!spostamentoFesta) return '';
+  const { al, errore } = spostamentoFesta;
+  return `<div class="turni-form turni-festa-form" role="group" aria-label="Sposta festa" aria-busy="${salvataggioFesta}">
+    <strong class="turni-festa-form-titolo">Sposta la festa</strong>
+    <p class="turni-festa-spiegazione" id="turni-festa-spiegazione">${escapeHtml(descrizioneSpostamento())}</p>
+    <label class="turni-festa-data">
+      <span>Nuovo giorno di festa</span>
+      <input type="date" class="turni-campo" data-campo="festa-destinazione"
+        value="${escapeHtml(al)}" min="${settimana}" max="${spostaGiorni(settimana, 6)}"
+        aria-describedby="turni-festa-spiegazione"${salvataggioFesta ? ' disabled' : ''} />
+    </label>
+    <p class="turni-festa-errore${errore ? '' : ' is-hidden'}" role="alert">${escapeHtml(errore)}</p>
+    <div class="turni-form-azioni">
+      <button type="button" class="turni-btn-primario" data-action="conferma-spostamento-festa"${salvataggioFesta ? ' disabled' : ''}>${salvataggioFesta ? 'Salvataggio…' : 'Conferma spostamento'}</button>
+      <button type="button" class="turni-btn" data-action="chiudi-spostamento-festa"${salvataggioFesta ? ' disabled' : ''}>Annulla</button>
+    </div>
+  </div>`;
 }
 
 function pickerDipendentiHtml(
@@ -210,26 +262,7 @@ function formHtml(data: string, fascia: FasciaTurno): string {
       .filter((id): id is string => Boolean(id))
   );
 
-  const sceltaSquadra = stato?.chiediSquadra && selezionato
-    ? `
-      <div class="turni-scelta-stabile" role="group" aria-label="Come aggiungere ${escapeHtml(selezionato.nome)}">
-        <p>
-          <strong>${escapeHtml(selezionato.nome)}</strong> non ha ancora una squadra.
-          Se la aggiungi alla squadra seguirà tutto il gruppo quando mattina e pomeriggio
-          si alternano ogni settimana.
-        </p>
-        <div class="turni-form-azioni">
-          <button type="button" class="turni-btn" data-action="conferma-solo-giorno">
-            Solo questo giorno
-          </button>
-          <button type="button" class="turni-btn-primario" data-action="conferma-squadra">
-            Aggiungi alla squadra
-          </button>
-          <button type="button" class="turni-btn" data-action="annulla-scelta-squadra">Indietro</button>
-        </div>
-      </div>
-    `
-    : `
+  const modulo = `
       ${pickerDipendentiHtml('scegli-persona', stato?.profiloId ?? null, giaAssegnati, 'Scegli chi lavora')}
       <input type="text" class="turni-campo" data-campo="nota"
              value="${escapeHtml(stato?.nota ?? '')}" placeholder="Nota (facoltativa)"
@@ -241,7 +274,7 @@ function formHtml(data: string, fascia: FasciaTurno): string {
       </div>
     `;
 
-  return `<div class="turni-form">${sceltaSquadra}</div>`;
+  return `<div class="turni-form">${modulo}</div>`;
 }
 
 function cellaHtml(
@@ -253,15 +286,16 @@ function cellaHtml(
 ): string {
   const voci = assegnati(data, fascia);
   const aperta = cellaAperta?.data === data && cellaAperta.fascia === fascia;
+  const spostaFesta = puoModificare && fascia === 'festa' && spostamentoFesta?.dal === data;
   const oggi = data === getTodayDateString();
 
   const classi = ['turni-cella', `is-${fascia}`];
-  if (aperta) classi.push('is-aperta');
+  if (aperta || spostaFesta) classi.push('is-aperta');
   if (voci.length === 0 && !aperta) classi.push('is-vuota');
   if (oggi) classi.push('is-oggi');
   if (voci.some(turno => eIlMio(turno.persona, turno.profiloId))) classi.push('ha-me');
 
-  const comando = puoModificare && !aperta
+  const comando = puoModificare && !aperta && !spostaFesta
     ? `<button type="button" class="turni-piu" data-action="apri"
          aria-label="Assegna ${NOMI_FASCIA[fascia]} di ${nomeGiorno(data)} ${comeData(data).getDate()}">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -279,6 +313,7 @@ function cellaHtml(
       </div>
       ${comando}
       ${aperta ? formHtml(data, fascia) : ''}
+      ${spostaFesta ? formSpostamentoHtml() : ''}
     </div>
   `;
 }
@@ -397,11 +432,17 @@ function render(): void {
   const puoModificare = autorizzato && modalitaGestione;
 
   if (etichettaSettimana) etichettaSettimana.textContent = titoloSettimana();
-  if (btnOggi) btnOggi.disabled = settimana === getInizioSettimanaString();
-  if (btnFerie) btnFerie.hidden = !puoModificare;
+  if (btnIndietro) btnIndietro.disabled = salvataggioFesta;
+  if (btnAvanti) btnAvanti.disabled = salvataggioFesta;
+  if (btnOggi) btnOggi.disabled = salvataggioFesta || settimana === getInizioSettimanaString();
+  if (btnFerie) {
+    btnFerie.hidden = !puoModificare;
+    btnFerie.disabled = salvataggioFesta;
+  }
 
   if (btnGestione) {
     btnGestione.hidden = !autorizzato;
+    btnGestione.disabled = salvataggioFesta;
     btnGestione.setAttribute('aria-pressed', String(puoModificare));
     btnGestione.classList.toggle('is-active', puoModificare);
     btnGestione.title = puoModificare ? 'Chiudi gestione turni' : 'Gestisci i turni';
@@ -413,6 +454,15 @@ function render(): void {
 
   griglia.classList.toggle('is-admin', puoModificare);
   griglia.classList.toggle('is-gestione', puoModificare);
+  let indicazione = document.getElementById('turni-eccezioni-hint');
+  if (puoModificare && !indicazione) {
+    indicazione = document.createElement('p');
+    indicazione.id = 'turni-eccezioni-hint';
+    indicazione.className = 'turni-eccezioni-hint';
+    indicazione.textContent = 'Le modifiche qui valgono solo per il giorno scelto.';
+    griglia.before(indicazione);
+  }
+  if (indicazione) indicazione.hidden = !puoModificare;
 
   const giorni = giornateSettimana();
   const oggi = getTodayDateString();
@@ -446,13 +496,13 @@ function render(): void {
   renderFerie(puoModificare);
   renderOggi();
 
-  if (cellaAperta) {
+  if (spostamentoFesta && !salvataggioFesta) {
+    griglia.querySelector<HTMLInputElement>('[data-campo="festa-destinazione"]')?.focus();
+  } else if (cellaAperta) {
     const cella = griglia.querySelector<HTMLElement>(
       `.turni-cella[data-data="${cellaAperta.data}"][data-fascia="${cellaAperta.fascia}"]`
     );
-    const daMettereAFuoco = cellaAperta.chiediSquadra
-      ? cella?.querySelector<HTMLButtonElement>('[data-action="conferma-solo-giorno"]')
-      : cellaAperta.profiloId
+    const daMettereAFuoco = cellaAperta.profiloId
         ? cella?.querySelector<HTMLInputElement>('[data-campo="nota"]')
         : cella?.querySelector<HTMLButtonElement>('[data-action="scegli-persona"]:not(:disabled)');
     daMettereAFuoco?.focus();
@@ -473,8 +523,10 @@ async function caricaDipendenti(): Promise<void> {
 }
 
 async function cambiaSettimana(inizio: string): Promise<void> {
+  if (salvataggioFesta) return;
   settimana = inizio;
   cellaAperta = null;
+  spostamentoFesta = null;
   ferieAperte = false;
   profiloFerieId = null;
   ferieDal = settimana;
@@ -483,13 +535,69 @@ async function cambiaSettimana(inizio: string): Promise<void> {
   await caricaTurni();
 }
 
+function apriSpostamentoFesta(turno: TurnoLavoro, destinazione?: string, nota?: string): void {
+  if (!gestioneAttiva() || !turno.profiloId || salvataggioFesta) return;
+  spostamentoFesta = {
+    profiloId: turno.profiloId,
+    persona: turno.persona,
+    dal: turno.data,
+    al: destinazione ?? spostaGiorni(turno.data, turno.data < spostaGiorni(settimana, 6) ? 1 : -1),
+    nota: nota ?? turno.nota,
+    errore: ''
+  };
+  cellaAperta = null;
+  ferieAperte = false;
+  mostraAvviso('');
+  render();
+}
+
+async function confermaSpostamentoFesta(): Promise<void> {
+  if (!gestioneAttiva() || !spostamentoFesta || salvataggioFesta) return;
+  const richiesta = spostamentoFesta;
+  const dataValida = /^\d{4}-\d{2}-\d{2}$/.test(richiesta.al);
+  if (!dataValida || richiesta.al < settimana || richiesta.al > spostaGiorni(settimana, 6)) {
+    richiesta.errore = 'Scegli un giorno della settimana mostrata.';
+    render();
+    return;
+  }
+  if (richiesta.al === richiesta.dal) {
+    richiesta.errore = 'Scegli un giorno diverso dalla festa attuale.';
+    render();
+    return;
+  }
+  if (turni.some(turno => turno.profiloId === richiesta.profiloId && turno.data === richiesta.al && turno.fascia === 'ferie')) {
+    richiesta.errore = 'La persona è in ferie nel giorno scelto. Scegli un altro giorno.';
+    render();
+    return;
+  }
+
+  salvataggioFesta = true;
+  richiesta.errore = '';
+  render();
+  try {
+    const esito = await spostaFestaDipendente(richiesta.profiloId, richiesta.dal, richiesta.al, richiesta.nota);
+    if (!esito.suCloud) throw new Error('Connessione non disponibile. Lo spostamento non è stato salvato.');
+    spostamentoFesta = null;
+    await caricaTurni();
+    mostraAvviso(`Festa di ${richiesta.persona} spostata al ${dataFesta(richiesta.al)}. Il ${dataFesta(richiesta.dal)} torna lavorativo.`);
+  } catch (errore) {
+    richiesta.errore = errore instanceof Error ? errore.message : 'Non è stato possibile spostare la festa. Riprova.';
+  } finally {
+    salvataggioFesta = false;
+    render();
+    if (!spostamentoFesta) {
+      griglia?.querySelector<HTMLButtonElement>(`.turni-cella[data-data="${richiesta.al}"][data-fascia="festa"] [data-action="sposta-festa"]`)?.focus();
+    }
+  }
+}
+
 function sincronizzaNota(cella: HTMLElement): void {
   if (!cellaAperta) return;
   const campoNota = cella.querySelector<HTMLInputElement>('[data-campo="nota"]');
   if (campoNota) cellaAperta.nota = campoNota.value.trim();
 }
 
-async function salvaAssegnazione(cella: HTMLElement, rendiStabile: boolean): Promise<void> {
+async function salvaAssegnazione(cella: HTMLElement): Promise<void> {
   if (!gestioneAttiva() || !cellaAperta) return;
 
   sincronizzaNota(cella);
@@ -506,7 +614,7 @@ async function salvaAssegnazione(cella: HTMLElement, rendiStabile: boolean): Pro
     fascia,
     dipendente,
     nota,
-    rendiStabile,
+    false,
     nomeUtente()
   );
 
@@ -514,13 +622,8 @@ async function salvaAssegnazione(cella: HTMLElement, rendiStabile: boolean): Pro
     data,
     fascia,
     profiloId: null,
-    nota: '',
-    chiediSquadra: false
+    nota: ''
   };
-
-  if (rendiStabile) {
-    dipendenti = await elencaDipendentiTurni();
-  }
 
   await caricaTurni();
 
@@ -541,15 +644,15 @@ async function confermaAssegnazione(cella: HTMLElement): Promise<void> {
     return;
   }
 
-  const fasciaConSquadra = cellaAperta.fascia === 'mattina' || cellaAperta.fascia === 'pomeriggio';
-  if (fasciaConSquadra && dipendente.squadra === null) {
-    cellaAperta.chiediSquadra = true;
-    mostraAvviso('');
-    render();
-    return;
+  if (cellaAperta.fascia === 'festa') {
+    const festaEsistente = turni.find(turno => turno.fascia === 'festa' && turno.profiloId === dipendente.id && turno.data !== cellaAperta?.data);
+    if (festaEsistente) {
+      apriSpostamentoFesta(festaEsistente, cellaAperta.data, cellaAperta.nota);
+      return;
+    }
   }
 
-  await salvaAssegnazione(cella, false);
+  await salvaAssegnazione(cella);
 }
 
 async function confermaFerie(): Promise<void> {
@@ -624,6 +727,14 @@ export async function caricaTurni(): Promise<void> {
 export function initTurni(): void {
   if (!griglia) return;
 
+  if (puoGestireTurni()) void import('../turni-eccezioni.css');
+  if (amministratore()) {
+    void import('./schedeTurniUI').then(({ initSchedeTurni }) => initSchedeTurni(async () => {
+      await caricaTurni();
+      if (modalitaGestione) await caricaDipendenti();
+    }));
+  }
+
   ferieAl = spostaGiorni(settimana, 6);
 
   btnIndietro?.addEventListener('click', () => cambiaSettimana(spostaGiorni(settimana, -7)));
@@ -635,6 +746,7 @@ export function initTurni(): void {
 
     modalitaGestione = !modalitaGestione;
     cellaAperta = null;
+    spostamentoFesta = null;
     ferieAperte = false;
     profiloFerieId = null;
     mostraAvviso('');
@@ -648,6 +760,7 @@ export function initTurni(): void {
 
     ferieAperte = !ferieAperte;
     cellaAperta = null;
+    spostamentoFesta = null;
     profiloFerieId = null;
     ferieDal = settimana;
     ferieAl = spostaGiorni(settimana, 6);
@@ -657,7 +770,7 @@ export function initTurni(): void {
 
   griglia.addEventListener('click', evento => {
     const pulsante = (evento.target as HTMLElement).closest<HTMLElement>('[data-action]');
-    if (!pulsante) return;
+    if (!pulsante || salvataggioFesta) return;
 
     const cella = pulsante.closest<HTMLElement>('.turni-cella');
     if (!cella) return;
@@ -665,32 +778,34 @@ export function initTurni(): void {
     const azione = pulsante.getAttribute('data-action');
 
     if (azione === 'apri' && gestioneAttiva()) {
+      spostamentoFesta = null;
       cellaAperta = {
         data: cella.getAttribute('data-data') || '',
         fascia: (cella.getAttribute('data-fascia') as FasciaTurno) || 'mattina',
         profiloId: null,
-        nota: '',
-        chiediSquadra: false
+        nota: ''
       };
       ferieAperte = false;
       mostraAvviso('');
       render();
+    } else if (azione === 'sposta-festa') {
+      const turno = turni.find(voce => voce.id === pulsante.getAttribute('data-id'));
+      if (turno) apriSpostamentoFesta(turno);
+    } else if (azione === 'conferma-spostamento-festa') {
+      void confermaSpostamentoFesta();
+    } else if (azione === 'chiudi-spostamento-festa') {
+      const dal = spostamentoFesta?.dal;
+      spostamentoFesta = null;
+      render();
+      if (dal) griglia.querySelector<HTMLButtonElement>(`.turni-cella[data-data="${dal}"][data-fascia="festa"] [data-action="sposta-festa"]`)?.focus();
     } else if (azione === 'scegli-persona' && cellaAperta && gestioneAttiva()) {
       cellaAperta.profiloId = pulsante.getAttribute('data-profilo-id');
-      cellaAperta.chiediSquadra = false;
       render();
     } else if (azione === 'chiudi') {
       cellaAperta = null;
       render();
     } else if (azione === 'conferma') {
       void confermaAssegnazione(cella);
-    } else if (azione === 'conferma-solo-giorno') {
-      void salvaAssegnazione(cella, false);
-    } else if (azione === 'conferma-squadra') {
-      void salvaAssegnazione(cella, true);
-    } else if (azione === 'annulla-scelta-squadra' && cellaAperta) {
-      cellaAperta.chiediSquadra = false;
-      render();
     } else if (azione === 'rimuovi') {
       const id = pulsante.getAttribute('data-id');
       if (id) void togliAssegnazione(id);
@@ -698,20 +813,33 @@ export function initTurni(): void {
   });
 
   griglia.addEventListener('input', evento => {
+    const destinazione = (evento.target as HTMLElement).closest<HTMLInputElement>('[data-campo="festa-destinazione"]');
+    if (destinazione && spostamentoFesta && !salvataggioFesta) {
+      spostamentoFesta.al = destinazione.value;
+      const spiegazione = griglia.querySelector('.turni-festa-spiegazione');
+      if (spiegazione) spiegazione.textContent = descrizioneSpostamento();
+      return;
+    }
     const campo = (evento.target as HTMLElement).closest<HTMLInputElement>('[data-campo="nota"]');
     if (campo && cellaAperta) cellaAperta.nota = campo.value;
   });
 
   griglia.addEventListener('keydown', evento => {
     const cella = (evento.target as HTMLElement).closest<HTMLElement>('.turni-cella');
-    if (!cella) return;
+    if (!cella || salvataggioFesta) return;
 
-    if (evento.key === 'Enter' && (evento.target as HTMLElement).matches('[data-campo="nota"]')) {
+    if (evento.key === 'Enter' && (evento.target as HTMLElement).matches('[data-campo="festa-destinazione"]')) {
+      evento.preventDefault();
+      void confermaSpostamentoFesta();
+    } else if (evento.key === 'Enter' && (evento.target as HTMLElement).matches('[data-campo="nota"]')) {
       evento.preventDefault();
       void confermaAssegnazione(cella);
     } else if (evento.key === 'Escape') {
+      const dal = spostamentoFesta?.dal;
+      spostamentoFesta = null;
       cellaAperta = null;
       render();
+      if (dal) griglia.querySelector<HTMLButtonElement>(`.turni-cella[data-data="${dal}"][data-fascia="festa"] [data-action="sposta-festa"]`)?.focus();
     }
   });
 

@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from './supabase';
+import { puoGestireTurni } from './auth';
 
 /** Le fasce di una giornata, nell'ordine in cui si leggono sul foglio. */
 export type FasciaTurno = 'mattina' | 'intermedio' | 'pomeriggio' | 'festa' | 'ferie';
@@ -433,4 +434,31 @@ export async function annullaTurno(id: string): Promise<boolean> {
 
   scriviSenza();
   return false;
+}
+
+/** Sposta una festa nella stessa settimana: le due eccezioni si salvano insieme. */
+export async function spostaFestaDipendente(
+  profiloId: string,
+  dal: string,
+  al: string,
+  nota = ''
+): Promise<EsitoTurno> {
+  if (!puoGestireTurni()) throw new Error('Non hai il permesso di modificare i turni.');
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new Error('Serve una connessione al servizio per spostare la festa nel calendario condiviso.');
+  }
+  const { data, error } = await supabase.rpc('sposta_festa_turni', {
+    p_profilo_id: profiloId, p_dal: dal, p_al: al, p_nota: nota
+  });
+  if (error) {
+    console.warn('Spostamento festa non salvato:', error.message);
+    throw new Error(error.code === '22023' ? error.message : 'Festa non spostata. Controlla la connessione e riprova.');
+  }
+  const voci = righeDaRisposta(data).map(daRiga).filter(voce => !voce.annullato);
+  // Una persona ha una sola assegnazione al giorno, anche se cambia fascia.
+  const restanti = leggiLocale().filter(vecchia =>
+    !(vecchia.profiloId === profiloId && (vecchia.data === dal || vecchia.data === al))
+  );
+  scriviLocale(inOrdine([...restanti, ...voci]));
+  return { voci: inOrdine(voci), suCloud: true };
 }

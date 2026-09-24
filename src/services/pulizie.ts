@@ -1,4 +1,4 @@
-import { nomeUtente } from './auth';
+import { amministratore, nomeUtente } from './auth';
 import { isSupabaseConfigured, supabase } from './supabase';
 
 export type TipoPulizia = 'bagno' | 'settimanale' | 'mensile';
@@ -15,6 +15,8 @@ export interface Pulizia {
   turno: TurnoPulizia | '';
   gruppo: GruppoPulizia | '';
   responsabili: string[];
+  responsabiliProfili: string[];
+  assegnazioneManuale: boolean;
   completata: boolean;
   completataIl?: string;
   completataDa: string;
@@ -48,6 +50,8 @@ function daRiga(r: Record<string, unknown>): Pulizia {
     turno: (r.turno ? String(r.turno) : '') as TurnoPulizia | '',
     gruppo: (r.gruppo ? String(r.gruppo) : '') as GruppoPulizia | '',
     responsabili: Array.isArray(r.responsabili) ? r.responsabili.map(String) : [],
+    responsabiliProfili: Array.isArray(r.responsabili_profili) ? r.responsabili_profili.map(String) : [],
+    assegnazioneManuale: r.origine_assegnazione === 'manuale',
     completata: Boolean(r.completata_il),
     completataIl: r.completata_il ? String(r.completata_il) : undefined,
     completataDa: String(r.completata_da_nome ?? ''),
@@ -198,4 +202,37 @@ export async function elencaPulizieNonFatte(): Promise<PuliziaNonFatta[]> {
     scadenza: String(r.scadenza ?? '').slice(0, 10),
     responsabili: Array.isArray(r.responsabili) ? r.responsabili.map(String) : []
   }));
+}
+
+export interface IncongruenzaPulizia { id: string; avvisi: string[] }
+
+function clientAdminPulizie() {
+  if (!amministratore()) throw new Error('Solo l’amministratore può modificare i responsabili delle pulizie.');
+  if (!isSupabaseConfigured() || !supabase) throw new Error('Collegati al servizio per gestire le pulizie condivise.');
+  return supabase;
+}
+
+export async function elencaIncongruenzePulizie(periodo: PeriodoPulizie): Promise<IncongruenzaPulizia[]> {
+  const { data, error } = await clientAdminPulizie().rpc('elenca_incongruenze_pulizie', {
+    p_settimana: periodo.settimana, p_mese: `${periodo.mese}-01`
+  });
+  if (error) throw new Error('Non è stato possibile verificare le assegnazioni delle pulizie. Riprova.');
+  return (Array.isArray(data) ? data : []).map(riga => ({
+    id: String(riga.id), avvisi: Array.isArray(riga.avvisi) ? riga.avvisi.map(String) : []
+  }));
+}
+
+export async function assegnaResponsabiliPulizia(id: string, profili: string[], automatico = false): Promise<Pulizia> {
+  const { data, error } = await clientAdminPulizie().rpc('assegna_responsabili_pulizia', {
+    p_id: id, p_profili: [...new Set(profili)], p_automatico: automatico
+  });
+  if (error) {
+    console.warn('Assegnazione pulizia non salvata:', error.message);
+    throw new Error(error.code === '22023' ? error.message : 'Assegnazione non salvata. Controlla la connessione e riprova.');
+  }
+  const riga = Array.isArray(data) ? data[0] : data;
+  if (!riga) throw new Error('Assegnazione non confermata. Aggiorna l’elenco prima di riprovare.');
+  const voce = daRiga(riga);
+  aggiornaLocale([voce]);
+  return voce;
 }
