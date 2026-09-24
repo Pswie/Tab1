@@ -188,8 +188,18 @@ export function initSchedeTurni(dopoSalvataggio: () => Promise<void>): void {
     if (form) aggiornaModificata(form);
   });
   elenco.addEventListener('reset', evento => {
+    evento.preventDefault();
+    if (occupato) return;
     const form = evento.target as HTMLFormElement;
-    queueMicrotask(() => aggiornaModificata(form));
+    const salvata = schede.find(scheda => scheda.id === form.dataset.profiloId);
+    if (!salvata) return;
+    form.querySelector<HTMLSelectElement>('[name="squadra"]')!.value = String(salvata.squadra ?? '');
+    form.querySelector<HTMLSelectElement>('[name="festaMattina"]')!.value = String(salvata.festaMattina ?? '');
+    form.querySelector<HTMLSelectElement>('[name="festaPomeriggio"]')!.value = String(salvata.festaPomeriggio ?? '');
+    form.classList.remove('is-errore');
+    form.querySelector('.scheda-turni-feedback')!.setAttribute('role', 'status');
+    form.querySelector('button[type="submit"]')!.textContent = 'Salva scheda';
+    aggiornaModificata(form);
   });
   elenco.addEventListener('submit', async evento => {
     evento.preventDefault();

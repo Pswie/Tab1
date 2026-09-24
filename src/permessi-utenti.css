@@ -1,0 +1,92 @@
+@media screen {
+  body.admin-ui .turni-titolo-riga:has(.permessi-apri) { flex-wrap: wrap; }
+  .permessi-apri { order: 4; }
+  .permessi-dialog [hidden], .permessi-btn[hidden] { display: none; }
+  .permessi-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border-pearl, #e3e7ec); border-radius: 8px; background: #fff; color: var(--text-primary, #202730); font: 650 13px var(--font-sans, sans-serif); cursor: pointer; }
+  .permessi-btn:hover { background: #f5f6f8; }
+  .permessi-btn:disabled { opacity: .5; cursor: default; }
+  .permessi-btn.primario { background: #c52f2b; border-color: #c52f2b; color: #fff; }
+  .permessi-btn.primario:not(:disabled):hover { background: #ad2925; }
+  .permessi-dialog { width: min(940px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 48px); margin: auto; padding: 0; border: 1px solid #e3e7ec; border-radius: 16px; background: #fff; color: #202730; box-shadow: 0 24px 80px #20273030; }
+  .permessi-dialog[open] { display: flex; flex-direction: column; }
+  .permessi-dialog::backdrop { background: #20273066; }
+  .permessi-testa { display: flex; flex: 0 0 auto; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px 20px; }
+  .permessi-testa h2 { margin: 0; font-size: 22px; line-height: 1.35; letter-spacing: -.6px; }
+  .permessi-testa p { margin: 7px 0 0; color: #606b78; font-size: 13px; line-height: 1.6; }
+  .permessi-chiudi { flex-shrink: 0; width: 40px; padding: 8px; }
+  .permessi-chiudi svg { width: 20px; height: 20px; }
+  .permessi-tabs { display: flex; flex: 0 0 auto; gap: 24px; padding: 0 28px; border-bottom: 1px solid #e3e7ec; }
+  .permessi-tabs button { min-height: 46px; padding: 0 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #606b78; font: 650 13px var(--font-sans, sans-serif); cursor: pointer; }
+  .permessi-tabs button[aria-selected='true'] { border-bottom-color: #c52f2b; color: #202730; }
+  .permessi-corpo { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 24px 28px 28px; }
+  .permessi-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .permessi-toolbar p, .permessi-registro-nota { margin: 0; color: #606b78; font-size: 13px; line-height: 1.65; }
+  .permessi-toolbar button { flex-shrink: 0; }
+  .permessi-stato { margin: 16px 0; color: #606b78; font-size: 12px; line-height: 1.6; }
+  .permessi-stato:empty { display: none; }
+  .permessi-stato.is-errore, .permessi-feedback.is-errore { color: #b32622; }
+  .permessi-utente { display: grid; grid-template-columns: minmax(140px, .8fr) minmax(230px, 1.4fr) auto; column-gap: 24px; padding: 22px 0; border-top: 1px solid #e3e7ec; }
+  .permessi-persona { min-width: 0; }
+  .permessi-persona h3 { margin: 0; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+  .permessi-persona p { margin: 4px 0 0; color: #606b78; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+  .permessi-utente fieldset { display: grid; align-content: start; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+  .permessi-utente fieldset label { display: flex; align-items: flex-start; gap: 10px; min-height: 30px; font-size: 13px; line-height: 1.65; cursor: pointer; }
+  .permessi-utente input[type='checkbox'] { width: 18px; height: 18px; margin: 2px 0 0; flex-shrink: 0; accent-color: #c52f2b; }
+  .permessi-utente-azioni { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 76px; }
+  .permessi-feedback { grid-column: 2 / -1; margin: 8px 0 0; min-height: 0; font-size: 12px; color: #606b78; line-height: 1.6; }
+  .permessi-feedback:empty { display: none; }
+  .permessi-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .permessi-filtri-gruppo { margin: 18px 0; }
+  .permessi-filtri-gruppo > summary { width: fit-content; min-height: 40px; padding: 10px 0; color: #202730; font-size: 13px; font-weight: 650; cursor: pointer; }
+  .permessi-filtri { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px 12px; margin: 8px 0 0; padding: 18px; border: 1px solid #e3e7ec; border-radius: 10px; background: #f5f6f8; }
+  .permessi-filtri label { display: flex; flex-direction: column; gap: 7px; min-width: 0; color: #606b78; font-size: 12px; font-weight: 600; }
+  .permessi-filtri input, .permessi-filtri select { width: 100%; min-width: 0; height: 42px; box-sizing: border-box; padding: 8px; border: 1px solid #dce1e8; border-radius: 7px; background: #fff; color: #202730; font: 500 13px var(--font-sans, sans-serif); }
+  .permessi-filtri-azioni { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
+  .permessi-conteggio { margin: 22px 0 8px; color: #606b78; font-size: 12px; }
+  .permessi-conteggio:empty { display: none; }
+  .permessi-registro-elenco { padding: 0; margin: 0; list-style: none; }
+  .permessi-modifica { padding: 20px 0; border-bottom: 1px solid #e3e7ec; }
+  .permessi-modifica-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #606b78; }
+  .permessi-ambito { padding: 3px 7px; border-radius: 5px; background: #f1f3f6; }
+  .permessi-modifica h3 { margin: 10px 0 0; font-size: 15px; line-height: 1.5; }
+  .permessi-oggetto { margin: 4px 0 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+  .permessi-autore { margin: 5px 0 0; color: #606b78; font-size: 12px; line-height: 1.6; }
+  .permessi-modifica details { margin-top: 10px; }
+  .permessi-modifica summary { width: fit-content; min-height: 30px; padding: 5px 0; color: #606b78; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .permessi-confronto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 10px 0 0; }
+  .permessi-confronto section { min-width: 0; padding: 16px; border-radius: 8px; background: #f5f6f8; }
+  .permessi-confronto h4 { margin: 0 0 12px; font-size: 13px; }
+  .permessi-confronto-campi { margin: 0; }
+  .permessi-confronto-campi > div + div { margin-top: 10px; }
+  .permessi-confronto dt { color: #606b78; font-size: 12px; line-height: 1.5; }
+  .permessi-confronto dd { margin: 2px 0 0; color: #202730; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .permessi-turni-dettaglio { list-style: none; padding: 0; margin: 14px 0 0; }
+  .permessi-turni-dettaglio li { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+  .permessi-vuoto-dettaglio { margin: 0; color: #606b78; font-size: 13px; line-height: 1.6; }
+  .permessi-altro { display: flex; margin: 20px auto 0; }
+  .permessi-dialog :where(button, input, select, summary, [tabindex]):focus-visible, .permessi-apri:focus-visible { outline: 3px solid #b32622; outline-offset: 3px; }
+}
+@media screen and (max-width: 700px) {
+  .permessi-dialog { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); border-radius: 12px; }
+  .permessi-testa { padding: 18px 16px 14px; gap: 12px; }
+  .permessi-testa h2 { font-size: 19px; }
+  .permessi-testa p { font-size: 12px; }
+  .permessi-tabs { padding-inline: 16px; gap: 22px; }
+  .permessi-corpo { padding: 18px 16px 22px; }
+  .permessi-toolbar { gap: 12px; align-items: flex-start; }
+  .permessi-toolbar p { font-size: 12px; }
+  .permessi-utente { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 0; }
+  .permessi-utente fieldset label { min-height: 44px; align-items: center; padding: 8px 10px; border: 1px solid #e3e7ec; border-radius: 8px; }
+  .permessi-utente input[type='checkbox'] { margin-top: 0; }
+  .permessi-utente-azioni { flex-direction: row; justify-content: flex-end; }
+  .permessi-feedback { grid-column: auto; margin-top: 0; }
+  .permessi-btn { min-height: 44px; }
+  .permessi-filtri { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; }
+  .permessi-filtri input, .permessi-filtri select { font-size: 16px; height: 44px; padding: 7px; }
+  .permessi-filtri-azioni { flex-wrap: wrap; }
+  .permessi-confronto { grid-template-columns: minmax(0, 1fr); }
+}
+@media screen and (max-width: 420px) {
+  .permessi-filtri { grid-template-columns: minmax(0, 1fr); }
+}
+@media print { .permessi-dialog, .permessi-apri { display: none !important; } }

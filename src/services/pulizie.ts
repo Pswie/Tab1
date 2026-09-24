@@ -1,4 +1,4 @@
-import { amministratore, nomeUtente } from './auth';
+import { nomeUtente, puoGestirePulizie } from './auth';
 import { isSupabaseConfigured, supabase } from './supabase';
 
 export type TipoPulizia = 'bagno' | 'settimanale' | 'mensile';
@@ -51,7 +51,7 @@ function daRiga(r: Record<string, unknown>): Pulizia {
     gruppo: (r.gruppo ? String(r.gruppo) : '') as GruppoPulizia | '',
     responsabili: Array.isArray(r.responsabili) ? r.responsabili.map(String) : [],
     responsabiliProfili: Array.isArray(r.responsabili_profili) ? r.responsabili_profili.map(String) : [],
-    assegnazioneManuale: r.origine_assegnazione === 'manuale',
+    assegnazioneManuale: r.origine_assegnazione === 'manuale' || r.programma_manuale === true,
     completata: Boolean(r.completata_il),
     completataIl: r.completata_il ? String(r.completata_il) : undefined,
     completataDa: String(r.completata_da_nome ?? ''),
@@ -206,32 +206,53 @@ export async function elencaPulizieNonFatte(): Promise<PuliziaNonFatta[]> {
 
 export interface IncongruenzaPulizia { id: string; avvisi: string[] }
 
-function clientAdminPulizie() {
-  if (!amministratore()) throw new Error('Solo l’amministratore può modificare i responsabili delle pulizie.');
+function clientGestionePulizie() {
+  if (!puoGestirePulizie()) throw new Error('Non hai il permesso di gestire le pulizie.');
   if (!isSupabaseConfigured() || !supabase) throw new Error('Collegati al servizio per gestire le pulizie condivise.');
   return supabase;
 }
 
 export async function elencaIncongruenzePulizie(periodo: PeriodoPulizie): Promise<IncongruenzaPulizia[]> {
-  const { data, error } = await clientAdminPulizie().rpc('elenca_incongruenze_pulizie', {
+  const { data, error } = await clientGestionePulizie().rpc('elenca_incongruenze_pulizie', {
     p_settimana: periodo.settimana, p_mese: `${periodo.mese}-01`
   });
-  if (error) throw new Error('Non è stato possibile verificare le assegnazioni delle pulizie. Riprova.');
+  if (error) throw new Error(error.code === '42501' ? 'Non hai più il permesso di gestire le pulizie.' : 'Non è stato possibile verificare le assegnazioni delle pulizie. Riprova.');
   return (Array.isArray(data) ? data : []).map(riga => ({
     id: String(riga.id), avvisi: Array.isArray(riga.avvisi) ? riga.avvisi.map(String) : []
   }));
 }
 
 export async function assegnaResponsabiliPulizia(id: string, profili: string[], automatico = false): Promise<Pulizia> {
-  const { data, error } = await clientAdminPulizie().rpc('assegna_responsabili_pulizia', {
+  const { data, error } = await clientGestionePulizie().rpc('assegna_responsabili_pulizia', {
     p_id: id, p_profili: [...new Set(profili)], p_automatico: automatico
   });
   if (error) {
     console.warn('Assegnazione pulizia non salvata:', error.message);
-    throw new Error(error.code === '22023' ? error.message : 'Assegnazione non salvata. Controlla la connessione e riprova.');
+    throw new Error(error.code === '42501' ? 'Non hai più il permesso di gestire le pulizie.' : error.code === '22023' ? error.message : 'Assegnazione non salvata. Controlla la connessione e riprova.');
   }
   const riga = Array.isArray(data) ? data[0] : data;
   if (!riga) throw new Error('Assegnazione non confermata. Aggiorna l’elenco prima di riprovare.');
+  const voce = daRiga(riga);
+  aggiornaLocale([voce]);
+  return voce;
+}
+
+/** Il selettore delegato espone solo nome e id, senza schede o dati amministrativi. */
+export async function elencaDipendentiPulizie(): Promise<Array<{ id: string; nome: string; aliases: string[] }>> {
+  const { data, error } = await clientGestionePulizie().rpc('elenca_dipendenti_pulizie');
+  if (error) throw new Error(error.code === '42501' ? 'Non hai più il permesso di gestire le pulizie.' : 'Elenco dipendenti non disponibile. Chiudi e riprova.');
+  if (!Array.isArray(data)) throw new Error('Elenco dipendenti non disponibile. Chiudi e riprova.');
+  return data.map(riga => ({ id: String(riga.id), nome: String(riga.nome || 'Dipendente'), aliases: Array.isArray(riga.aliases) ? riga.aliases.map(String) : [] }));
+}
+
+/** Giorno e responsabili vengono salvati insieme, con una sola operazione verificata dal server. */
+export async function modificaProgrammaPulizia(id: string, profili: string[], previstaIl: string | null): Promise<Pulizia> {
+  const { data, error } = await clientGestionePulizie().rpc('modifica_programma_pulizia', {
+    p_id: id, p_profili: [...new Set(profili)], p_prevista_il: previstaIl
+  });
+  if (error) throw new Error(error.code === '42501' ? 'Non hai più il permesso di gestire le pulizie.' : error.code === '22023' ? error.message : 'Modifica non salvata. Controlla la connessione e riprova.');
+  const riga = Array.isArray(data) ? data[0] : data;
+  if (!riga) throw new Error('Modifica non confermata. Aggiorna l’elenco prima di riprovare.');
   const voce = daRiga(riga);
   aggiornaLocale([voce]);
   return voce;

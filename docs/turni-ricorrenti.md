@@ -10,4 +10,4 @@ L’elenco è un pannello espandibile nella pagina Turni. Le schede mostrano nom
 
 Il calendario dei dipendenti conserva la presentazione esistente. Le nuove schede e i loro stili vengono caricati soltanto per l’admin. Le impostazioni non vengono memorizzate nel browser; un errore di connessione lascia la scheda da salvare e non viene presentato come un aggiornamento condiviso riuscito.
 
-In Pulizie, l’admin trova «Modifica responsabili» sulle attività ancora aperte del periodo corrente. Gli avvisi evidenziano le assegnazioni da controllare e il comando «Ripristina assegnazione automatica» riapplica il gruppo previsto. I dettagli delle regole e della migrazione sono in [Turni e pulizie](turni-e-pulizie.md).
+In Pulizie, l’admin e i dipendenti con la relativa delega trovano «Modifica pulizia» sulle attività ancora aperte del periodo corrente. Possono scegliere il giorno e i responsabili; gli avvisi evidenziano le assegnazioni da controllare. «Ripristina programma automatico» riapplica giorno e gruppo previsti. I dettagli sono in [Turni e pulizie](turni-e-pulizie.md) e [Permessi e registro](permessi-e-storico.md).

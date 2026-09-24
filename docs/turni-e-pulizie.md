@@ -48,8 +48,9 @@ conta il lunedi'. Le mensili seguono la squadra effettiva di oggi, mantenendo la
 rotazione delle attivita' tra i gruppi. La responsabilita' abituale del bagno
 resta quella preesistente: eventuali assenze vengono segnalate all'amministratore.
 
-L'amministratore puo' assegnare manualmente una voce aperta del periodo corrente
-oppure ripristinare il calcolo automatico. Una scelta manuale non viene sovrascritta
+L'amministratore, e dopo la patch dei [permessi](permessi-e-storico.md) anche
+i dipendenti da lui autorizzati, puo' assegnare manualmente una voce aperta del
+periodo corrente oppure ripristinare il calcolo automatico. Una scelta manuale non viene sovrascritta
 da cambio turno, generazione o apertura della checklist. I responsabili delle
 pulizie completate e dei periodi conclusi restano invariati.
 

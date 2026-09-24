@@ -29,6 +29,9 @@ export interface Profilo {
   /** Può aggiungere, aggiornare e togliere i turni di lavoro */
   gestioneTurni: boolean;
 
+  /** Può modificare giorni e responsabili delle pulizie aperte */
+  gestionePulizie: boolean;
+
   /** Corregge il formato abituale "1,500,45" negli importi della chiusura */
   correzioneImportiVirgole: boolean;
 }
@@ -37,12 +40,18 @@ export interface Profilo {
 const CHIAVE_PROFILO = 'tabaccheria_profilo';
 
 function ricordaProfilo(p: Profilo | null): void {
+  const precedente = profiloRicordato();
   try {
     if (p) localStorage.setItem(CHIAVE_PROFILO, JSON.stringify(p));
     else localStorage.removeItem(CHIAVE_PROFILO);
   } catch {
     // Senza LocalStorage il profilo si rilegge a ogni avvio: nessun danno
   }
+  const permessi = (profilo: Profilo | null) => JSON.stringify([
+    profilo?.id, Boolean(profilo?.accesso), Boolean(profilo?.admin),
+    Boolean(profilo?.gestioneTurni), Boolean(profilo?.gestionePulizie)
+  ]);
+  if (permessi(precedente) !== permessi(p)) window.dispatchEvent(new Event('permessi-aggiornati'));
 }
 
 function profiloRicordato(): Profilo | null {
@@ -73,6 +82,7 @@ async function leggiProfilo(id: string): Promise<Profilo | null> {
       accesso: Boolean(data.accesso),
       admin: Boolean(data.admin),
       gestioneTurni: Boolean(data.gestione_turni),
+      gestionePulizie: Boolean(data.gestione_pulizie),
       correzioneImportiVirgole: Boolean(data.correzione_importi_virgole)
     };
 
@@ -158,6 +168,44 @@ export function amministratore(): boolean {
 export function puoGestireTurni(): boolean {
   const p = profiloRicordato();
   return Boolean(p && p.accesso && (p.admin || p.gestioneTurni));
+}
+
+export function puoGestirePulizie(): boolean {
+  const p = profiloRicordato();
+  return Boolean(p && p.accesso && (p.admin || p.gestionePulizie));
+}
+
+let aggiornamentoPermessi: Promise<void> | null = null;
+let ultimoAggiornamentoPermessi = 0;
+let aggiornamentoPermessiAvviato = false;
+
+/** Aggiorna solo la visibilità dei comandi: ogni scrittura ricontrolla i permessi sul server. */
+export async function aggiornaPermessi(): Promise<void> {
+  if (!supabase || !isSupabaseConfigured()) return;
+  if (aggiornamentoPermessi) return aggiornamentoPermessi;
+  if (Date.now() - ultimoAggiornamentoPermessi < 10000) return;
+  ultimoAggiornamentoPermessi = Date.now();
+  aggiornamentoPermessi = (async () => {
+    try {
+      const { data, error } = await supabase!.auth.getSession();
+      if (error) return;
+      if (data.session?.user) await leggiProfilo(data.session.user.id);
+      else ricordaProfilo(null);
+    } catch {
+      // La consultazione offline resta disponibile; le scritture richiedono il server.
+    }
+  })().finally(() => { aggiornamentoPermessi = null; });
+  return aggiornamentoPermessi;
+}
+
+export function initAggiornamentoPermessi(): void {
+  if (aggiornamentoPermessiAvviato) return;
+  aggiornamentoPermessiAvviato = true;
+  window.addEventListener('focus', () => { void aggiornaPermessi(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void aggiornaPermessi();
+  });
+  window.setInterval(() => { if (!document.hidden) void aggiornaPermessi(); }, 60000);
 }
 
 /** Attiva la correzione del formato importi soltanto sul profilo previsto */

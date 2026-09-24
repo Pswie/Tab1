@@ -12,7 +12,7 @@ import {
   preparaTurniAutomatici,
   spostaFestaDipendente
 } from '../services/turni';
-import { amministratore, idUtente, nomeUtente, puoGestireTurni } from '../services/auth';
+import { aggiornaPermessi, amministratore, idUtente, nomeUtente, puoGestireTurni } from '../services/auth';
 import {
   formatDateLocalISO,
   getInizioSettimanaString,
@@ -618,6 +618,11 @@ async function salvaAssegnazione(cella: HTMLElement): Promise<void> {
     nomeUtente()
   );
 
+  if (!esito.suCloud) {
+    mostraAvviso('Turno non salvato. Verifica la connessione e il permesso di modificare i turni, poi riprova.');
+    return;
+  }
+
   cellaAperta = {
     data,
     fascia,
@@ -627,11 +632,6 @@ async function salvaAssegnazione(cella: HTMLElement): Promise<void> {
 
   await caricaTurni();
 
-  if (!esito.suCloud) {
-    mostraAvviso(
-      'Turno salvato solo su questo dispositivo: i colleghi non lo vedono finché non torna la connessione.'
-    );
-  }
 }
 
 async function confermaAssegnazione(cella: HTMLElement): Promise<void> {
@@ -679,13 +679,17 @@ async function confermaFerie(): Promise<void> {
     nomeUtente()
   );
 
-  ferieAperte = false;
-  profiloFerieId = null;
+  if (esito.suCloud) {
+    ferieAperte = false;
+    profiloFerieId = null;
+  }
   await caricaTurni();
 
   if (!esito.suCloud) {
     mostraAvviso(
-      'Ferie salvate solo su questo dispositivo: i colleghi non le vedono finché non torna la connessione.'
+      esito.voci.length
+        ? 'Alcuni giorni sono stati salvati, altri no. Controlla il calendario e riprova per i giorni mancanti.'
+        : 'Ferie non salvate. Verifica la connessione e il permesso di modificare i turni, poi riprova.'
     );
   }
 }
@@ -695,7 +699,7 @@ async function togliAssegnazione(id: string): Promise<void> {
 
   const suCloud = await annullaTurno(id);
   await caricaTurni();
-  mostraAvviso(suCloud ? '' : 'Turno tolto solo su questo dispositivo: i colleghi lo vedono ancora.');
+  mostraAvviso(suCloud ? '' : 'Turno non rimosso. Verifica la connessione e il permesso di modificare i turni, poi riprova.');
 }
 
 async function togliFerie(profiloId: string, persona: string): Promise<void> {
@@ -713,12 +717,13 @@ async function togliFerie(profiloId: string, persona: string): Promise<void> {
   }
 
   await caricaTurni();
-  mostraAvviso(tutteSuCloud ? '' : 'Ferie tolte solo su questo dispositivo.');
+  mostraAvviso(tutteSuCloud ? '' : 'Non tutte le ferie sono state rimosse. Controlla il calendario, la connessione e i permessi, poi riprova.');
 }
 
 /** Ricarica la settimana mostrata senza cambiare la modalità scelta. */
 export async function caricaTurni(): Promise<void> {
   if (!griglia) return;
+  await aggiornaPermessi();
   if (puoGestireTurni()) await preparaTurniAutomatici();
   turni = await elencaTurni(settimana, spostaGiorni(settimana, 6));
   render();
@@ -728,6 +733,11 @@ export function initTurni(): void {
   if (!griglia) return;
 
   if (puoGestireTurni()) void import('../turni-eccezioni.css');
+  window.addEventListener('permessi-aggiornati', () => {
+    if (puoGestireTurni()) void import('../turni-eccezioni.css');
+    else { cellaAperta = null; spostamentoFesta = null; ferieAperte = false; }
+    render();
+  });
   if (amministratore()) {
     void import('./schedeTurniUI').then(({ initSchedeTurni }) => initSchedeTurni(async () => {
       await caricaTurni();

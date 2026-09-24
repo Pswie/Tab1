@@ -48,7 +48,7 @@ export interface TurnoLavoro {
 
 export interface EsitoTurno {
   voci: TurnoLavoro[];
-  /** false = salvato solo in locale, i colleghi non lo vedono. */
+  /** true solo quando il server ha confermato la modifica condivisa. */
   suCloud: boolean;
 }
 
@@ -173,9 +173,10 @@ function nelPeriodo(voce: TurnoLavoro, dal: string, al: string): boolean {
 
 function stessaAssegnazione(a: TurnoLavoro, b: TurnoLavoro): boolean {
   if (a.id && a.id === b.id) return true;
-  if (a.data !== b.data || a.fascia !== b.fascia) return false;
+  if (a.data !== b.data) return false;
 
   if (a.profiloId && b.profiloId) return a.profiloId === b.profiloId;
+  if (a.fascia !== b.fascia) return false;
   return a.persona.localeCompare(b.persona, 'it', { sensitivity: 'base' }) === 0;
 }
 
@@ -327,8 +328,9 @@ export async function impostaTurnoDipendente(
   dipendente: DipendenteTurni,
   nota = '',
   rendiStabile = false,
-  autore = ''
+  _autore = ''
 ): Promise<EsitoTurno> {
+  if (!puoGestireTurni()) return { voci: [], suCloud: false };
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase.rpc('imposta_turno_dipendente', {
@@ -349,31 +351,18 @@ export async function impostaTurnoDipendente(
         }
 
         if (voci.length > 0) unisciLocale(voci);
-        return { voci: inOrdine(voci), suCloud: true };
+        return { voci: inOrdine(voci), suCloud: voci.length > 0 };
       }
 
-      console.warn('Turno salvato solo in locale:', error.message);
+      console.warn('Turno non salvato:', error.message);
     } catch (errore) {
       console.warn('Eccezione salvataggio turno:', errore);
     }
   }
 
-  const voce: TurnoLavoro = {
-    id: `loc-${dataTurno}-${fascia}-${dipendente.id}`,
-    data: dataTurno,
-    fascia,
-    profiloId: dipendente.id,
-    persona: dipendente.nome,
-    nota,
-    // Senza server non si può davvero modificare la squadra ricorrente: resta
-    // un'eccezione manuale locale e l'avviso in UI lo rende esplicito.
-    origine: 'manuale',
-    annullato: false,
-    scrittoDa: autore
-  };
-
-  unisciLocale([voce]);
-  return { voci: [voce], suCloud: false };
+  // Le modifiche devono essere autorizzate e conservate dal server. Una
+  // connessione assente o un permesso revocato non modificano la copia locale.
+  return { voci: [], suCloud: false };
 }
 
 /** Assegna lo stesso dipendente per più giorni, usato per le ferie. */
@@ -402,7 +391,7 @@ export async function impostaPeriodoDipendente(
       autore
     );
     voci.push(...esito.voci);
-    if (!esito.suCloud) tutteSuCloud = false;
+    if (!esito.suCloud) { tutteSuCloud = false; break; }
   }
 
   return { voci: inOrdine(voci), suCloud: tutteSuCloud };
@@ -410,12 +399,10 @@ export async function impostaPeriodoDipendente(
 
 /** Annulla una singola assegnazione tramite la funzione protetta sul server. */
 export async function annullaTurno(id: string): Promise<boolean> {
+  if (!puoGestireTurni()) return false;
   const scriviSenza = () => scriviLocale(leggiLocale().filter(voce => voce.id !== id));
 
-  if (id.startsWith('loc-')) {
-    scriviSenza();
-    return false;
-  }
+  if (id.startsWith('loc-')) return false;
 
   if (isSupabaseConfigured() && supabase) {
     try {
@@ -432,7 +419,6 @@ export async function annullaTurno(id: string): Promise<boolean> {
     }
   }
 
-  scriviSenza();
   return false;
 }
 

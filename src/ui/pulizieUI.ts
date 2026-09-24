@@ -12,7 +12,7 @@ import {
   getTodayDateString
 } from '../utils/calculations';
 import { isSupabaseConfigured } from '../services/supabase';
-import { amministratore } from '../services/auth';
+import { aggiornaPermessi, puoGestirePulizie } from '../services/auth';
 import type { GestionePulizie } from './gestionePulizieUI';
 
 type VistaPulizie = 'bagno' | 'settimanali' | 'mensili';
@@ -24,6 +24,17 @@ let pulizie: Pulizia[] = [];
 let idInSalvataggio = '';
 let recuperoStoricoFatto = false;
 let gestionePulizie: GestionePulizie | null = null;
+let gestioneInCaricamento: Promise<void> | null = null;
+
+async function preparaGestionePulizie(): Promise<void> {
+  if (!puoGestirePulizie() || gestionePulizie || !pannello) return;
+  if (gestioneInCaricamento) return gestioneInCaricamento;
+  gestioneInCaricamento = import('./gestionePulizieUI').then(({ initGestionePulizie }) => {
+    gestionePulizie = initGestionePulizie(pannello, caricaPulizie);
+    gestionePulizie?.aggiorna(pulizie, periodo());
+  }).finally(() => { gestioneInCaricamento = null; });
+  return gestioneInCaricamento;
+}
 
 const PRIMA_SETTIMANA_PULIZIE = '2026-08-10';
 const PRIMO_MESE_PULIZIE = '2026-08';
@@ -170,22 +181,29 @@ function rigaHtml(voce: Pulizia): string {
   const blocco = fuoriPeriodo
     ? (oggi > voce.periodoFine ? 'Periodo concluso' : 'Periodo non ancora iniziato')
     : '';
+  const giornoPrevisto = voce.previstaIl
+    ? new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).format(dataLocale(voce.previstaIl))
+    : '';
+  const titolo = voce.tipo === 'bagno' && giornoPrevisto
+    ? giornoPrevisto.charAt(0).toUpperCase() + giornoPrevisto.slice(1)
+    : voce.voce;
 
   return `
     <article class="${classi}" data-pulizia-id="${escapeHtml(voce.id)}">
       <button type="button" class="pulizia-check" data-action="completa-pulizia"
               data-id="${escapeHtml(voce.id)}" aria-pressed="${String(voce.completata)}"
-              aria-label="${escapeHtml(voce.voce)}: ${blocco || (voce.completata ? 'togli la X' : 'metti la X')}"
+              aria-label="${escapeHtml(titolo)}: ${blocco || (voce.completata ? 'togli la X' : 'metti la X')}"
               ${salvando || fuoriPeriodo ? `disabled${salvando ? ' aria-busy="true"' : ''}` : ''}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
       </button>
       <div class="pulizia-corpo">
         <div class="pulizia-riga-testa">
-          <span class="pulizia-nome">${escapeHtml(voce.voce)}</span>
+          <span class="pulizia-nome">${escapeHtml(titolo)}</span>
           <span class="pulizia-stato">${stato}</span>
         </div>
         ${responsabiliHtml}
+        ${voce.tipo !== 'bagno' && giornoPrevisto ? `<p class="pulizia-firma">Prevista ${escapeHtml(giornoPrevisto)}</p>` : ''}
         ${voce.completata && voce.completataIl
           ? `<p class="pulizia-firma">Segnata da ${escapeHtml(voce.completataDa || 'Dipendente')} · ${escapeHtml(dataOra(voce.completataIl))}</p>`
           : ''}
@@ -261,7 +279,7 @@ function render(): void {
       : settimana <= PRIMA_SETTIMANA_PULIZIE;
   }
 
-  if (listaBagno) listaBagno.innerHTML = listaHtml(voci('bagno'));
+  if (listaBagno) listaBagno.innerHTML = listaHtml(voci('bagno').sort((a, b) => (a.previstaIl ?? '').localeCompare(b.previstaIl ?? '')));
   if (listaMattina) listaMattina.innerHTML = listaHtml(voci('settimanale').filter(v => v.turno === 'mattina'));
   if (listaPomeriggio) listaPomeriggio.innerHTML = listaHtml(voci('settimanale').filter(v => v.turno === 'pomeriggio'));
   if (gruppiMensili) gruppiMensili.innerHTML = gruppoHtml('gruppo-1') + gruppoHtml('gruppo-2');
@@ -272,6 +290,9 @@ function render(): void {
 
 export async function caricaPulizie(): Promise<void> {
   if (!pannello) return;
+
+  await aggiornaPermessi();
+  await preparaGestionePulizie();
 
   pannello.classList.add('is-caricamento');
   mostraAvviso('');
@@ -313,12 +334,11 @@ async function cambiaPeriodo(direzione: number): Promise<void> {
 export function initPulizie(): void {
   if (!pannello) return;
 
-  if (amministratore()) {
-    void import('./gestionePulizieUI').then(({ initGestionePulizie }) => {
-      gestionePulizie = initGestionePulizie(pannello, caricaPulizie);
-      gestionePulizie?.aggiorna(pulizie, periodo());
-    });
-  }
+  void preparaGestionePulizie();
+  window.addEventListener('permessi-aggiornati', () => {
+    void preparaGestionePulizie();
+    render();
+  });
 
   pulsantiVista.forEach(btn => {
     btn.addEventListener('click', () => {

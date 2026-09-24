@@ -18,6 +18,9 @@
   .pulizia-assegna-testa h2 { margin: 0; font-size: 19px; line-height: 1.4; overflow-wrap: anywhere; }
   .pulizia-assegna-contesto { margin: 6px 0 0; font-size: 12px; color: var(--text-secondary); }
   .pulizia-assegna-nota { margin: 18px 0; color: var(--text-secondary); font-size: 13px; line-height: 1.65; }
+  .pulizia-assegna-data { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 700; }
+  .pulizia-assegna-data input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; background: #fff; color: var(--text-primary); border: 1px solid var(--border-pearl, #e3e7ec); border-radius: 8px; font: inherit; font-weight: 400; }
+  .pulizia-assegna-data-nota { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
   .pulizia-assegna-avvisi { margin: 12px 0; padding: 12px; border: 1px solid #ecd6a7; border-radius: 8px; background: #fff9ec; color: #85510d; font-size: 13px; line-height: 1.6; }
   .pulizia-assegna-dialog fieldset { padding: 0; margin: 20px 0 0; border: 0; min-width: 0; }
   .pulizia-assegna-dialog legend { margin-bottom: 10px; font-size: 13px; font-weight: 700; }
@@ -35,6 +38,7 @@
   .pulizia-assegna-dialog { padding: 18px; }
   .pulizia-assegna-persone { grid-template-columns: minmax(0, 1fr); }
   .pulizia-gestione-btn { min-height: 44px; }
+  .pulizia-assegna-data input { font-size: 16px; }
 }
 @media print {
   .pulizia-gestione, .pulizie-verifica-admin, .pulizia-assegna-dialog { display: none !important; }

@@ -49,7 +49,7 @@ import {
 import { caricaDashboardH24, initDashboardH24 } from './ui/h24DashboardUI';
 import { segnala } from './ui/segnalazioni';
 import { initAccesso } from './ui/accessoUI';
-import { amministratore, correggiImportiConVirgole, nomeUtente } from './services/auth';
+import { amministratore, correggiImportiConVirgole, initAggiornamentoPermessi, nomeUtente } from './services/auth';
 import {
   attivaNotifiche,
   avvisaGliAltri,
@@ -1677,6 +1677,7 @@ async function initApp() {
   currentShift = getActiveShift();
 
   setupEventListeners();
+  initAggiornamentoPermessi();
   navigator.serviceWorker?.addEventListener('message', evento => {
     if (evento.data?.tipo !== 'apri-notifica') return;
     const url = new URL(String(evento.data.url || '/'), window.location.origin);
@@ -1705,6 +1706,8 @@ async function initApp() {
       schedaDaAprire?.(id);
       window.scrollTo({ top: 0, behavior: 'instant' });
     });
+    const { initPermessiUtenti } = await import('./ui/permessiUtentiUI');
+    initPermessiUtenti();
   }
 
   // I distributori sono roba di chi amministra: a un dipendente non deve
