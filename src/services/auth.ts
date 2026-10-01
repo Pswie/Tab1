@@ -254,3 +254,46 @@ export async function esci(): Promise<void> {
   ricordaProfilo(null);
   if (supabase) await supabase.auth.signOut();
 }
+
+/**
+ * Invia un'email all'indirizzo indicato con il link per reimpostare la password.
+ */
+export async function inviaRecuperoPassword(email: string): Promise<string | null> {
+  if (!supabase) return 'Accesso non configurato';
+
+  const emailPulita = email.trim();
+  if (!emailPulita) return 'Inserisci un indirizzo email valido.';
+
+  // Indirizzo base dell'app senza frammenti o parametri
+  const redirectTo = window.location.origin + window.location.pathname;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(emailPulita, {
+    redirectTo
+  });
+
+  if (!error) return null;
+
+  const msg = error.message.toLowerCase();
+  if (msg.includes('rate limit') || msg.includes('once every') || msg.includes('too many requests')) {
+    return 'Troppe richieste: attendi circa un minuto prima di richiedere un nuovo link.';
+  }
+
+  return error.message;
+}
+
+/**
+ * Aggiorna la password dell'utente autenticato o in sessione di recupero.
+ */
+export async function impostaNuovaPassword(password: string): Promise<string | null> {
+  if (!supabase) return 'Accesso non configurato';
+
+  if (!password || password.length < 6) {
+    return 'La password deve avere almeno 6 caratteri.';
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (!error) return null;
+
+  return error.message;
+}

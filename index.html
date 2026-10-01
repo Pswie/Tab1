@@ -69,9 +69,58 @@
                    minlength="6" placeholder="Almeno 6 caratteri" />
           </label>
 
+          <div class="accesso-recupero-link-box" id="blocco-link-recupero">
+            <button type="button" class="accesso-link-testo" id="btn-apri-recupero">Password dimenticata?</button>
+          </div>
+
           <p class="accesso-errore is-hidden" id="accesso-errore"></p>
 
           <button type="submit" class="accesso-invio" id="accesso-invio">Entra</button>
+        </form>
+      </div>
+
+      <!-- Richiesta recupero password dipendenti -->
+      <div class="accesso-blocco is-hidden" id="accesso-recupero">
+        <h2 class="accesso-blocco-titolo">Recupero password</h2>
+        <p class="accesso-nota">Inserisci la tua email. Ti invieremo un link per creare una nuova password.</p>
+
+        <form class="accesso-campi" id="recupero-form">
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Email</span>
+            <input type="email" id="recupero-email" autocomplete="email" required placeholder="nome@esempio.it" />
+          </label>
+
+          <p class="accesso-errore is-hidden" id="recupero-errore"></p>
+          <p class="accesso-successo is-hidden" id="recupero-successo"></p>
+
+          <button type="submit" class="accesso-invio" id="recupero-invio">Invia link di recupero</button>
+          <button type="button" class="accesso-testo" id="btn-annulla-recupero">Torna ad Accedi</button>
+        </form>
+      </div>
+
+      <!-- Impostazione nuova password dopo click su link email -->
+      <div class="accesso-blocco is-hidden" id="accesso-nuova-password">
+        <h2 class="accesso-blocco-titolo">Nuova password</h2>
+        <p class="accesso-nota">Crea una nuova password sicura per il tuo account (almeno 6 caratteri).</p>
+
+        <form class="accesso-campi" id="nuova-password-form">
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Nuova password</span>
+            <input type="password" id="nuova-password-valore" autocomplete="new-password" required
+                   minlength="6" placeholder="Almeno 6 caratteri" />
+          </label>
+
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Conferma password</span>
+            <input type="password" id="nuova-password-conferma" autocomplete="new-password" required
+                   minlength="6" placeholder="Ripeti la password" />
+          </label>
+
+          <p class="accesso-errore is-hidden" id="nuova-password-errore"></p>
+          <p class="accesso-successo is-hidden" id="nuova-password-successo"></p>
+
+          <button type="submit" class="accesso-invio" id="nuova-password-invio">Salva nuova password</button>
+          <button type="button" class="accesso-testo" id="btn-annulla-nuova-password">Torna ad Accedi</button>
         </form>
       </div>
 
@@ -126,6 +175,16 @@
         <strong id="menu-utente-saluto"></strong>
         <small id="menu-utente-mail"></small>
       </span>
+    </div>
+    <div class="menu-utente-azioni" id="menu-utente-azioni" hidden>
+      <button type="button" class="menu-utente-btn" id="btn-menu-cambia-password">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Cambia password</span>
+      </button>
+      <button type="button" class="menu-utente-btn menu-utente-btn-esci" id="btn-menu-esci">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        <span>Esci</span>
+      </button>
     </div>
 
     <!-- Il menu è diviso in due: sopra la tabaccheria, sotto i distributori.
@@ -1674,6 +1733,38 @@
       </section>
     </div>
   </main>
+
+  <!-- Modal Cambio Password per Utente Autenticato -->
+  <div id="cambio-password-dialog" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" inert
+       aria-labelledby="cambio-password-titolo">
+    <div class="modal-container cambio-password-modal-box" role="document">
+      <div class="modal-header">
+        <h2 id="cambio-password-titolo" class="modal-title">Cambia la tua password</h2>
+        <button type="button" id="btn-chiudi-cambio-password" class="btn-close-modal" aria-label="Chiudi">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="accesso-nota" style="text-align: left; margin: 0 0 1rem;">
+          Inserisci la nuova password per il tuo account (almeno 6 caratteri).
+        </p>
+        <form class="accesso-campi" id="form-dialog-cambio-password">
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Nuova password</span>
+            <input type="password" id="dialog-nuova-password" required minlength="6" autocomplete="new-password" placeholder="Almeno 6 caratteri" />
+          </label>
+          <label class="accesso-campo">
+            <span class="accesso-etichetta">Conferma nuova password</span>
+            <input type="password" id="dialog-conferma-password" required minlength="6" autocomplete="new-password" placeholder="Ripeti la password" />
+          </label>
+          <p class="accesso-errore is-hidden" id="dialog-password-errore"></p>
+          <p class="accesso-successo is-hidden" id="dialog-password-successo"></p>
+          <div class="modal-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+            <button type="button" id="btn-annulla-dialog-password" class="btn-secondary-action">Annulla</button>
+            <button type="submit" id="btn-invia-dialog-password" class="todo-add-btn">Aggiorna password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <!-- Dopo le 15 una fattura toccata nel turno mattina e' probabilmente del
        pomeriggio: la scelta esplicita evita di correggere il turno sbagliato. -->
