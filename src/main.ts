@@ -1564,9 +1564,19 @@ function setupEventListeners() {
 
   // Stampa diretta del documento contabile, senza passare da un'anteprima
   if (btnPrintDocument) {
-    btnPrintDocument.addEventListener('click', () => {
-      fillPrintDocument();
-      window.print();
+    btnPrintDocument.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        fillPrintDocument();
+        if (typeof window.print === 'function') {
+          window.print();
+        } else {
+          alert("La stampa non è disponibile in questa visualizzazione (es. browser interno di WhatsApp). Apri il sito direttamente in Safari o Chrome.");
+        }
+      } catch (err) {
+        console.error('Errore durante la preparazione della stampa:', err);
+        try { window.print(); } catch {}
+      }
     });
   }
 }
@@ -1602,6 +1612,11 @@ function riempiFatturePerStampa(turno: ShiftKey, values: ShiftValues) {
  * Il foglio resta nascosto a schermo e viene reso visibile solo da @media print.
  */
 function fillPrintDocument() {
+  // Assicura che sia il foglio contabile a essere pronto per la stampa
+  document.querySelectorAll('.print-host').forEach(host => {
+    host.classList.toggle('is-printing', host.id === 'print-document-host');
+  });
+
   syncCurrentShiftFromInputs();
 
   const { mattina, pomeriggio } = shiftData;
