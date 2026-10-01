@@ -1,9 +1,7 @@
-import { accedi, esci, registrati, statoAccesso } from '../services/auth';
 import { accedi, esci, impostaNuovaPassword, inviaRecuperoPassword, registrati, statoAccesso } from '../services/auth';
 import { supabase } from '../services/supabase';
 
 /**
- * Schermata di accesso.
  * Schermata di accesso e gestione credenziali.
  *
  * Copre l'app finché non si sa chi la sta usando: le pagine non devono
@@ -120,7 +118,6 @@ function mostraSaluto(nome: string, email = ''): void {
   if (mailUtente) mailUtente.textContent = email;
 }
 
-function mostraBlocco(quale: 'caricamento' | 'modulo' | 'negato'): void {
 function mostraBlocco(quale: BloccoAccesso): void {
   bloccoCaricamento?.classList.toggle('is-hidden', quale !== 'caricamento');
   bloccoModulo?.classList.toggle('is-hidden', quale !== 'modulo');
