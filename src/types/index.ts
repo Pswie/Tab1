@@ -27,6 +27,25 @@ export interface InventarioGiornata {
   salvatoDa?: string;
 }
 
+/** Sintesi di una sessione di inventario nello storico */
+export interface InventarioSintesi {
+  date: string;
+  dataFormattata: string;
+  grattaEVinci: GrattaEVinciConta[];
+  sigarette: SigaretteConta[];
+  grattaTotaleEuro: number;
+  grattaMancantiEuro: number;
+  grattaInPiuEuro: number;
+  grattaVociDiff: number;
+  sigaretteMancantiStecche: number;
+  sigaretteMancantiPacchetti: number;
+  sigaretteInPiuStecche: number;
+  sigaretteInPiuPacchetti: number;
+  sigaretteVociDiff: number;
+  conteggioTotaleVoci: number;
+  updatedAt?: string;
+}
+
 /** Filtro attivo nella lista delle attività */
 export type TodoFilter = 'da-fare' | 'fatte';
 
