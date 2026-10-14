@@ -3389,19 +3389,89 @@ body {
   color: var(--text-primary);
 }
 
+.inv-admin-date[hidden] {
+  display: none !important;
+}
+
 .inv-admin-date input[type="date"] {
   height: 34px;
   padding: 0 0.5rem;
   font-size: 0.85rem;
+  font-family: var(--font-sans);
   border: 1px solid var(--border-pearl);
   border-radius: 6px;
   background: #FFFFFF;
+  color: var(--text-primary);
 }
 
 .inv-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+}
+
+.inv-header-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inv-header-actions .btn-latex-export,
+.btn-latex-export.is-compact {
+  height: 38px;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  gap: 0.35rem;
+  border-radius: 8px;
+}
+
+.inv-header-actions .btn-secondary-action,
+.btn-secondary-action.is-compact {
+  height: 38px;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  gap: 0.35rem;
+  border-radius: 8px;
+}
+
+@media (max-width: 640px) {
+  .inv-header-bar {
+    padding: 0.75rem 0.85rem;
+    gap: 0.55rem;
+  }
+
+  .inv-date-info {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .inv-date-val {
+    font-size: 0.95rem;
+  }
+
+  .inv-header-actions {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.15rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--border-light);
+  }
+
+  .inv-header-buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .inv-header-actions .btn-latex-export,
+  .inv-header-actions .btn-secondary-action {
+    height: 34px;
+    padding: 0 0.65rem;
+    font-size: 0.8rem;
+    gap: 0.3rem;
+  }
 }
 
 .inv-historical-banner {
