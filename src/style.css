@@ -2440,16 +2440,24 @@ body {
     display: none !important;
   }
 
-  /* Dei due fogli si stampa solo quello marcato */
+  /* Dei fogli di stampa si mostra unicamente quello mirato */
   .print-host {
     display: none !important;
   }
 
-  /* Il foglio è alto quanto il suo contenuto e nulla più.
-     Imporgli l'altezza esatta di una A4 faceva uscire una seconda pagina
-     bianca ogni volta che la stampante applicava i propri margini: la parte
-     bassa del riquadro, vuota, non ci stava più e traboccava. */
-  #print-document-host.is-printing {
+  /* Supporto stampa mirata tramite data-print-target */
+  body[data-print-target="inventario"] #print-document-host {
+    display: none !important;
+  }
+  body[data-print-target="inventario"] #print-inventario-host {
+    display: block !important;
+    position: relative !important;
+    width: auto !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body:not([data-print-target="inventario"]) #print-document-host {
     display: block !important;
     position: relative !important;
     width: auto !important;
@@ -2460,11 +2468,15 @@ body {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  body:not([data-print-target="inventario"]) #print-inventario-host {
+    display: none !important;
+  }
 
-  #print-inventario-host.is-printing {
-    display: block !important;
-    width: auto !important;
-    max-width: 100% !important;
+  /* Quando si stampa l'inventario, permetti lo scorrimento multi-pagina naturale */
+  body[data-print-target="inventario"],
+  body[data-print-target="inventario"] html {
+    overflow: visible !important;
+    height: auto !important;
   }
 
   /* L'inventario puo' occupare piu' pagine: non va ritagliato */
@@ -2553,6 +2565,108 @@ body {
     color: #E10600 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* --- Stili Foglio Stampa Inventario ------------------------------------ */
+  .doc-inv-sommario {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin: 12px 0 16px 0 !important;
+  }
+
+  .doc-inv-card {
+    border: 1px solid #D1D5DB !important;
+    border-radius: 4px !important;
+    padding: 8px 10px !important;
+    background: #FAFAFA !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-inv-card.is-manca {
+    border-color: #FCA5A5 !important;
+    background: #FEF2F2 !important;
+  }
+
+  .doc-inv-card.is-in-piu {
+    border-color: #A7F3D0 !important;
+    background: #ECFDF5 !important;
+  }
+
+  .doc-inv-card-label {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    color: #4B5563 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .doc-inv-card-valore {
+    font-family: var(--font-mono), monospace !important;
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    color: #111827 !important;
+  }
+
+  .doc-inv-card-sub {
+    font-size: 0.7rem !important;
+    color: #6B7280 !important;
+    margin-top: 2px !important;
+  }
+
+  .doc-inv-card.is-manca .doc-inv-card-valore {
+    color: #DC2626 !important;
+  }
+
+  .doc-inv-card.is-in-piu .doc-inv-card-valore {
+    color: #059669 !important;
+  }
+
+  .doc-badge-manca {
+    display: inline-block !important;
+    padding: 2px 6px !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    border-radius: 3px !important;
+    background: #FEE2E2 !important;
+    color: #B91C1C !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-badge-in-piu {
+    display: inline-block !important;
+    padding: 2px 6px !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    border-radius: 3px !important;
+    background: #D1FAE5 !important;
+    color: #047857 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .doc-cifra-manca {
+    font-weight: 800 !important;
+    color: #DC2626 !important;
+    font-family: var(--font-mono), monospace !important;
+  }
+
+  .doc-cifra-in-piu {
+    font-weight: 800 !important;
+    color: #059669 !important;
+    font-family: var(--font-mono), monospace !important;
+  }
+
+  .doc-inv-timestamp-footer {
+    margin-top: 18px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid #E5E7EB !important;
+    font-size: 0.72rem !important;
+    color: #6B7280 !important;
+    text-align: right !important;
   }
 }
 
@@ -2895,6 +3009,208 @@ body {
    Le scatole moltiplicate per 160 articoli fanno rumore e nascondono i dati.
    ========================================================================== */
 
+/* --- Barra di Sessione Attiva Inventario --------------------------------- */
+.inv-active-date-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.inv-active-date-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.inv-date-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.inv-date-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-mono), monospace;
+}
+
+.inv-save-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.inv-save-badge.is-saved {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.inv-save-badge.is-saving {
+  background: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.inv-date-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --- Schede Storico Inventari (Riservato Admin) --------------------------- */
+.inv-storico-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inv-storico-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inv-storico-card {
+  background: var(--surface-card, #FFFFFF);
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1.25rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.inv-storico-card:hover {
+  border-color: var(--text-muted, #94A3B8);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.inv-storico-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-light, #F1F5F9);
+}
+
+.inv-storico-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.inv-storico-badge-recent {
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.inv-storico-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.inv-storico-section-box {
+  background: var(--bg-pearl-warm, #F8FAFC);
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.75rem 0.9rem;
+}
+
+.inv-storico-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inv-kpi-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.inv-kpi-row:last-child {
+  margin-bottom: 0;
+}
+
+.inv-kpi-label {
+  color: var(--text-secondary);
+}
+
+.inv-kpi-valore {
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+}
+
+.inv-kpi-valore.is-negative {
+  color: #DC2626;
+}
+
+.inv-kpi-valore.is-positive {
+  color: #059669;
+}
+
+.inv-storico-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-light, #E2E8F0);
+}
+
+.inv-storico-timestamp {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.inv-storico-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .inv-selector {
   display: inline-flex;
   gap: 0.25rem;
@@ -2938,6 +3254,13 @@ body {
 
 .inv-pane.is-active {
   display: block;
+}
+
+.inv-tab[hidden],
+.inv-pane[hidden],
+.solo-admin[hidden],
+[hidden] {
+  display: none !important;
 }
 
 .inv-hint {

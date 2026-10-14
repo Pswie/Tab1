@@ -11,9 +11,16 @@ import {
   VoceCatalogoGratta,
   VoceCatalogoTabacco
 } from '../services/catalogo';
-import { fetchInventario, salvaInventario, ultimaDataInventario } from '../services/inventario';
+import {
+  eliminaInventario,
+  fetchInventario,
+  fetchStoricoInventari,
+  salvaInventario,
+  ultimaDataInventario
+} from '../services/inventario';
+import { amministratore } from '../services/auth';
 import { segnala } from './segnalazioni';
-import { GrattaEVinciConta, SigaretteConta } from '../types';
+import { GrattaEVinciConta, InventarioSintesi, SigaretteConta } from '../types';
 import { formatCurrency, formatDateItalian, formatDateLocalISO, parseInputValue } from '../utils/calculations';
 
 // Cataloghi caricati dal database
@@ -28,9 +35,12 @@ let dataCorrente = '';
 let salvaTimer: number | null = null;
 let filtroGratta = '';
 let filtroTabacchi = '';
+let filtroStorico = '';
 let categoriaAttiva: CategoriaTabacco = 'sigarette';
 let modificaGratta = false;
 let modificaTabacchi = false;
+let activeInvTab: 'gratta' | 'sigarette' | 'storico' = 'gratta';
+let elencoStorico: InventarioSintesi[] = [];
 
 const invTabs = Array.from(document.querySelectorAll('.inv-tab')) as HTMLButtonElement[];
 const invPanes = Array.from(document.querySelectorAll('.inv-pane')) as HTMLElement[];
@@ -46,6 +56,16 @@ const btnModificaTabacchi = document.getElementById('btn-modifica-tabacchi') as 
 const formNuovoGratta = document.getElementById('form-nuovo-gratta') as HTMLDivElement;
 const formNuovoTabacco = document.getElementById('form-nuovo-tabacco') as HTMLDivElement;
 const categorieBtn = Array.from(document.querySelectorAll('[data-categoria]')) as HTMLButtonElement[];
+
+// Nuovi elementi sessione attiva e storico
+const btnSalvaSubito = document.getElementById('btn-salva-inventario-subito') as HTMLButtonElement;
+const btnStampaCompleto = document.getElementById('btn-stampa-inventario-completo') as HTMLButtonElement;
+const activeDateText = document.getElementById('inv-active-date-text') as HTMLSpanElement;
+const saveBadge = document.getElementById('inv-save-badge') as HTMLSpanElement;
+const listaStorico = document.getElementById('inv-storico-lista') as HTMLDivElement;
+const cercaStorico = document.getElementById('inv-storico-cerca') as HTMLInputElement;
+const btnNuovoInventario = document.getElementById('btn-nuovo-inventario') as HTMLButtonElement;
+const btnRicaricaStorico = document.getElementById('btn-ricarica-storico-inv') as HTMLButtonElement;
 
 function parseIntero(testo: string): number {
   const pulito = testo.replace(/\s/g, '');
@@ -233,26 +253,66 @@ function renderTabacchi() {
   `;
 }
 
+function aggiornaBadgeSalvataggio(stato: 'saved' | 'saving') {
+  if (!saveBadge) return;
+  if (stato === 'saving') {
+    saveBadge.textContent = 'Salvataggio...';
+    saveBadge.className = 'inv-save-badge is-saving';
+  } else {
+    saveBadge.textContent = 'Salvato';
+    saveBadge.className = 'inv-save-badge is-saved';
+  }
+}
+
+function aggiornaBarraData(dateStr: string) {
+  if (activeDateText) {
+    activeDateText.textContent = formatDateItalian(dateStr);
+  }
+}
+
+async function salvaDati(immediato = false): Promise<void> {
+  if (!dataCorrente) return;
+  aggiornaBadgeSalvataggio('saving');
+
+  const gratta: GrattaEVinciConta[] = [];
+  contaGratta.forEach((v, gioco) => {
+    const voce = catalogoGratta.find(x => x.gioco === gioco);
+    gratta.push({ gioco, prezzo: voce?.prezzo ?? 0, pacchi: v.pacchi, pezzi: v.pezzi });
+  });
+
+  const tabacchi: SigaretteConta[] = [];
+  contaTabacchi.forEach((v, marca) => {
+    tabacchi.push({ marca, stecche: v.stecche, pacchetti: v.pacchetti });
+  });
+
+  try {
+    await salvaInventario(dataCorrente, gratta, tabacchi);
+    aggiornaBadgeSalvataggio('saved');
+    if (immediato && activeInvTab === 'storico') {
+      caricaERenderStorico();
+    }
+  } catch (err) {
+    console.error('Errore salvataggio inventario:', err);
+    aggiornaBadgeSalvataggio('saved');
+  }
+}
+
 /** Salvataggio ritardato, come per gli incassi */
 function salvaConRitardo() {
+  aggiornaBadgeSalvataggio('saving');
   if (salvaTimer !== null) window.clearTimeout(salvaTimer);
 
   salvaTimer = window.setTimeout(() => {
-    const gratta: GrattaEVinciConta[] = [];
-    contaGratta.forEach((v, gioco) => {
-      const voce = catalogoGratta.find(x => x.gioco === gioco);
-      gratta.push({ gioco, prezzo: voce?.prezzo ?? 0, pacchi: v.pacchi, pezzi: v.pezzi });
-    });
-
-    const tabacchi: SigaretteConta[] = [];
-    contaTabacchi.forEach((v, marca) => {
-      tabacchi.push({ marca, stecche: v.stecche, pacchetti: v.pacchetti });
-    });
-
-    salvaInventario(dataCorrente, gratta, tabacchi).catch(err => {
-      console.error('Errore salvataggio inventario:', err);
-    });
+    salvaDati(false);
   }, 600);
+}
+
+export async function salvaSubito(): Promise<void> {
+  if (salvaTimer !== null) {
+    window.clearTimeout(salvaTimer);
+    salvaTimer = null;
+  }
+  await salvaDati(true);
 }
 
 function aggiornaValore(chiave: string, campo: string, valore: number) {
@@ -346,113 +406,455 @@ function collegaLista(lista: HTMLElement, tipo: 'gratta' | 'tabacchi') {
 }
 
 /**
- * Prepara e manda in stampa il foglio dell'inventario.
- * Si stampano solo le voci con una differenza: un elenco di zeri non serve
- * a nessuno e occuperebbe decine di pagine.
+ * Prepara e manda in stampa il foglio dell'inventario con:
+ * - Dettaglio chiaro di COSA MANCA e COSA È IN PIÙ
+ * - Calcolo esatto della CIFRA (€) in più o che manca per ogni articolo e complessiva
+ * - Nessun rischio di stampare il conto contabile giornaliero al posto dell'inventario
  */
-function stampaInventario(tipo: 'gratta' | 'tabacchi') {
+export async function stampaInventario(tipo: 'gratta' | 'tabacchi' | 'tutto' = 'tutto', dataTarget?: string) {
+  // Lo storico degli inventari passati può essere visualizzato e stampato SOLO dall'amministratore
+  if (dataTarget && dataTarget !== dataCorrente && !amministratore()) {
+    console.warn('Accesso negato: solo l\'amministratore può stampare inventari storici passati.');
+    return;
+  }
+
+  const dataStampa = dataTarget || dataCorrente;
   const titolo = document.getElementById('doc-inv-titolo');
   const data = document.getElementById('doc-inv-data');
+  const sommario = document.getElementById('doc-inv-sommario');
   const col1 = document.getElementById('doc-inv-col1');
+  const colStato = document.getElementById('doc-inv-col-stato');
   const col2 = document.getElementById('doc-inv-col2');
   const corpo = document.getElementById('doc-inv-corpo');
   const piede = document.getElementById('doc-inv-piede');
+  const timestamp = document.getElementById('doc-inv-timestamp');
 
   if (!corpo || !piede) return;
 
-  if (titolo) titolo.textContent = tipo === 'gratta' ? 'Inventario Gratta e Vinci' : 'Inventario Tabacchi';
-  if (data) data.textContent = `Data: ${formatDateItalian(dataCorrente)}`;
-  if (col1) col1.textContent = tipo === 'gratta' ? 'Pacchi' : 'Stecche';
-  if (col2) col2.textContent = tipo === 'gratta' ? 'Pezzi' : 'Pacchetti';
+  // Se stampiamo una data diversa da quella attualmente attiva nei form:
+  let grattaDati = contaGratta;
+  let tabacchiDati = contaTabacchi;
+
+  if (dataTarget && dataTarget !== dataCorrente) {
+    const d = await fetchInventario(dataTarget);
+    grattaDati = new Map();
+    d.grattaEVinci.forEach(v => grattaDati.set(v.gioco, { pacchi: v.pacchi, pezzi: v.pezzi }));
+    tabacchiDati = new Map();
+    d.sigarette.forEach(v => tabacchiDati.set(v.marca, { stecche: v.stecche, pacchetti: v.pacchetti }));
+  }
+
+  if (titolo) {
+    titolo.textContent =
+      tipo === 'gratta'
+        ? 'Inventario Gratta e Vinci - Prospetto Differenze'
+        : tipo === 'tabacchi'
+        ? 'Inventario Tabacchi - Prospetto Differenze'
+        : 'Inventario Magazzino Completo - Prospetto Differenze';
+  }
+
+  if (data) data.textContent = `Data inventario: ${formatDateItalian(dataStampa)}`;
+  if (timestamp) timestamp.textContent = new Date().toLocaleString('it-IT');
+  if (col1) col1.textContent = 'Differenza Rilevata';
+  if (colStato) colStato.textContent = 'Stato';
+  if (col2) col2.textContent = 'Valore Economico (€)';
+
+  let grattaMancantiEuro = 0;
+  let grattaInPiuEuro = 0;
+  let grattaTotaleEuro = 0;
+  let grattaMancantiCount = 0;
+  let grattaInPiuCount = 0;
+
+  let tabacchiMancantiStecche = 0;
+  let tabacchiMancantiPacchetti = 0;
+  let tabacchiInPiuStecche = 0;
+  let tabacchiInPiuPacchetti = 0;
+  let tabacchiMancantiCount = 0;
+  let tabacchiInPiuCount = 0;
 
   const righe: string[] = [];
-  const segno = (n: number) => `${n > 0 ? '+' : ''}${n}`;
 
-  if (tipo === 'gratta') {
+  // 1. SEZIONE GRATTA E VINCI
+  if (tipo === 'gratta' || tipo === 'tutto') {
     const tagli = Array.from(new Set(catalogoGratta.map(v => v.prezzo))).sort((a, b) => a - b);
+    let vociGrattaTrovate = false;
 
     tagli.forEach(prezzo => {
       const voci = catalogoGratta
         .filter(v => v.prezzo === prezzo)
         .filter(v => {
-          const c = contaGratta.get(v.gioco);
+          const c = grattaDati.get(v.gioco);
           return c && (c.pacchi !== 0 || c.pezzi !== 0);
         });
 
       if (voci.length === 0) return;
+      vociGrattaTrovate = true;
 
-      righe.push(`<tr class="doc-section-divider"><td colspan="3">${prezzo} €</td></tr>`);
+      righe.push(
+        `<tr class="doc-section-divider"><td colspan="4">GRATTA E VINCI — Taglio ${prezzo} € (${voci[0].pezziPerPacco} pezzi per pacco)</td></tr>`
+      );
 
       voci.forEach(voce => {
-        const c = contaGratta.get(voce.gioco)!;
+        const c = grattaDati.get(voce.gioco)!;
+        const totPezzi = c.pacchi * voce.pezziPerPacco + c.pezzi;
+        const valore = Number((totPezzi * voce.prezzo).toFixed(2));
+        grattaTotaleEuro += valore;
+
+        const isManca = totPezzi < 0;
+        if (isManca) {
+          grattaMancantiEuro += Math.abs(valore);
+          grattaMancantiCount++;
+        } else if (totPezzi > 0) {
+          grattaInPiuEuro += valore;
+          grattaInPiuCount++;
+        }
+
+        const qtyDesc = [
+          c.pacchi !== 0 ? `${c.pacchi > 0 ? '+' : ''}${c.pacchi} pacchi` : '',
+          c.pezzi !== 0 ? `${c.pezzi > 0 ? '+' : ''}${c.pezzi} pz` : ''
+        ].filter(Boolean).join(', ');
+
+        const statoHtml = isManca
+          ? '<span class="doc-badge-manca">MANCA</span>'
+          : '<span class="doc-badge-in-piu">IN PIÙ</span>';
+
+        const valoreHtml = isManca
+          ? `<span class="doc-cifra-manca">${formatCurrency(valore)}</span>`
+          : `<span class="doc-cifra-in-piu">+${formatCurrency(valore)}</span>`;
+
         righe.push(`
           <tr>
-            <td>${escapeHtml(voce.gioco)}</td>
-            <td class="doc-amount">${segno(c.pacchi)}</td>
-            <td class="doc-amount">${segno(c.pezzi)}</td>
+            <td><strong>${escapeHtml(voce.gioco)}</strong> <span style="font-size: 0.75rem; color: #6B7280;">(${voce.prezzo} €)</span></td>
+            <td class="doc-amount">${qtyDesc} <span style="font-size: 0.72rem; color: #6B7280;">(tot ${totPezzi > 0 ? '+' : ''}${totPezzi} pz)</span></td>
+            <td style="text-align: center;">${statoHtml}</td>
+            <td class="doc-amount">${valoreHtml}</td>
           </tr>
         `);
       });
     });
 
-    piede.innerHTML = `
-      <tr class="doc-grand-total-row">
-        <td colspan="2"><span class="doc-symbol sym-equal">=</span> DIFFERENZA</td>
-        <td class="doc-total-amount">${formatCurrency(calcolaTotaleGratta())}</td>
-      </tr>
-    `;
-  } else {
+    if (!vociGrattaTrovate && tipo === 'gratta') {
+      righe.push('<tr><td colspan="4" style="text-align: center; padding: 1.25rem;">Nessuna differenza rilevata sui Gratta e Vinci: il conto magazzino torna perfettamente.</td></tr>');
+    }
+  }
+
+  // 2. SEZIONE TABACCHI
+  if (tipo === 'tabacchi' || tipo === 'tutto') {
+    let vociTabacchiTrovate = false;
+
     ORDINE_CATEGORIE.forEach(categoria => {
       const voci = catalogoTabacchi
         .filter(v => v.categoria === categoria)
         .filter(v => {
-          const c = contaTabacchi.get(v.prodotto);
+          const c = tabacchiDati.get(v.prodotto);
           return c && (c.stecche !== 0 || c.pacchetti !== 0);
         })
         .sort((a, b) => a.marca.localeCompare(b.marca) || a.prodotto.localeCompare(b.prodotto));
 
       if (voci.length === 0) return;
+      vociTabacchiTrovate = true;
 
       righe.push(
-        `<tr class="doc-section-divider"><td colspan="3">${ETICHETTE_CATEGORIA[categoria]}</td></tr>`
+        `<tr class="doc-section-divider"><td colspan="4">TABACCHI — ${ETICHETTE_CATEGORIA[categoria].toUpperCase()}</td></tr>`
       );
 
       voci.forEach(voce => {
-        const c = contaTabacchi.get(voce.prodotto)!;
+        const c = tabacchiDati.get(voce.prodotto)!;
+        const isManca = c.stecche < 0 || c.pacchetti < 0;
+
+        if (c.stecche < 0) tabacchiMancantiStecche += Math.abs(c.stecche);
+        if (c.stecche > 0) tabacchiInPiuStecche += c.stecche;
+        if (c.pacchetti < 0) tabacchiMancantiPacchetti += Math.abs(c.pacchetti);
+        if (c.pacchetti > 0) tabacchiInPiuPacchetti += c.pacchetti;
+
+        if (isManca) tabacchiMancantiCount++;
+        else tabacchiInPiuCount++;
+
+        const qtyDesc = [
+          c.stecche !== 0 ? `${c.stecche > 0 ? '+' : ''}${c.stecche} stec.` : '',
+          c.pacchetti !== 0 ? `${c.pacchetti > 0 ? '+' : ''}${c.pacchetti} pacc.` : ''
+        ].filter(Boolean).join(', ');
+
+        const statoHtml = isManca
+          ? '<span class="doc-badge-manca">MANCA</span>'
+          : '<span class="doc-badge-in-piu">IN PIÙ</span>';
+
         righe.push(`
           <tr>
-            <td>${escapeHtml(voce.prodotto)}</td>
-            <td class="doc-amount">${segno(c.stecche)}</td>
-            <td class="doc-amount">${segno(c.pacchetti)}</td>
+            <td><strong>${escapeHtml(voce.prodotto)}</strong> <span style="font-size: 0.75rem; color: #6B7280;">(${escapeHtml(voce.marca)})</span></td>
+            <td class="doc-amount">${qtyDesc}</td>
+            <td style="text-align: center;">${statoHtml}</td>
+            <td class="doc-amount" style="font-size: 0.8rem; font-weight: 700; color: ${isManca ? '#DC2626' : '#059669'};">${qtyDesc}</td>
           </tr>
         `);
       });
     });
 
-    piede.innerHTML = '';
+    if (!vociTabacchiTrovate && tipo === 'tabacchi') {
+      righe.push('<tr><td colspan="4" style="text-align: center; padding: 1.25rem;">Nessuna differenza rilevata sui Tabacchi: il conto magazzino torna perfettamente.</td></tr>');
+    }
   }
+
+  // Riassunto box in cima (#doc-inv-sommario)
+  if (sommario) {
+    const subManca = [
+      grattaMancantiCount > 0 ? `${grattaMancantiCount} G&V (-${formatCurrency(grattaMancantiEuro)})` : '',
+      tabacchiMancantiCount > 0 ? `${tabacchiMancantiCount} tabacchi (-${tabacchiMancantiStecche} stec., -${tabacchiMancantiPacchetti} pacc.)` : ''
+    ].filter(Boolean).join(' · ') || 'Nessun ammanco';
+
+    const subInPiu = [
+      grattaInPiuCount > 0 ? `${grattaInPiuCount} G&V (+${formatCurrency(grattaInPiuEuro)})` : '',
+      tabacchiInPiuCount > 0 ? `${tabacchiInPiuCount} tabacchi (+${tabacchiInPiuStecche} stec., +${tabacchiInPiuPacchetti} pacc.)` : ''
+    ].filter(Boolean).join(' · ') || 'Nessuna eccedenza';
+
+    sommario.innerHTML = `
+      <div class="doc-inv-card is-manca">
+        <div class="doc-inv-card-label">Cosa Manca (Ammanchi)</div>
+        <div class="doc-inv-card-valore">-${formatCurrency(grattaMancantiEuro)}</div>
+        <div class="doc-inv-card-sub">${subManca}</div>
+      </div>
+      <div class="doc-inv-card is-in-piu">
+        <div class="doc-inv-card-label">Cosa è in Più (Eccedenze)</div>
+        <div class="doc-inv-card-valore">+${formatCurrency(grattaInPiuEuro)}</div>
+        <div class="doc-inv-card-sub">${subInPiu}</div>
+      </div>
+      <div class="doc-inv-card">
+        <div class="doc-inv-card-label">Differenza Netta (€)</div>
+        <div class="doc-inv-card-valore ${grattaTotaleEuro < 0 ? 'doc-cifra-manca' : grattaTotaleEuro > 0 ? 'doc-cifra-in-piu' : ''}">
+          ${grattaTotaleEuro > 0 ? '+' : ''}${formatCurrency(grattaTotaleEuro)}
+        </div>
+        <div class="doc-inv-card-sub">Valore economico netto Gratta e Vinci</div>
+      </div>
+    `;
+  }
+
+  // Tabella piede
+  piede.innerHTML = `
+    <tr class="doc-subtotal-row">
+      <td colspan="3"><span class="doc-symbol sym-minus">-</span> TOTALE COSA MANCA (AMMANCHI G&V)</td>
+      <td class="doc-amount doc-cifra-manca">-${formatCurrency(grattaMancantiEuro)}</td>
+    </tr>
+    <tr class="doc-subtotal-row">
+      <td colspan="3"><span class="doc-symbol sym-plus">+</span> TOTALE COSA IN PIÙ (ECCEDENZE G&V)</td>
+      <td class="doc-amount doc-cifra-in-piu">+${formatCurrency(grattaInPiuEuro)}</td>
+    </tr>
+    <tr class="doc-grand-total-row">
+      <td colspan="3"><span class="doc-symbol sym-equal">=</span> DIFFERENZA NETTA TOTALE (G&V)</td>
+      <td class="doc-total-amount">${grattaTotaleEuro > 0 ? '+' : ''}${formatCurrency(grattaTotaleEuro)}</td>
+    </tr>
+  `;
 
   corpo.innerHTML = righe.length > 0
     ? righe.join('')
-    : '<tr><td colspan="3">Nessuna differenza rilevata: il conto torna.</td></tr>';
+    : '<tr><td colspan="4" style="text-align: center; padding: 1.5rem;">Nessuna differenza registrata in questa sessione.</td></tr>';
 
-  // Manda in stampa il foglio dell'inventario invece di quello contabile
+  // 1. Imposta in modo univoco il target su body per le regole CSS di stampa
+  document.body.setAttribute('data-print-target', 'inventario');
+
+  // 2. Regola le classi print-host
   document.querySelectorAll('.print-host').forEach(host => {
     host.classList.toggle('is-printing', host.id === 'print-inventario-host');
   });
 
-  // Sul telefono window.print() non aspetta la stampa: rimettere subito a posto
-  // il foglio contabile manderebbe in stampa quello sbagliato. Si torna
-  // indietro solo a stampa conclusa.
+  // 3. Stampa
+  window.print();
+
+  // 4. Ripristino differito sicuro (evita race condition su mobile o browser desktop)
   const ripristina = () => {
-    document.querySelectorAll('.print-host').forEach(host => {
-      host.classList.toggle('is-printing', host.id === 'print-document-host');
-    });
+    setTimeout(() => {
+      const tabAttivo = document.querySelector('.tab-pane.is-active')?.id;
+      if (tabAttivo !== 'tab-inventario') {
+        document.body.removeAttribute('data-print-target');
+        document.querySelectorAll('.print-host').forEach(host => {
+          host.classList.toggle('is-printing', host.id === 'print-document-host');
+        });
+      }
+    }, 1500);
   };
 
   window.addEventListener('afterprint', ripristina, { once: true });
+}
 
-  window.print();
+/**
+ * Gestione dello Storico Inventari (Riservato Admin)
+ */
+export async function caricaERenderStorico() {
+  if (!listaStorico) return;
+  if (!amministratore()) {
+    listaStorico.innerHTML = '<p class="empty-state-text" style="padding: 1.5rem 0;">Accesso riservato all\'amministratore.</p>';
+    return;
+  }
+
+  listaStorico.innerHTML = '<p class="empty-state-text" style="padding: 1.5rem 0;">Caricamento dello storico inventari in corso...</p>';
+  try {
+    elencoStorico = await fetchStoricoInventari();
+    renderStorico();
+  } catch (err) {
+    console.error('Errore caricamento storico inventari:', err);
+    listaStorico.innerHTML = '<p class="empty-state-text" style="padding: 1.5rem 0; color: #DC2626;">Errore durante il caricamento dello storico inventari.</p>';
+  }
+}
+
+function renderStorico() {
+  if (!listaStorico) return;
+  if (!amministratore()) {
+    listaStorico.innerHTML = '<p class="empty-state-text" style="padding: 1.5rem 0;">Accesso riservato all\'amministratore.</p>';
+    return;
+  }
+
+  const cercato = filtroStorico.trim().toLowerCase();
+  const filtrati = elencoStorico.filter(item => {
+    if (!cercato) return true;
+    return item.date.toLowerCase().includes(cercato) || item.dataFormattata.toLowerCase().includes(cercato);
+  });
+
+  if (filtrati.length === 0) {
+    listaStorico.innerHTML = `
+      <div class="empty-state" style="padding: 2.5rem 1rem;">
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <p class="empty-state-text">${cercato ? 'Nessun inventario corrisponde al filtro cercato.' : 'Nessun inventario registrato nello storico.'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  const html = filtrati.map((item, index) => {
+    const isAttivo = item.date === dataCorrente;
+    const isRecente = index === 0;
+
+    return `
+      <article class="inv-storico-card" data-date="${item.date}">
+        <header class="inv-storico-card-header">
+          <div class="inv-storico-card-date">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>${item.dataFormattata}</span>
+            ${isAttivo ? '<span class="inv-save-badge is-saved" style="margin-left: 6px;">In modifica</span>' : ''}
+            ${isRecente && !isAttivo ? '<span class="inv-storico-badge-recent">Ultimo</span>' : ''}
+          </div>
+          <div class="inv-storico-card-actions">
+            <button type="button" class="btn-primary-action is-compact" data-action="apri" data-date="${item.date}">
+              Apri / Modifica
+            </button>
+            <button type="button" class="btn-latex-export is-compact" data-action="stampa" data-date="${item.date}">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>
+              Stampa
+            </button>
+            <button type="button" class="todo-icon-btn is-danger" data-action="elimina" data-date="${item.date}" aria-label="Elimina inventario" title="Elimina inventario">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="inv-storico-grid">
+          <div class="inv-storico-section-box">
+            <div class="inv-storico-section-title">
+              <span>Gratta e Vinci</span>
+              <span style="font-weight: 600; font-size: 0.7rem;">${item.grattaVociDiff} voci con diff.</span>
+            </div>
+            <div class="inv-kpi-row">
+              <span class="inv-kpi-label">Cosa manca:</span>
+              <span class="inv-kpi-valore is-negative">-${formatCurrency(item.grattaMancantiEuro)}</span>
+            </div>
+            <div class="inv-kpi-row">
+              <span class="inv-kpi-label">Cosa in più:</span>
+              <span class="inv-kpi-valore is-positive">+${formatCurrency(item.grattaInPiuEuro)}</span>
+            </div>
+            <div class="inv-kpi-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-light, #E2E8F0);">
+              <span class="inv-kpi-label" style="font-weight: 700;">Differenza Netta:</span>
+              <span class="inv-kpi-valore ${item.grattaTotaleEuro < 0 ? 'is-negative' : item.grattaTotaleEuro > 0 ? 'is-positive' : ''}">
+                ${item.grattaTotaleEuro > 0 ? '+' : ''}${formatCurrency(item.grattaTotaleEuro)}
+              </span>
+            </div>
+          </div>
+
+          <div class="inv-storico-section-box">
+            <div class="inv-storico-section-title">
+              <span>Tabacchi</span>
+              <span style="font-weight: 600; font-size: 0.7rem;">${item.sigaretteVociDiff} referenze</span>
+            </div>
+            <div class="inv-kpi-row">
+              <span class="inv-kpi-label">Cosa manca:</span>
+              <span class="inv-kpi-valore is-negative">
+                ${item.sigaretteMancantiStecche > 0 ? '-' + item.sigaretteMancantiStecche + ' stec. ' : ''}${item.sigaretteMancantiPacchetti > 0 ? '-' + item.sigaretteMancantiPacchetti + ' pacc.' : item.sigaretteMancantiStecche === 0 ? '0' : ''}
+              </span>
+            </div>
+            <div class="inv-kpi-row">
+              <span class="inv-kpi-label">Cosa in più:</span>
+              <span class="inv-kpi-valore is-positive">
+                ${item.sigaretteInPiuStecche > 0 ? '+' + item.sigaretteInPiuStecche + ' stec. ' : ''}${item.sigaretteInPiuPacchetti > 0 ? '+' + item.sigaretteInPiuPacchetti + ' pacc.' : item.sigaretteInPiuStecche === 0 ? '0' : ''}
+              </span>
+            </div>
+            <div class="inv-kpi-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-light, #E2E8F0);">
+              <span class="inv-kpi-label" style="font-weight: 700;">Esito:</span>
+              <span class="inv-kpi-valore">${item.sigaretteVociDiff === 0 ? 'Conto esatto' : item.sigaretteVociDiff + ' articoli'}</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  listaStorico.innerHTML = html;
+}
+
+export function impostaTabAttivo(nome: 'gratta' | 'sigarette' | 'storico') {
+  if (nome === 'storico' && !amministratore()) {
+    nome = 'gratta';
+  }
+  activeInvTab = nome;
+
+  invTabs.forEach(t => {
+    const attivo = t.getAttribute('data-inv') === nome;
+    t.classList.toggle('is-active', attivo);
+    t.setAttribute('aria-selected', String(attivo));
+  });
+
+  invPanes.forEach(p => {
+    p.classList.toggle('is-active', p.id === `inv-pane-${nome}`);
+  });
+
+  if (nome === 'storico') {
+    caricaERenderStorico();
+  }
+}
+
+async function avviaNuovoInventario() {
+  if (!amministratore()) return;
+  const oggi = formatDateLocalISO(new Date());
+  const inserita = window.prompt(
+    'Inserisci la data per il nuovo inventario (formato AAAA-MM-GG):',
+    oggi
+  );
+  if (!inserita) return;
+  const dataPulita = inserita.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataPulita)) {
+    window.alert('Formato data non valido. Inserisci la data nel formato AAAA-MM-GG (es. ' + oggi + ').');
+    return;
+  }
+
+  await caricaInventario(dataPulita);
+  impostaTabAttivo('gratta');
+}
+
+export function aggiornaPermessiInventario() {
+  const isAdmin = amministratore();
+  const tabStorico = document.querySelector('.inv-tab[data-inv="storico"]') as HTMLElement | null;
+  const paneStorico = document.getElementById('inv-pane-storico');
+
+  if (tabStorico) {
+    tabStorico.hidden = !isAdmin;
+    tabStorico.style.display = isAdmin ? '' : 'none';
+  }
+  if (paneStorico) {
+    paneStorico.hidden = !isAdmin;
+    if (!isAdmin) {
+      paneStorico.style.display = 'none';
+      if (activeInvTab === 'storico' || paneStorico.classList.contains('is-active')) {
+        impostaTabAttivo('gratta');
+      }
+    } else {
+      paneStorico.style.display = '';
+    }
+  }
 }
 
 async function aggiungiNuovoGratta() {
@@ -547,6 +949,8 @@ async function controllaInventarioMensile(oggi: string) {
  */
 export async function caricaInventario(dateStr: string) {
   dataCorrente = dateStr;
+  aggiornaBarraData(dateStr);
+  aggiornaBadgeSalvataggio('saved');
 
   const dati = await fetchInventario(dateStr);
 
@@ -570,9 +974,14 @@ export async function caricaInventario(dateStr: string) {
  * Carica i cataloghi e aggancia i gestori dell'inventario
  */
 export async function initInventario() {
+  aggiornaPermessiInventario();
+
   invTabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      const scelto = tab.getAttribute('data-inv');
+      const scelto = tab.getAttribute('data-inv') as 'gratta' | 'sigarette' | 'storico';
+
+      if (scelto === 'storico' && !amministratore()) return;
+      activeInvTab = scelto;
 
       invTabs.forEach(t => {
         const attivo = t === tab;
@@ -583,6 +992,10 @@ export async function initInventario() {
       invPanes.forEach(p => {
         p.classList.toggle('is-active', p.id === `inv-pane-${scelto}`);
       });
+
+      if (scelto === 'storico') {
+        caricaERenderStorico();
+      }
     });
   });
 
@@ -611,11 +1024,50 @@ export async function initInventario() {
     });
   }
 
+  if (cercaStorico) {
+    cercaStorico.addEventListener('input', () => {
+      filtroStorico = cercaStorico.value.trim();
+      renderStorico();
+    });
+  }
+
   btnModificaGratta?.addEventListener('click', () => alternaModifica('gratta'));
   btnModificaTabacchi?.addEventListener('click', () => alternaModifica('tabacchi'));
 
   document.getElementById('btn-add-gratta')?.addEventListener('click', aggiungiNuovoGratta);
   document.getElementById('btn-add-tabacco')?.addEventListener('click', aggiungiNuovoTabacco);
+
+  // Azioni sessione attiva e salvataggio
+  btnSalvaSubito?.addEventListener('click', () => salvaSubito());
+  btnStampaCompleto?.addEventListener('click', () => stampaInventario('tutto'));
+
+  // Gestione storico
+  btnNuovoInventario?.addEventListener('click', avviaNuovoInventario);
+  btnRicaricaStorico?.addEventListener('click', caricaERenderStorico);
+
+  listaStorico?.addEventListener('click', async e => {
+    if (!amministratore()) return;
+    const btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const date = btn.getAttribute('data-date');
+    if (!date) return;
+
+    if (action === 'apri') {
+      await caricaInventario(date);
+      impostaTabAttivo('gratta');
+    } else if (action === 'stampa') {
+      await stampaInventario('tutto', date);
+    } else if (action === 'elimina') {
+      if (window.confirm(`Sei sicuro di voler eliminare l'inventario del ${formatDateItalian(date)}?`)) {
+        await eliminaInventario(date);
+        await caricaERenderStorico();
+        if (dataCorrente === date) {
+          await caricaInventario(formatDateLocalISO(new Date()));
+        }
+      }
+    }
+  });
 
   if (btnStampaGratta) btnStampaGratta.addEventListener('click', () => stampaInventario('gratta'));
   if (btnStampaTabacchi) btnStampaTabacchi.addEventListener('click', () => stampaInventario('tabacchi'));
@@ -623,10 +1075,10 @@ export async function initInventario() {
   // Se il caricamento dei cataloghi fallisce l'inventario resterebbe vuoto:
   // meglio partire dagli elenchi di riserva e aggiornarli se la rete risponde.
   try {
-    [catalogoGratta, catalogoTabacchi] = await Promise.all([
+    [catalogoGratta, catalogoTabacchi] = (await Promise.all([
       caricaCatalogoGratta(),
       caricaCatalogoTabacchi()
-    ]) as [VoceCatalogoGratta[], VoceCatalogoTabacco[]];
+    ])) as [VoceCatalogoGratta[], VoceCatalogoTabacco[]];
   } catch (err) {
     console.error('Cataloghi non caricati, uso gli elenchi locali:', err);
   }

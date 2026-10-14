@@ -1,5 +1,8 @@
-import { GrattaEVinciConta, InventarioGiornata, SigaretteConta } from '../types';
+import { GrattaEVinciConta, InventarioGiornata, InventarioSintesi, SigaretteConta } from '../types';
+import { CATALOGO_GRATTA_E_VINCI } from '../data/grattaEVinci';
+import { formatDateItalian } from '../utils/calculations';
 import { isSupabaseConfigured, supabase } from './supabase';
+import { amministratore } from './auth';
 
 const LOCAL_STORAGE_KEY = 'tabaccheria_inventario_v1';
 
@@ -161,4 +164,194 @@ export async function salvaInventario(
   }
 
   return 'local';
+}
+
+function pezziPerPaccoPredefiniti(prezzo: number, gioco: string): number {
+  const perGioco = CATALOGO_GRATTA_E_VINCI.find(g => g.giochi.includes(gioco));
+  if (perGioco) return perGioco.pezziPerPacco;
+  const perPrezzo = CATALOGO_GRATTA_E_VINCI.find(g => g.prezzo === prezzo);
+  if (perPrezzo) return perPrezzo.pezziPerPacco;
+  return prezzo <= 1 ? 150 : prezzo === 2 ? 75 : prezzo === 3 ? 50 : prezzo === 5 ? 60 : prezzo === 10 ? 30 : prezzo === 20 ? 15 : prezzo === 25 ? 12 : 10;
+}
+
+/**
+ * Recupera l'elenco completo di tutti gli inventari registrati (da Supabase e LocalStorage),
+ * con calcolo sintetico delle discrepanze (mancanti vs in più, sia in euro che in pezzi).
+ */
+export async function fetchStoricoInventari(): Promise<InventarioSintesi[]> {
+  // Lo storico degli inventari è riservato esclusivamente all'amministratore
+  if (!amministratore()) {
+    console.warn('Accesso negato: solo l\'amministratore può consultare lo storico inventari.');
+    return [];
+  }
+
+  const mappaLocale = getLocale();
+  const dateMap = new Map<
+    string,
+    {
+      grattaEVinci: GrattaEVinciConta[];
+      sigarette: SigaretteConta[];
+      updatedAt?: string;
+    }
+  >();
+
+  // 1. Dati in LocalStorage
+  Object.entries(mappaLocale).forEach(([d, inv]) => {
+    if (inv && (inv.grattaEVinci?.length > 0 || inv.sigarette?.length > 0)) {
+      dateMap.set(d, {
+        grattaEVinci: [...(inv.grattaEVinci || [])],
+        sigarette: [...(inv.sigarette || [])],
+        updatedAt: undefined
+      });
+    }
+  });
+
+  // 2. Dati da Supabase (se configurato)
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const [gevRes, sigRes] = await Promise.all([
+        supabase.from('inventario_gratta_e_vinci').select('*').order('date', { ascending: false }),
+        supabase.from('inventario_sigarette').select('*').order('date', { ascending: false })
+      ]);
+
+      if (!gevRes.error && gevRes.data) {
+        gevRes.data.forEach((r: any) => {
+          const d = r.date;
+          if (!d) return;
+          if (!dateMap.has(d)) {
+            dateMap.set(d, { grattaEVinci: [], sigarette: [], updatedAt: r.updated_at });
+          }
+          const entry = dateMap.get(d)!;
+          const idx = entry.grattaEVinci.findIndex(x => x.gioco === r.gioco);
+          const voce: GrattaEVinciConta = {
+            gioco: r.gioco,
+            prezzo: Number(r.prezzo) || 0,
+            pacchi: Number(r.pacchi) || 0,
+            pezzi: Number(r.pezzi) || 0
+          };
+          if (idx >= 0) entry.grattaEVinci[idx] = voce;
+          else entry.grattaEVinci.push(voce);
+
+          if (r.updated_at && (!entry.updatedAt || r.updated_at > entry.updatedAt)) {
+            entry.updatedAt = r.updated_at;
+          }
+        });
+      }
+
+      if (!sigRes.error && sigRes.data) {
+        sigRes.data.forEach((r: any) => {
+          const d = r.date;
+          if (!d) return;
+          if (!dateMap.has(d)) {
+            dateMap.set(d, { grattaEVinci: [], sigarette: [], updatedAt: r.updated_at });
+          }
+          const entry = dateMap.get(d)!;
+          const idx = entry.sigarette.findIndex(x => x.marca === r.marca);
+          const voce: SigaretteConta = {
+            marca: r.marca,
+            stecche: Number(r.stecche) || 0,
+            pacchetti: Number(r.pacchetti) || 0
+          };
+          if (idx >= 0) entry.sigarette[idx] = voce;
+          else entry.sigarette.push(voce);
+
+          if (r.updated_at && (!entry.updatedAt || r.updated_at > entry.updatedAt)) {
+            entry.updatedAt = r.updated_at;
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Errore lettura storico inventari da Supabase:', err);
+    }
+  }
+
+  // Costruisci le sintesi per ciascuna data registrata
+  const dateSorted = Array.from(dateMap.keys()).sort().reverse();
+  const sintesi: InventarioSintesi[] = [];
+
+  for (const d of dateSorted) {
+    const entry = dateMap.get(d)!;
+
+    let grattaTotaleEuro = 0;
+    let grattaMancantiEuro = 0;
+    let grattaInPiuEuro = 0;
+    let grattaVociDiff = 0;
+
+    entry.grattaEVinci.forEach(g => {
+      if (g.pacchi !== 0 || g.pezzi !== 0) {
+        grattaVociDiff++;
+        const ppp = pezziPerPaccoPredefiniti(g.prezzo, g.gioco);
+        const pezziTotali = g.pacchi * ppp + g.pezzi;
+        const valoreEuro = Number((pezziTotali * g.prezzo).toFixed(2));
+        grattaTotaleEuro += valoreEuro;
+        if (valoreEuro < 0) grattaMancantiEuro += valoreEuro;
+        else if (valoreEuro > 0) grattaInPiuEuro += valoreEuro;
+      }
+    });
+
+    let sigaretteMancantiStecche = 0;
+    let sigaretteMancantiPacchetti = 0;
+    let sigaretteInPiuStecche = 0;
+    let sigaretteInPiuPacchetti = 0;
+    let sigaretteVociDiff = 0;
+
+    entry.sigarette.forEach(s => {
+      if (s.stecche !== 0 || s.pacchetti !== 0) {
+        sigaretteVociDiff++;
+        if (s.stecche < 0) sigaretteMancantiStecche += Math.abs(s.stecche);
+        if (s.stecche > 0) sigaretteInPiuStecche += s.stecche;
+        if (s.pacchetti < 0) sigaretteMancantiPacchetti += Math.abs(s.pacchetti);
+        if (s.pacchetti > 0) sigaretteInPiuPacchetti += s.pacchetti;
+      }
+    });
+
+    sintesi.push({
+      date: d,
+      dataFormattata: formatDateItalian(d),
+      grattaEVinci: entry.grattaEVinci,
+      sigarette: entry.sigarette,
+      grattaTotaleEuro: Number(grattaTotaleEuro.toFixed(2)),
+      grattaMancantiEuro: Number(grattaMancantiEuro.toFixed(2)),
+      grattaInPiuEuro: Number(grattaInPiuEuro.toFixed(2)),
+      grattaVociDiff,
+      sigaretteMancantiStecche,
+      sigaretteMancantiPacchetti,
+      sigaretteInPiuStecche,
+      sigaretteInPiuPacchetti,
+      sigaretteVociDiff,
+      conteggioTotaleVoci: grattaVociDiff + sigaretteVociDiff,
+      updatedAt: entry.updatedAt
+    });
+  }
+
+  return sintesi;
+}
+
+/**
+ * Elimina completamente un inventario (da LocalStorage e Supabase)
+ */
+export async function eliminaInventario(dateStr: string): Promise<boolean> {
+  // L'eliminazione degli inventari è riservata esclusivamente all'amministratore
+  if (!amministratore()) {
+    console.warn('Accesso negato: solo l\'amministratore può eliminare inventari.');
+    return false;
+  }
+
+  const mappa = getLocale();
+  delete mappa[dateStr];
+  salvaLocale(mappa);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await Promise.all([
+        supabase.from('inventario_gratta_e_vinci').delete().eq('date', dateStr),
+        supabase.from('inventario_sigarette').delete().eq('date', dateStr)
+      ]);
+    } catch (err) {
+      console.error('Errore eliminazione inventario da Supabase:', err);
+      return false;
+    }
+  }
+
+  return true;
 }

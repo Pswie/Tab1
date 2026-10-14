@@ -30,7 +30,7 @@ import {
   modificaTesto,
   svuotaCompletate
 } from './services/attivita';
-import { caricaInventario, initInventario } from './ui/inventarioUI';
+import { aggiornaPermessiInventario, caricaInventario, initInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { caricaDashboard, initDashboard } from './ui/dashboardUI';
 import { caricaRubrica, initRubrica } from './ui/rubricaUI';
@@ -1444,6 +1444,13 @@ function setupEventListeners() {
 
     aggiornaPaginaAdmin?.(targetTabId);
 
+    if (targetTabId === 'tab-inventario') {
+      document.body.setAttribute('data-print-target', 'inventario');
+      aggiornaPermessiInventario();
+    } else {
+      document.body.setAttribute('data-print-target', 'conto');
+    }
+
     if (targetTabId === 'tab-todos') apriSchedaTodo();
     // I turni li scrive qualcun altro: a ogni apertura si rilegge la settimana
     if (targetTabId === 'tab-turni') caricaTurni();
@@ -1567,6 +1574,10 @@ function setupEventListeners() {
     btnPrintDocument.addEventListener('click', (e) => {
       e.preventDefault();
       try {
+        document.body.setAttribute('data-print-target', 'conto');
+        document.querySelectorAll('.print-host').forEach(host => {
+          host.classList.toggle('is-printing', host.id === 'print-document-host');
+        });
         fillPrintDocument();
         if (typeof window.print === 'function') {
           window.print();
@@ -1724,6 +1735,7 @@ async function initApp() {
     const { initPermessiUtenti } = await import('./ui/permessiUtentiUI');
     initPermessiUtenti();
   }
+  aggiornaPermessiInventario();
 
   // I distributori sono roba di chi amministra: a un dipendente non deve
   // nemmeno accendersi il pallino di una scheda che non può aprire

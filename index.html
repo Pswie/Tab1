@@ -1432,14 +1432,35 @@
 
     <!-- TAB 2: INVENTARIO -->
     <div id="tab-inventario" class="tab-pane">
-      <!-- Si registrano le differenze del conteggio: negativo se manca,
-           positivo se si trova merce in più. -->
+      <!-- Barra di stato della sessione attiva -->
+      <div class="inv-active-date-bar">
+        <div class="inv-active-date-info">
+          <span class="inv-date-label">Sessione:</span>
+          <span id="inv-active-date-text" class="inv-date-value">--</span>
+          <span id="inv-save-badge" class="inv-save-badge is-saved">Salvato</span>
+        </div>
+        <div class="inv-date-actions">
+          <button type="button" id="btn-salva-inventario-subito" class="btn-primary-action is-compact" title="Salva subito conteggio">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Salva Ora</span>
+          </button>
+          <button type="button" id="btn-stampa-inventario-completo" class="btn-secondary-action is-compact" title="Stampa inventario completo">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>
+            <span>Stampa Tutto</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Selettore schede inventario: Gratta e Vinci, Sigarette e Storico (riservato Admin) -->
       <div class="inv-selector" role="tablist" aria-label="Tipo di inventario">
         <button type="button" class="inv-tab is-active" data-inv="gratta" role="tab" aria-selected="true">
           Gratta e Vinci
         </button>
         <button type="button" class="inv-tab" data-inv="sigarette" role="tab" aria-selected="false">
           Sigarette
+        </button>
+        <button type="button" class="inv-tab solo-admin" data-inv="storico" role="tab" aria-selected="false" hidden>
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px; vertical-align: -2px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Storico Inventari
         </button>
       </div>
 
@@ -1527,6 +1548,41 @@
         </div>
 
         <div id="inv-sigarette-lista" class="inv-lista"></div>
+      </section>
+
+      <!-- STORICO INVENTARI (RISERVATO ADMIN) -->
+      <section class="card-section inv-pane solo-admin" id="inv-pane-storico" hidden>
+        <div class="section-header">
+          <div class="section-title">
+            <span>Storico Inventari Registrati</span>
+          </div>
+          <div class="inv-storico-top-actions">
+            <button type="button" id="btn-nuovo-inventario" class="btn-primary-action is-compact">
+              + Nuovo Inventario
+            </button>
+          </div>
+        </div>
+
+        <p class="inv-hint">
+          Archivio inventari riservato all'amministrazione: consulta gli inventari passati, riaprili per modifiche o stampane il resoconto completo.
+        </p>
+
+        <div class="inv-toolbar">
+          <input
+            type="search"
+            id="inv-storico-cerca"
+            class="todo-add-input"
+            placeholder="Cerca per data o mese..."
+            autocomplete="off"
+          />
+          <button type="button" id="btn-ricarica-storico-inv" class="btn-secondary-action">
+            Aggiorna
+          </button>
+        </div>
+
+        <div id="inv-storico-lista" class="inv-storico-lista" aria-live="polite">
+          <!-- Popolato dinamicamente -->
+        </div>
       </section>
     </div>
 
@@ -1996,22 +2052,30 @@
     <div class="print-document-sheet">
       <div class="doc-header">
         <h1 class="doc-brand-title">TABACCHERIA</h1>
-        <h2 class="doc-sub-title" id="doc-inv-titolo">Inventario</h2>
+        <h2 class="doc-sub-title" id="doc-inv-titolo">Riepilogo Differenze Inventario</h2>
         <p id="doc-inv-data" class="doc-date-text">Data: --</p>
         <div class="doc-header-line"></div>
       </div>
 
-      <table class="doc-table">
+      <!-- Box riassuntivi in cima: Cosa manca, Cosa in più, Saldo netto -->
+      <div id="doc-inv-sommario" class="doc-inv-sommario"></div>
+
+      <table class="doc-table doc-inv-table">
         <thead>
           <tr>
-            <th>Articolo</th>
-            <th class="doc-col-amount" id="doc-inv-col1">Pacchi</th>
-            <th class="doc-col-amount" id="doc-inv-col2">Pezzi</th>
+            <th style="width: 44%;">Articolo</th>
+            <th class="doc-col-amount" style="width: 22%; text-align: right;" id="doc-inv-col1">Differenza</th>
+            <th style="width: 14%; text-align: center;" id="doc-inv-col-stato">Stato</th>
+            <th class="doc-col-amount" style="width: 20%; text-align: right;" id="doc-inv-col2">Valore (&euro;)</th>
           </tr>
         </thead>
         <tbody id="doc-inv-corpo"></tbody>
         <tfoot id="doc-inv-piede"></tfoot>
       </table>
+
+      <div class="doc-inv-timestamp-footer">
+        Documento generato dall'app Tabaccheria il <span id="doc-inv-timestamp">--</span>
+      </div>
     </div>
   </div>
 
