@@ -30,7 +30,7 @@ import {
   modificaTesto,
   svuotaCompletate
 } from './services/attivita';
-import { caricaInventario, initInventario } from './ui/inventarioUI';
+import { caricaInventario, initInventario, aggiornaVisibilitaAdminInventario } from './ui/inventarioUI';
 import { caricaSoggiorni, initSoggiorno } from './ui/soggiornoUI';
 import { caricaDashboard, initDashboard } from './ui/dashboardUI';
 import { caricaRubrica, initRubrica } from './ui/rubricaUI';
@@ -1458,6 +1458,17 @@ function setupEventListeners() {
     if (targetTabId === 'tab-h24-dashboard') caricaDashboardH24();
     if (targetTabId === 'tab-h24-prodotti') caricaProdottiH24();
     if (targetTabId === 'tab-h24-incassi') caricaIncassiH24();
+    if (targetTabId === 'tab-inventario') {
+      aggiornaVisibilitaAdminInventario();
+      document.querySelectorAll('.print-host').forEach(host => {
+        host.classList.toggle('is-printing', host.id === 'print-inventario-host');
+      });
+    }
+    if (targetTabId === 'tab-incassi') {
+      document.querySelectorAll('.print-host').forEach(host => {
+        host.classList.toggle('is-printing', host.id === 'print-document-host');
+      });
+    }
   }
 
   schedaDaAprire = apriScheda;
@@ -1579,6 +1590,14 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Assicura che la stampa da scorciatoia (Ctrl+P / Menu browser) stampi il foglio corretto
+  window.addEventListener('beforeprint', () => {
+    const invAttivo = document.querySelector('.tab-pane.active')?.id === 'tab-inventario';
+    document.querySelectorAll('.print-host').forEach(host => {
+      host.classList.toggle('is-printing', host.id === (invAttivo ? 'print-inventario-host' : 'print-document-host'));
+    });
+  });
 }
 
 /**

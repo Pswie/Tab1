@@ -23,6 +23,8 @@ export interface InventarioGiornata {
   date: string;
   grattaEVinci: GrattaEVinciConta[];
   sigarette: SigaretteConta[];
+  updatedAt?: string;
+  salvatoDa?: string;
 }
 
 /** Filtro attivo nella lista delle attività */
